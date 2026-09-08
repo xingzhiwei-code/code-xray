@@ -15,7 +15,7 @@
 | next_task | 用户执行 3 分钟无指导试用（scan→explain→learn）→ E016 → T010 done |
 | session_owner | 20260908-143500-claude |
 | repo_path | /Users/01443732/Documents/Codex/2026-09-08/referenced-chatgpt-conversation-this-is-an/outputs/code-xray |
-| git_branch / head | main / 首次提交（本 r12 checkpoint 的内容；SHA 见 git log，远端 origin=github.com/xingzhiwei-code/code-xray） |
+| git_branch / head | main / 9a38288302bd562a734e63474694cdacb1b0586b（已推送 origin=github.com/xingzhiwei-code/code-xray，工作树清洁） |
 | worktree_state | 首次提交后应清洁；node_modules/dist/.idea/.DS_Store 已由 .gitignore 排除 |
 | last_product_verification | E015：75/75 测试（含 SNAPSHOT_CHANGED 故障注入）+ 全套验证绿 + 首次提交推送（2026-09-08T17:40+08:00） |
 | package_evidence | E005—E015 产品证据链完整（…→发布映射+独立检查→故障注入+首次提交）；E001—E004 文档 |

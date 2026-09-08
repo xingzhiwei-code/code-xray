@@ -242,13 +242,13 @@
 - claim：SNAPSHOT_CHANGED 检测路径经确定性故障注入验证（不再仅靠代码审查）；用户授权后将 v0.1 快照首次提交并推送至 github.com/xingzhiwei-code/code-xray。
 - task：T010（遗留项收敛 + 发布操作）；acceptance：AC02（快照一致性/覆盖可见）、AC12（发布操作授权执行）。
 - operator：20260908-143500-claude；授权：用户本轮明确指示"提交到 https://github.com/xingzhiwei-code/code-xray"。
-- subject_snapshot：tests/snapshot-change.test.ts（新增 2 用例）；.gitignore（+.idea/）；本 checkpoint 提交时 base_commit 仍为 not_initialized，提交后 SHA 见 git log。
+- subject_snapshot：tests/snapshot-change.test.ts（新增 2 用例）；.gitignore（+.idea/）；首次提交 9a38288（89 文件、10582 行插入）包含全部实现/文档/状态；提交前隐私抽查确认暂存内容无真实密钥（仅 hasSecret 检测正则与 fixture 假凭据字面量）、排除项（node_modules/dist/.idea/.DS_Store/*.tgz/.xray/artifacts/tmp）全部生效。
 - environment：macOS、Node v22.14.0、vitest 5.0.0、git 2.39.5、gh CLI（github.com 账号 xingzhiwei-code）。
 - invocation：`npx vitest run`（75/75）；`npm run check`（0 错误）；`npm run build`；`npx tsx evals/run.ts`（exit 0）；`git add -A && git commit`；`git remote add origin … && git push -u origin main`。
 - expected：故障注入用例证明——文件在读取中变化时：该文件被拒绝并产生可见 SNAPSHOT_CHANGED reason（message 含"重新扫描"）、扫描继续（其余文件正常）、半旧半新内容绝不进入快照（断言 both contents absent）、磁盘保留新内容（证明故障真实触发）；未武装时基线扫描不受影响。提交内容排除 node_modules/dist/.idea/.DS_Store/个人数据；推送成功。
-- actual：故障注入前先用独立 tsx 脚本诊断，发现真实契约优于原预期（单文件 mid-read 变化降级为可见 reason 而非取消整次扫描；报告因 GAP_CODES 含 SNAPSHOT_CHANGED 转 partial）——测试改为断言该契约，全部通过。提交与推送结果见 git log / 远端 main。
-- exit_code：vitest=0（75/75）、check=0、eval=0；commit/push 结果以 git 命令输出为准（见执行记录）。
-- result：passed（测试范围）；提交推送结果由后续命令实测回填本条 actual。
+- actual：故障注入前先用独立 tsx 脚本诊断，发现真实契约优于原预期（单文件 mid-read 变化降级为可见 reason 而非取消整次扫描；报告因 GAP_CODES 含 SNAPSHOT_CHANGED 转 partial）——测试改为断言该契约，全部通过。提交与推送实测：commit 9a38288302bd562a734e63474694cdacb1b0586b（89 文件、10582 行），git push -u origin main 成功创建远端 main 分支，工作树清洁。
+- exit_code：vitest=0（75/75）、check=0、eval=0、commit=0、push=0。
+- result：passed。
 - artifacts：无独立文件。
 - limitations：故障注入覆盖 readFile 期间变化的检测路径；open 前/realpath 竞态窗口仍属代码审查范围；AC12 用户试用仍未执行（Human Gate 保留）。
 - review_mode：self-separated；checker：20260908-143500-claude。
