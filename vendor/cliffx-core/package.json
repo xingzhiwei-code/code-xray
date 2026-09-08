@@ -1,0 +1,43 @@
+{
+  "name": "@cliffx/core",
+  "version": "0.0.1",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "dev": "tsup src/index.ts --format esm --dts --watch",
+    "build": "tsup src/index.ts --format esm --dts --clean",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@cliffx/ui": "file:../cliffx-ui"
+  },
+  "devDependencies": {
+    "tsup": "^8.3.0"
+  },
+  "description": "Command system, parser, help, config, shell completion for CLI tools",
+  "license": "MIT",
+  "keywords": [
+    "cli",
+    "parser",
+    "shell-completion",
+    "typescript"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/xingzhiwei-code/cliff.git"
+  },
+  "homepage": "https://xingzhiwei-code.github.io/cliff/",
+  "publishConfig": {
+    "access": "public"
+  }
+}

@@ -1,0 +1,225 @@
+import { mkdtempSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { describe, expect, it } from 'vitest';
+import { analyze } from '../packages/engine/index.js';
+import type { AnalysisReport, Finding } from '../packages/protocol/index.js';
+import { LocalStore } from '../packages/storage-local/index.js';
+import {
+  applyEvent, debtSummary, emptyLearningState, learningCard, syncBindings,
+  type LearningBinding, type LearningState,
+} from '../packages/learning/engine.js';
+
+const FIXTURE = 'fixtures/java-spring-jpa';
+const AT = '2026-09-08T16:20:00.000Z';
+
+// Reports are engine output — the real thing, not crafted samples.
+async function fixtureReport(): Promise<AnalysisReport> {
+  return analyze({ path: FIXTURE });
+}
+
+function firstBindingFor(state: LearningState, conceptId: string): LearningBinding {
+  const binding = Object.values(state.bindings).find(b => b.conceptId === conceptId);
+  expect(binding).toBeDefined();
+  return binding!;
+}
+
+describe('T008 AC05/AC06: binding lifecycle', () => {
+  it('creates one unassessed binding per finding and never duplicates on rescan', async () => {
+    const report = await fixtureReport();
+    const first = syncBindings(emptyLearningState(), report);
+    expect(Object.keys(first.state.bindings)).toHaveLength(report.findings.length);
+    for (const binding of Object.values(first.state.bindings)) {
+      expect(binding.status).toBe('unassessed');
+      expect(binding.impact).toBe('medium');
+      expect(binding.association).toBe('direct');
+      expect(binding.verifications).toHaveLength(0);
+    }
+    const second = syncBindings(first.state, report);
+    expect(Object.keys(second.state.bindings)).toHaveLength(report.findings.length);
+    expect(second.changed).toHaveLength(0);
+    // Binding ids are stable across scans for the same concept+symbol.
+    expect(Object.keys(second.state.bindings)).toEqual(Object.keys(first.state.bindings));
+  });
+
+  it('marks a binding stale (previous status preserved) when its code changes', async () => {
+    const report = await fixtureReport();
+    const base = syncBindings(emptyLearningState(), report);
+    const binding = firstBindingFor(base.state, 'spring.transaction-proxy');
+    const advanced = applyEvent(base.state, { type: 'set-status', bindingId: binding.id, status: 'learning' }, AT).state;
+    // Simulate a code change: same symbol, different evidence digests.
+    const changedReport: AnalysisReport = {
+      ...report,
+      evidence: report.evidence.map(e => binding.evidenceIds.includes(e.id) ? { ...e, digest: 'changed-digest' } : e),
+    };
+    const after = syncBindings(advanced, changedReport);
+    const stale = after.state.bindings[binding.id];
+    expect(after.changed.some(b => b.id === binding.id)).toBe(true);
+    expect(stale.status).toBe('stale');
+    expect(stale.previousStatus).toBe('learning');
+    expect(stale.staleReason).toContain('代码已变化');
+  });
+
+  it('marks bindings stale when their finding disappears from a later scan', async () => {
+    const report = await fixtureReport();
+    const base = syncBindings(emptyLearningState(), report);
+    const binding = firstBindingFor(base.state, 'jpa.query-amplification');
+    // A report where that finding no longer exists (e.g. narrower scope).
+    const shrunk: AnalysisReport = { ...report, findings: report.findings.filter(f => f.id !== binding.findingId) };
+    const after = syncBindings(base.state, shrunk);
+    expect(after.state.bindings[binding.id].status).toBe('stale');
+    expect(after.state.bindings[binding.id].staleReason).toContain('未再出现');
+    expect(after.state.bindings[binding.id].association).toBe('inferred');
+  });
+
+  it('ignored bindings never flow back, even after code changes', async () => {
+    const report = await fixtureReport();
+    const base = syncBindings(emptyLearningState(), report);
+    const binding = firstBindingFor(base.state, 'jpa.entity-boundary');
+    const ignored = applyEvent(base.state, { type: 'ignore', bindingId: binding.id, reason: 'not-relevant' }, AT).state;
+    const changedReport: AnalysisReport = {
+      ...report,
+      evidence: report.evidence.map(e => binding.evidenceIds.includes(e.id) ? { ...e, digest: 'changed-digest' } : e),
+    };
+    const after = syncBindings(ignored, changedReport);
+    expect(after.state.bindings[binding.id].status).toBe('ignored');
+    expect(after.changed.some(b => b.id === binding.id)).toBe(false);
+  });
+});
+
+describe('T008 AC05: learning events', () => {
+  it('viewing a card increments views but never the status', async () => {
+    const report = await fixtureReport();
+    const base = syncBindings(emptyLearningState(), report);
+    const binding = firstBindingFor(base.state, 'spring.transaction-proxy');
+    const after = applyEvent(base.state, { type: 'view', bindingId: binding.id }, AT);
+    expect(after.binding.views).toBe(1);
+    expect(after.binding.status).toBe('unassessed');
+  });
+
+  it('a correct deterministic answer verifies; a wrong one records the failure without advancing', async () => {
+    const report = await fixtureReport();
+    const base = syncBindings(emptyLearningState(), report);
+    const binding = firstBindingFor(base.state, 'spring.transaction-proxy');
+    const card = learningCard(binding);
+    const wrongOption = card.question.options.find(o => o.id !== card.question.answerId)!.id;
+    const failed = applyEvent(base.state, { type: 'answer', bindingId: binding.id, questionId: card.question.id, optionId: wrongOption }, AT);
+    expect(failed.binding.status).toBe('unassessed');
+    expect(failed.binding.verifications).toHaveLength(1);
+    expect(failed.binding.verifications[0].result).toBe('failed');
+    const passed = applyEvent(failed.state, { type: 'answer', bindingId: binding.id, questionId: card.question.id, optionId: card.question.answerId }, AT);
+    expect(passed.binding.status).toBe('verified');
+    expect(passed.binding.verifications.at(-1)?.result).toBe('passed');
+    expect(passed.binding.verifications).toHaveLength(2);
+  });
+
+  it('self-reported is distinct from verified; restore/rebind/delete behave per contract', async () => {
+    const report = await fixtureReport();
+    const base = syncBindings(emptyLearningState(), report);
+    const binding = firstBindingFor(base.state, 'jpa.query-amplification');
+    const claimed = applyEvent(base.state, { type: 'set-status', bindingId: binding.id, status: 'self-reported' }, AT);
+    expect(claimed.binding.status).toBe('self-reported');
+    expect(claimed.binding.previousStatus).toBe('unassessed');
+    const ignored = applyEvent(claimed.state, { type: 'ignore', bindingId: binding.id }, AT);
+    expect(ignored.binding.status).toBe('ignored');
+    expect(ignored.binding.active).toBe(false);
+    const restored = applyEvent(ignored.state, { type: 'restore', bindingId: binding.id }, AT);
+    expect(restored.binding.status).toBe('self-reported');
+    expect(restored.binding.active).toBe(true);
+    const rebound = applyEvent(restored.state, { type: 'rebind', bindingId: binding.id, conceptId: 'jpa.entity-boundary' }, AT);
+    expect(rebound.binding.conceptId).toBe('jpa.entity-boundary');
+    expect(rebound.binding.correctedFrom).toBe('jpa.query-amplification');
+    const deleted = applyEvent(rebound.state, { type: 'delete', bindingId: binding.id }, AT);
+    expect(deleted.state.bindings[binding.id]).toBeUndefined();
+    expect(deleted.state.events.at(-1)?.resultStatus).toBe('deleted');
+    // set-status on ignored is refused — restore first.
+    const reignored = applyEvent(deleted.state, { type: 'ignore', bindingId: firstBindingFor(deleted.state, 'spring.transaction-proxy').id }, AT).state;
+    const target = firstBindingFor(reignored, 'spring.transaction-proxy');
+    expect(() => applyEvent(reignored, { type: 'set-status', bindingId: target.id, status: 'learning' }, AT)).toThrow('restore');
+  });
+});
+
+describe('T008 AC09: local persistence lifecycle', () => {
+  it('state survives a fresh store instance (restart) and repeated scans do not accumulate', async () => {
+    const dataDir = mkdtempSync(join(tmpdir(), 'xray-learn-'));
+    try {
+      const report = await fixtureReport();
+      const store = new LocalStore({ dataDir });
+      const state = await store.updateState(FIXTURE, emptyLearningState(), s => syncBindings(s, report).state);
+      expect(Object.keys(state.bindings)).toHaveLength(report.findings.length);
+      // "Restart": a brand new store instance reading the same workspace.
+      const reopened = new LocalStore({ dataDir });
+      const restored = await reopened.readState(FIXTURE, emptyLearningState());
+      expect(Object.keys(restored.bindings)).toHaveLength(report.findings.length);
+      // Rescan through a fresh store: no duplication.
+      const again = await reopened.updateState(FIXTURE, emptyLearningState(), s => syncBindings(s, report).state);
+      expect(Object.keys(again.bindings)).toHaveLength(report.findings.length);
+    } finally {
+      rmSync(dataDir, { recursive: true, force: true });
+    }
+  });
+
+  it('deleted bindings stay deleted after a rescan without new findings', async () => {
+    const dataDir = mkdtempSync(join(tmpdir(), 'xray-learn2-'));
+    try {
+      const report = await fixtureReport();
+      const store = new LocalStore({ dataDir });
+      const state = await store.updateState(FIXTURE, emptyLearningState(), s => syncBindings(s, report).state);
+      const victim = Object.values(state.bindings)[0]!;
+      const afterDelete = applyEvent(state, { type: 'delete', bindingId: victim.id }, AT).state;
+      // Persist the deletion — events only count once they are stored.
+      await store.updateState(FIXTURE, emptyLearningState(), () => afterDelete);
+      const reopened = new LocalStore({ dataDir });
+      const persisted = await reopened.readState(FIXTURE, emptyLearningState());
+      expect(persisted.bindings[victim.id]).toBeUndefined();
+      // A scan with the finding still present recreates the binding as a NEW
+      // unassessed one — deletion removes history, it does not suppress future findings.
+      const resynced = syncBindings(persisted, report);
+      expect(resynced.state.bindings[victim.id]).toBeDefined();
+      expect(resynced.state.bindings[victim.id].status).toBe('unassessed');
+    } finally {
+      rmSync(dataDir, { recursive: true, force: true });
+    }
+  });
+});
+
+describe('T008 AC06: cognitive debt model transparency', () => {
+  it('computes hand-checkable priorities and never hides unknown or unassessed', async () => {
+    const report = await fixtureReport();
+    let state = syncBindings(emptyLearningState(), report).state;
+    const tx = firstBindingFor(state, 'spring.transaction-proxy');
+    const jpa = firstBindingFor(state, 'jpa.query-amplification');
+    state = applyEvent(state, { type: 'set-status', bindingId: jpa.id, status: 'learning' }, AT).state;
+    state = applyEvent(state, { type: 'ignore', bindingId: firstBindingFor(state, 'jpa.entity-boundary').id, reason: 'not-relevant' }, AT).state;
+    const summary = debtSummary(state);
+    // Hand check: medium impact(2) × unassessed gap(1.0) × direct(1.0) = 2.0
+    const txItem = summary.items.find(i => i.bindingId === tx.id)!;
+    expect(txItem.priority).toBe(2.0);
+    // learning gap 0.6 → 2 × 0.6 × 1.0 = 1.2
+    const jpaItem = summary.items.find(i => i.bindingId === jpa.id)!;
+    expect(jpaItem.priority).toBe(1.2);
+    // ignored: excluded from total, priority null with a visible reason
+    const ignoredItem = summary.items.find(i => i.priority === null)!;
+    expect(ignoredItem.exclusionReason).toContain('ignored');
+    // counts are visible, not folded into zero
+    expect(summary.unassessedCount).toBeGreaterThan(0);
+    expect(summary.ignoredCount).toBe(1);
+    expect(summary.calculatedCount).toBe(summary.items.length - 1);
+    const expectedTotal = Number(summary.items.filter(i => i.priority !== null).reduce((sum, i) => sum + (i.priority ?? 0), 0).toFixed(2));
+    expect(summary.total).toBe(expectedTotal);
+    expect(summary.formula).toContain('impact');
+    expect(summary.meaning).toContain('不是能力评分');
+  });
+
+  it('verified knowledge drops its priority to zero but stays listed', async () => {
+    const report = await fixtureReport();
+    let state = syncBindings(emptyLearningState(), report).state;
+    const binding = firstBindingFor(state, 'spring.transaction-proxy');
+    const card = learningCard(binding);
+    state = applyEvent(state, { type: 'answer', bindingId: binding.id, questionId: card.question.id, optionId: card.question.answerId }, AT).state;
+    const summary = debtSummary(state);
+    const item = summary.items.find(i => i.bindingId === binding.id)!;
+    expect(item.priority).toBe(0);
+    expect(item.statusLabel).toBe('已验证理解');
+  });
+});

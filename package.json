@@ -1,0 +1,46 @@
+{
+  "name": "code-xray-cli",
+  "version": "0.1.0",
+  "description": "Local-first Java code understanding, evidence and contextual learning",
+  "type": "module",
+  "private": true,
+  "engines": {
+    "node": ">=22.12"
+  },
+  "bin": {
+    "xray": "dist/cli.js"
+  },
+  "exports": {
+    ".": "./dist/engine.js",
+    "./protocol": "./dist/protocol.js"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "NOTICE.md",
+    "docs/SUPPORT.md",
+    "fixtures/java-spring-jpa"
+  ],
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "check": "tsc --noEmit",
+    "test": "vitest run",
+    "dev": "node --import tsx apps/cli/index.ts",
+    "verify": "npm run check && npm test && npm run build",
+    "prepack": "npm run build"
+  },
+  "dependencies": {
+    "@cliffx/core": "file:vendor/cliffx-core",
+    "@cliffx/test": "file:vendor/cliffx-test",
+    "ajv": "8.20.0",
+    "ignore": "7.0.8",
+    "java-parser": "3.0.1"
+  },
+  "devDependencies": {
+    "@types/node": "22.14.0",
+    "esbuild": "0.28.2",
+    "tsx": "4.20.6",
+    "typescript": "7.0.2",
+    "vitest": "5.0.0"
+  }
+}

@@ -1,0 +1,43 @@
+{
+  "name": "@cliffx/test",
+  "version": "0.0.1",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "dev": "tsup src/index.ts --format esm --dts --watch",
+    "build": "tsup src/index.ts --format esm --dts --clean",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@cliffx/core": "file:../cliffx-core"
+  },
+  "devDependencies": {
+    "tsup": "^8.3.0"
+  },
+  "description": "Test harness for CLI integration testing",
+  "license": "MIT",
+  "keywords": [
+    "cli",
+    "test",
+    "testing",
+    "integration"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/xingzhiwei-code/cliff.git"
+  },
+  "homepage": "https://xingzhiwei-code.github.io/cliff/",
+  "publishConfig": {
+    "access": "public"
+  }
+}

@@ -1,0 +1,43 @@
+{
+  "name": "@cliffx/ui",
+  "version": "0.0.1",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "dev": "tsup src/index.ts --format esm --dts --watch",
+    "build": "tsup src/index.ts --format esm --dts --clean",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "tsup": "^8.3.0"
+  },
+  "description": "Terminal UI components \u2014 output, prompts, spinners, tables, ANSI colors",
+  "license": "MIT",
+  "keywords": [
+    "cli",
+    "terminal",
+    "ui",
+    "spinner",
+    "table",
+    "prompt",
+    "ansi"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/xingzhiwei-code/cliff.git"
+  },
+  "homepage": "https://xingzhiwei-code.github.io/cliff/",
+  "publishConfig": {
+    "access": "public"
+  }
+}
