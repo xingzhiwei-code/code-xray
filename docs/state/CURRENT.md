@@ -3,27 +3,27 @@
 | 字段 | 值 |
 |---|---|
 | state_schema_version | 1 |
-| state_revision | r16 |
+| state_revision | r17 |
 | checkpoint_status | complete |
-| updated_at | 2026-09-09T11:15+08:00（用户确认功能正确，T010 done） |
+| updated_at | 2026-09-09T15:45+08:00（T101 V02 第一轮实现待宿主验证） |
 | project | Code X-Ray |
-| phase | v0.1 CLI 完成，V02 准备就绪 |
-| implementation_status | complete（v0.1 必需任务 10/10 done；V02 未开始） |
+| phase | v0.2 VS Code Surface / 第一轮纵向切片 |
+| implementation_status | in_progress（T101 已实现待真实宿主验证） |
 | progress | v0.1 必需任务 10/10 done（T001—T010）；T011 done（Developer Profile v1）；任务非等量 |
-| active_task | 无 |
-| active_loop | 无 |
-| next_task | T101 V02：创建 VS Code Surface，复用同一 Engine/Profile/Debt，先做安装与环境自检 → 侧栏最小报告 → 证据跳转/解释/学习闭环 |
+| active_task | T101（VS Code Surface 第一轮） |
+| active_loop | L016（实现已写，真实宿主安装/激活/交互待验证） |
+| next_task | 获取 VS Code CLI 写入用户扩展目录权限 → 安装本地 VSIX → 真实宿主 smoke：激活、扫描、侧栏、证据跳转、学习状态 |
 | session_owner | 20260909-101500-codex |
 | repo_path | /Users/01443732/Documents/Codex/2026-09-08/referenced-chatgpt-conversation-this-is-an/outputs/code-xray |
 | git_branch / head | main / 4b1fd41（T011 与状态回填均已提交） |
 | worktree_state | 本地领先远端 2 个提交；GitHub 凭据失效，推送阻塞；node_modules/dist/.idea/.DS_Store 已由 .gitignore 排除 |
 | last_product_verification | E016：81/81 测试 + check/build + Developer Profile 二进制 smoke；E017：用户确认各命令功能正确（单人验收） |
 | package_evidence | E005—E017 产品证据链完整（…→故障注入+首次提交→Developer Profile v1→用户验收）；E001—E004 文档 |
-| blockers | GitHub 推送阻塞：本地 main 领先 origin/main 3 个提交（另有本条状态更新待提交），gh token invalid，需重新认证 |
+| blockers | VS Code CLI 无法写入 `~/.vscode/extensions` 与 Code 日志目录，本地 VSIX 安装被沙箱阻塞；GitHub 推送仍因 token invalid 阻塞 |
 
 ## 唯一下一步
 
-**T010 已完成**：用户本人确认“验证可以了，各个命令功能都正确”（E017），按 D010 以单人验收收口；不得对外声称 4/5 样本调查通过。**下一步：T101 V02 VS Code Surface**。远端推送需先运行 `gh auth login -h github.com`，再 `git push origin main`。
+**T101 第一轮已实现待验证**：新增 VS Code 扩展（活动栏 Findings 树、Scan Workspace、证据跳转、解释弹窗、标记学习、未保存缓冲区提示），复用同一 Engine/Storage/Learning。TypeScript 检查与 bundle 构建通过；真实 VS Code 宿主安装/激活/交互因沙箱无法写 `~/.vscode/extensions` 暂未验证。
 
 ## required_reads
 

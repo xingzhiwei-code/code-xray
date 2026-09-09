@@ -76,6 +76,17 @@
 - 下一步：用户重新认证 GitHub 后推送；随后 T101 V02 VS Code Surface。
 - checkpoint completion：completed（r16）。
 
+## L016 — T101 VS Code 第一轮纵向切片
+
+- checkpoint_revision：r17；checkpoint_status：preparing。
+- 日期：2026-09-09；session：20260909-101500-codex。
+- 目标：创建 VS Code Surface 的第一轮纵向路径：扫描 → 侧栏 findings → 证据跳转/解释 → 标记学习状态；保存后扫描默认关闭，未保存缓冲区显式提示。
+- 变更：新增 apps/vscode 扩展、VS Code 1.135 类型声明、bundle 脚本；扩展直接调用 `analyze`、`LocalStore`、`syncBindings`、`applyEvent`，未复制规则或债务公式。
+- 验证（E019）：TypeScript 检查 0；`npm run build:vscode` 0；VSIX 打包成功。真实宿主安装被沙箱 EPERM 阻塞（无法写 `~/.vscode/extensions` 与 Code 日志），激活/交互未验证。
+- outcome：continue/blocked（实现已写，真实宿主验证待权限）。
+- 下一步：授权 VS Code CLI 写扩展目录或由用户在宿主终端安装 VSIX，随后完成真实 VS Code smoke；再做 Hover/CodeLens、Diff 与完整学习/债务面板。
+- checkpoint completion：preparing（r17）。
+
 ## L010 — T010 发布准备：材料、基准、安装 smoke、独立检查与接力演练
 
 - checkpoint_revision：r11；checkpoint_status：preparing。

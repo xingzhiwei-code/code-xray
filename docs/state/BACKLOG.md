@@ -1,6 +1,6 @@
 # Backlog：任务状态的唯一来源
 
-当前 revision：r16（r15 本地提交完成、推送因 GitHub 凭据失效阻塞；r16 用户确认各命令功能正确，T010 done）。v0.1 必需任务 10/10 done（T001—T010）；T011 done（Developer Profile v1）。拆分任务须保留原 ID、依赖和 AC 追踪。
+当前 revision：r17（r16 v0.1 收口；r17 T101 V02 最小纵向切片 in_progress）。v0.1 必需任务 10/10 done（T001—T010）；T011 done（Developer Profile v1）；T101 in_progress（VS Code Surface 第一轮）。拆分任务须保留原 ID、依赖和 AC 追踪。
 
 状态与更新规则见 [HANDOFF_PROTOCOL](../HANDOFF_PROTOCOL.md)，验收原文见 [PRD](../PRD.md)。单个任务只负责其交付范围内的 AC 子项，并在 Evidence 写明覆盖边界；完整 AC 的跨任务汇总由 T010 验收。不得将下游能力作为上游任务的隐含完成条件。
 
@@ -93,7 +93,7 @@
 
 | ID | 阶段与交付 | 状态 | 依赖 | 独立退出条件 |
 |---|---|---|---|---|
-| T101 | v0.2 VS Code：侧栏、Hover/CodeLens、选中解释、Diff 审查与完整学习/债务闭环 | planned | T010 | PRD 第 8.3 节 V02-1—V02-4；继承 v0.1，同快照/能力结果一致，真实编辑器生命周期验收 |
+| T101 | v0.2 VS Code：侧栏、Hover/CodeLens、选中解释、Diff 审查与完整学习/债务闭环 | in_progress | T010 | PRD 第 8.3 节 V02-1—V02-4；继承 v0.1，同快照/能力结果一致，真实编辑器生命周期验收 |
 | T201 | v0.3 JetBrains：完整 IDE 闭环、PSI 事实补充及 Bean/事务/JPA 三类深化 | planned | T101 | PRD 第 8.4 节 V03-1—V03-4；三类深化有正反未知案例；增强事实注明来源，规则留在 Engine |
 | T301 | v0.4 Agent：两宿主接入、修改后审查、证据读取、可配置关口与报告恢复 | planned | T201 | PRD 第 8.5 节 V04-1—V04-4；实测基线→改动→审查→修正→再验，未知/失败不伪装通过 |
 
@@ -168,3 +168,12 @@
 - 非目标：不做能力评分、绩效比较、自动从代码推断掌握程度、云同步或团队画像。
 - 验证：E016（81/81 测试 + check/build + 二进制 smoke）。
 - 最后 revision：r13。
+
+### T101 — v0.2 VS Code Surface（in_progress）
+
+- owner：20260909-101500-codex；session：20260909-101500-codex；开始：2026-09-09。
+- 当前目标：第一轮纵向切片——真实 VS Code 1.135 宿主内：命令扫描 → 侧栏 findings → 证据跳转/解释弹窗 → 标记学习状态；未保存缓冲区显式提示；默认不做保存后扫描。
+- 已完成：新增 `apps/vscode` 扩展骨架与活动栏 Findings 树；复用 `analyze`、`LocalStore`、`syncBindings`、`applyEvent`，没有复制规则/债务公式；VS Code API 类型来自本机 1.135.0 官方声明；TypeScript 检查与扩展 bundle 构建通过。
+- 待验证：真实 VS Code 宿主安装/激活/扫描/侧栏/证据跳转/学习状态。当前沙箱拒绝 VS Code CLI 写入 `~/.vscode/extensions` 与 Code 日志目录，安装被阻塞。
+- 下一步：解除 VS Code CLI 写入权限后安装本地 VSIX，完成真实宿主 smoke，再扩展 Hover/CodeLens、Diff 与完整学习卡/债务面板。
+- 最后 revision：r17。

@@ -282,6 +282,40 @@
 - review_mode：self-separated；checker：20260909-101500-codex。
 - supersedes：null。
 
+## E022 — T101 用户宿主截图：激活、活动栏图标与空状态正常
+
+- kind：ux_review；recorded_at：2026-09-09T16:40+08:00；checkpoint_revision：r17。
+- claim：用户在本机 VS Code 1.135 中确认扩展已激活：活动栏出现 Code X-Ray 容器且 `$(search)` 图标渲染；Findings 视图显示空状态提示。此为用户提供的宿主证据。
+- task：T101；acceptance：V02-4 安装/激活子项。
+- operator：用户（截图）；记录：20260909-101500-codex。
+- subject_snapshot：用户粘贴截图（活动栏放大镜图标高亮 + "Code X-Ray: Findings / No report yet. Run Code X-Ray: Scan Workspace."）。
+- environment：用户本机 VS Code（深色主题）。
+- invocation：用户点击活动栏 Code X-Ray 并截图。
+- expected：容器与视图可见、空状态文案可读、图标可见。
+- actual：与预期一致；截图同时确认空状态可被误解为"没有功能"，因此同轮补 E021 的空状态可点击动作与视图扫描按钮。
+- exit_code：not_applicable。
+- result：passed（激活/图标/视图渲染子项，来源：用户提供）。
+- limitations：截图未覆盖扫描、findings、证据跳转与学习闭环；这些仍待用户重装新 VSIX 后验证。
+- review_mode：user-reported；checker：20260909-101500-codex。
+- supersedes：null。
+
+## E021 — T101 侧栏可用性第二轮：空状态动作、视图扫描按钮、saved report 恢复与 stale 守卫
+
+- kind：test；recorded_at：2026-09-09T16:40+08:00；checkpoint_revision：r17。
+- claim：VS Code 侧栏空状态提供可点击的扫描入口；视图标题提供扫描按钮；激活时自动恢复 CLI/上次会话保存的报告，并在磁盘内容与报告快照不一致时隐藏旧位置（stale 守卫），避免把磁盘旧行号套到新内容（PRD V02-7）。
+- task：T101；acceptance：V02-1/V02-3/V02-4 子项。
+- operator：20260909-101500-codex。
+- subject_snapshot：apps/vscode/extension.ts（restoreSaved/stalePaths/action 节点）、apps/vscode/package.json（view/title 菜单 + 命令图标）；apps/vscode/dist、code-xray-vscode.vsix 重建。
+- environment：macOS、Node v22.14.0、esbuild 0.28.2、TypeScript 7.0.2。
+- invocation：`tsc -p apps/vscode/tsconfig.json --noEmit`；`npm run build:vscode`；重新打包 VSIX；`unzip -p` 校验包内 manifest 含 `view/title` 与 `$(refresh)`。
+- expected：空状态两节点（说明 + Scan workspace now）；视图标题导航按钮触发扫描；saved report 恢复且 stale 时只显示重扫入口，不渲染可跳转位置。
+- actual：类型检查 0；构建 0；包校验通过。stale 判定复用 workspace-local `stalePaths`（与 CLI/Engine 同一 digest 口径）。
+- exit_code：tsc=0、build=0、pack=0。
+- result：passed（构建与包检查；宿主内交互仍需重装 VSIX 目测）。
+- limitations：未做宿主内截图/自动化点击验证；恢复逻辑只在激活时读一次，扫描后以新报告为准。
+- review_mode：self-separated；checker：20260909-101500-codex。
+- supersedes：null。
+
 ## E017 — 用户报告已试用
 
 - kind：ux_review；recorded_at：2026-09-09T10:50+08:00；checkpoint_revision：r14。
@@ -313,5 +347,39 @@
 - exit_code：verify=0、commit×2=0、push=128、gh_auth=1。
 - result：passed（本地提交范围）/ blocked（远端推送）。
 - limitations：远端 GitHub 未更新；重新认证后可执行 `git push origin main`。
+- review_mode：self-separated；checker：20260909-101500-codex。
+- supersedes：null。
+
+## E019 — T101 VS Code 第一轮实现检查
+
+- kind：source_inspection + build；recorded_at：2026-09-09T15:45+08:00；checkpoint_revision：r17。
+- claim：T101 第一轮 VS Code Surface 实现已写并通过类型检查与 bundle 构建；尚未完成真实 VS Code 宿主安装/激活/交互验证。
+- task：T101；acceptance：V02-1/V02-4 的实现前置，不宣称通过。
+- operator：20260909-101500-codex。
+- subject_snapshot：新增 apps/vscode/{package.json,tsconfig.json,extension.ts,vscode.d.ts,vscode-actual.d.ts,assets/activity.svg}、scripts/build-vscode.mjs；变更 package.json、.gitignore。基线 HEAD 344e2f5。
+- environment：macOS、Node v22.14.0、TypeScript 7.0.2、esbuild 0.28.2、VS Code 1.135.0（官方本机 API 声明用于类型检查）。
+- invocation：`cd apps/vscode && ../../node_modules/.bin/tsc -p tsconfig.json --noEmit`；`npm run build:vscode`；打包 `code-xray-vscode.vsix`。
+- expected：扩展只复用 Engine/Storage/Learning；提供 Scan Workspace、Findings 树、证据跳转、解释弹窗、Mark As Learning、未保存缓冲区提示；保存后扫描默认关闭；类型检查与构建通过。
+- actual：TypeScript 检查通过；esbuild 产出 `apps/vscode/dist/extension.js`（CJS，external vscode）与 VSIX。真实安装失败：沙箱拒绝 VS Code CLI 写 `~/.vscode/extensions/.obsolete` 与 Code 日志目录（EPERM），因此未激活验证。
+- exit_code：tsc=0、build=0、vsix_pack=0、code_install=1（EPERM）。
+- result：blocked（真实宿主验证）。
+- limitations：未验证扩展激活、命令注册、Tree UI、证据定位、学习状态写入；未验证安装/卸载/禁用；未做截图或宿主日志；`@vscode/test-electron` 依赖因网络 ENOTFOUND 未安装。
+- review_mode：self-separated；checker：20260909-101500-codex。
+- supersedes：null。
+
+## E020 — T101 活动栏图标修复
+
+- kind：test；recorded_at：2026-09-09T16:20+08:00；checkpoint_revision：r17。
+- claim：VS Code 活动栏容器使用内置 `$(search)` 主题图标，替代不易被宿主渲染的自定义 SVG；扩展重新构建并打包。
+- task：T101；acceptance：V02-1 UI 可用性子项。
+- operator：20260909-101500-codex。
+- subject_snapshot：apps/vscode/package.json（activitybar icon 改为 `$(search)`）；apps/vscode/dist/package.json；code-xray-vscode.vsix。
+- environment：macOS、Node v22.14.0、esbuild 0.28.2、VS Code 1.135.0。
+- invocation：`tsc -p apps/vscode/tsconfig.json --noEmit`；`npm run build:vscode`；重新打包 VSIX；检查包内 manifest。
+- expected：使用 VS Code 官方主题图标语法，随 light/dark/high-contrast 自动着色；扩展仍可构建。
+- actual：类型检查 0；构建 0；VSIX 内 `extension/package.json` 确认 `icon: "$(search)"`。
+- exit_code：tsc=0、build=0、pack=0。
+- result：passed（构建与包检查；用户重装后仍需目测活动栏）。
+- limitations：未在宿主内截图确认；需要用户重新安装 VSIX 并 Reload Window。
 - review_mode：self-separated；checker：20260909-101500-codex。
 - supersedes：null。

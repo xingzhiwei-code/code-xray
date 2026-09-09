@@ -1,0 +1,60 @@
+{
+  "name": "code-xray-vscode",
+  "displayName": "Code X-Ray",
+  "description": "Local-first Java code understanding, evidence, learning and cognitive debt in your editor",
+  "version": "0.2.0",
+  "private": true,
+  "publisher": "xingzhiwei-code",
+  "engines": {
+    "vscode": "^1.135.0"
+  },
+  "categories": [
+    "Programming Languages",
+    "Testing"
+  ],
+  "activationEvents": [],
+  "main": "./extension.js",
+  "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "code-xray",
+          "title": "Code X-Ray",
+          "icon": "$(search)"
+        }
+      ]
+    },
+    "views": {
+      "code-xray": [
+        {
+          "id": "codeXray.findings",
+          "name": "Findings"
+        }
+      ]
+    },
+    "commands": [
+      {
+        "command": "codeXray.scan",
+        "title": "Code X-Ray: Scan Workspace",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "codeXray.openFinding",
+        "title": "Code X-Ray: Open Finding Evidence"
+      },
+      {
+        "command": "codeXray.markLearning",
+        "title": "Code X-Ray: Mark Finding As Learning"
+      }
+    ],
+    "menus": {
+      "view/title": [
+        {
+          "command": "codeXray.scan",
+          "when": "view == codeXray.findings",
+          "group": "navigation"
+        }
+      ]
+    }
+  }
+}

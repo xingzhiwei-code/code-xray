@@ -1,0 +1,23 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "strict": true,
+    "noEmit": true,
+    "skipLibCheck": true,
+    "typeRoots": [
+      "./",
+      "../../node_modules/@types"
+    ],
+    "types": [
+      "node"
+    ]
+  },
+  "include": [
+    "extension.ts",
+    "vscode.d.ts",
+    "vscode-actual.d.ts",
+    "../../packages/**/*.ts"
+  ]
+}

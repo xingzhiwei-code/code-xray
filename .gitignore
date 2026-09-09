@@ -1,5 +1,7 @@
 node_modules/
 dist/
+apps/vscode/dist/
+*.vsix
 *.tgz
 .DS_Store
 .xray/

@@ -1,12 +1,12 @@
 # 当前接力单
 
-state_revision: r16
+state_revision: r17
 checkpoint_status: complete
 from_session: 20260908-143500-claude（L001 恢复 → L011 首次提交）
 to_session: 20260909-101500-codex / 下一位执行者
-active_loop: 无（v0.1 已收口）
-active_task: 无（T010 done；T101 未开始）
-next_task: T101 V02 VS Code Surface，或先修复 GitHub 推送阻塞
+active_loop: L016（T101 第一轮实现已写，真实宿主验证阻塞）
+active_task: T101 in_progress
+next_task: 获取 VS Code CLI 用户扩展目录写入权限 → 安装本地 VSIX → 真实宿主 smoke
 
 ## 30 秒接手摘要
 
@@ -21,7 +21,13 @@ v0.1 已完成：T001—T010 全部 done。完整闭环（scan→证据→--base
 
 ## 第一条可执行动作
 
-T101 V02：创建 VS Code Surface，复用同一 Engine/Profile/Debt；先完成安装与环境自检，再做侧栏最小报告和证据跳转/解释/学习闭环。若先处理远端：用户运行 `gh auth login -h github.com` 后执行 `git push origin main`。
+T101：当前沙箱拒绝 VS Code CLI 写入 `~/.vscode/extensions` 和 Code 日志目录。需要用户授权或在宿主终端执行：
+
+```bash
+code --install-extension "$PWD/code-xray-vscode.vsix" --force
+```
+
+然后打开 `fixtures/java-spring-jpa`，执行 `Code X-Ray: Scan Workspace`，验证侧栏 findings、点击证据跳转、Mark As Learning。
 
 ## 已知探索结果
 
@@ -34,6 +40,7 @@ T101 V02：创建 VS Code Surface，复用同一 Engine/Profile/Debt；先完成
 | 项 | 当前状态 | 解除方式 / 可并行工作 |
 |---|---|---|
 | GitHub 推送 | 本地 main 领先远端 3+ 个提交，token invalid | 用户重新认证后 `git push origin main` |
+| VS Code 宿主验证 | 本地 VSIX 已构建，CLI 无法写扩展/日志目录 | 授权后安装 VSIX 并运行真实宿主 smoke |
 | Windows/Linux | 未测 | 有环境时跑 verify+eval+bench |
 | cliff LICENSE 全文 | tarball 内无，清单声明 MIT | 发布前从上游仓库归档 |
 | 真实 provider smoke | 无凭据，保持禁用 | 获授权后受控 smoke，改 status |
