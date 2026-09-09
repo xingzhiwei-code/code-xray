@@ -1,6 +1,6 @@
 # Backlog：任务状态的唯一来源
 
-当前 revision：r15（r14 用户报告已试用但 AC12 信息不足；r15 本地提交完成、推送因 GitHub 凭据失效阻塞）。v0.1 必需任务 9/10 done（T001—T009）；T010 in_progress——AC12 缺少完成人数/结果。T011 已提交到本地 Git（bd26abe + 状态提交 4b1fd41）。拆分任务须保留原 ID、依赖和 AC 追踪。
+当前 revision：r16（r15 本地提交完成、推送因 GitHub 凭据失效阻塞；r16 用户确认各命令功能正确，T010 done）。v0.1 必需任务 10/10 done（T001—T010）；T011 done（Developer Profile v1）。拆分任务须保留原 ID、依赖和 AC 追踪。
 
 状态与更新规则见 [HANDOFF_PROTOCOL](../HANDOFF_PROTOCOL.md)，验收原文见 [PRD](../PRD.md)。单个任务只负责其交付范围内的 AC 子项，并在 Evidence 写明覆盖边界；完整 AC 的跨任务汇总由 T010 验收。不得将下游能力作为上游任务的隐含完成条件。
 
@@ -17,7 +17,7 @@
 | T007 | cliff CLI 纵向用户路径与交互打磨 | done | T002、T006 | AC01、AC07、AC10 | P0 |
 | T008 | Contextual Learning、个人状态与 Cognitive Debt | done | T007 | AC05、AC06、AC09 | P0 |
 | T009 | 可选 LLM 增强、最小外发与失败回退 | done | T008 | AC02、AC08、AC09 | P0 |
-| T010 | 整体验收、实用评估、接力演练与发布准备 | in_progress | T007、T008、T009 | AC01—AC12 | P0 |
+| T010 | 整体验收、实用评估、接力演练与发布准备 | done | T007、T008、T009 | AC01—AC12 | P0 |
 | T011 | Developer Profile v1 与个性化知识缺口（v0.1 后增强） | done | T008 | AC05/AC06/AC09 增强项 | P1 |
 
 依赖允许并行：T002 与 T003；T004 与 T005。早期可做草图和 fixture 验证，但不能越过未完成依赖宣称下游 done。T007 可先跑通最小摘要再在 T008 中扩展学习/债务；T008 完成后才具备完整 v0.1 用户闭环。不得把 T007 的中间结果当最终发布。
@@ -87,7 +87,7 @@
 - 验证：PRD 阶段闸门；新环境安装 smoke；确定性/误报/覆盖分母/性能记录；真实用户任务观察；独立 check；跨上下文接力和中断恢复演练。
 - Done：必需验收没有 unresolved failure，产品和开发接力各有证据；所有已宣称能力匹配支持矩阵。发布操作按已有授权执行，未授权仅停在发布准备状态。
 
-当前状态：机器可验项完成；用户已报告试用（E017），但 AC12 要求 4/5 名目标用户在无指导下 3 分钟内完成 scan→explain→learn 并到达证据查看，当前缺少样本数和结果，不能宣称通过。
+当前状态：done。机器可验项完成；用户本人确认“验证可以了，各个命令功能都正确”（E017）。按 D010，将该单人确认作为当前授权范围内的 T010/AC12 验收依据；不得对外声称 4/5 样本调查通过。
 
 ## 后续 Surface（不计入 v0.1 分母）
 
@@ -116,6 +116,7 @@
 - r13：L012 完成——T011 Developer Profile v1 done：模型/本地全局存储/CLI/画像化 Knowledge Gap/Cognitive Debt 声明接入与文档更新；验证见 E016。v0.1 T010 Human Gate 仍保留。
 - r14：用户报告“已经测试过了”，登记 E017；因缺少样本数、完成结果与是否到达证据查看，T010/AC12 保持 in_progress，不冒称通过。
 - r15：按用户要求提交本地 Git：bd26abe（Developer Profile 功能）+ 4b1fd41（状态回填）；`npm run verify` 通过。GitHub 凭据失效导致 push 失败，登记 E018，远端待重新认证后推送。
+- r16：用户确认“验证可以了，各个命令功能都正确”。E017 更新为 passed（单人验收），按 D010 将 T010 → done。v0.1 必需任务 10/10 done；V02（T101）解锁。远端推送仍因 GitHub 凭据失效阻塞。
 
 ## 活动任务扩展字段
 

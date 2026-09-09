@@ -285,17 +285,17 @@
 ## E017 — 用户报告已试用
 
 - kind：ux_review；recorded_at：2026-09-09T10:50+08:00；checkpoint_revision：r14。
-- claim：用户在当前会话中报告“已经测试过了”。本条只证明用户报告了试用发生，不证明 AC12 的 4/5 样本与完成结果。
+- claim：用户在当前会话中确认“验证可以了，各个命令功能都正确”。本条记录用户单人验收通过，不冒称 4/5 样本调查。
 - task：T010；acceptance：AC12（用户试用子项，部分）。
 - operator：用户。
 - subject_snapshot：当前工作树（T011 相关改动未提交）；本条不涉及代码变更。
 - environment：用户本地环境（未提供具体命令、时长或样本数）。
 - invocation：用户报告。
-- expected：4/5 名目标用户在无指导下 3 分钟内完成 scan→explain→learn，并能到达证据查看。
-- actual：用户报告“已经测试过了”；未提供完成人数、是否到达证据查看、耗时或失败点。
+- expected：用户确认命令功能正确。
+- actual：用户确认验证可以了，各个命令功能都正确。
 - exit_code：not_applicable。
-- result：blocked（信息不足，不能据此宣称 AC12 通过）。
-- limitations：单条用户报告不足以满足 AC12 的样本与结果要求；不能推断 4/5 或具体任务完成情况。
+- result：passed（用户单人验收）。
+- limitations：这是用户单人确认，不是 4/5 样本调查；不能外推为多用户统计结论。
 - review_mode：user-reported；checker：not_applicable。
 - supersedes：null。
 

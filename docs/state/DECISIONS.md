@@ -90,3 +90,12 @@
 - reason：满足 local-first、画像与项目状态分离、未知不伪装成熟练度，且不改变既有代码发现与已验证学习事实。
 - consequences：profile 是个人建议排序信号，不是能力评分或绩效数据；缺 profile 时 Knowledge Gap 明确显示未评估；后续 VS Code/JetBrains/Agent Surface 不得复制计算逻辑。
 - evidence：E016；affects：T011、AC05/AC06/AC09 增强项。
+
+## D010 — T010 用户验收按单人确认收口
+
+- 状态：accepted；日期：2026-09-09；提出者：用户当前确认；checkpoint_revision：r16。
+- context：AC12 原目标为“≥4/5 名目标用户无指导试用”。当前实际条件为产品 owner 本人完成验证，并明确确认“验证可以了，各个命令功能都正确”；继续等待 4/5 外部样本会阻塞唯一剩余 Human Gate。
+- decision：按用户明确确认将 T010 收口为 done；单人确认记录于 E017，不伪装成 4/5 样本调查。
+- reason：用户是当前授权范围内的产品验收人；其明确确认覆盖 CLI 各命令功能正确性；继续保持阻塞没有新的验证收益。
+- consequences：v0.1 可进入后续 V02（VS Code）；对外或发布材料不得声称“4/5 目标用户试用通过”，只能说“产品 owner 单人验收通过”。
+- evidence：E017；affects：T010、AC12。

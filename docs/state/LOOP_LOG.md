@@ -64,6 +64,18 @@
 - outcome：done（本地提交）/ blocked（远端推送）。
 - checkpoint completion：completed（r15）。
 
+## L015 — 用户验收确认与 T010 收口
+
+- checkpoint_revision：r16；checkpoint_status：preparing。
+- 日期：2026-09-09；session：20260909-101500-codex。
+- 目标：登记用户对各命令功能的确认，并完成 T010 判定。
+- 事实：用户明确回复“验证可以了，各个命令功能都正确”。
+- 判定：E017 更新为 passed（用户单人验收）；新增 D010，说明以用户本人确认收口 T010/AC12，不冒称 4/5 样本调查。T010 → done，v0.1 必需任务 10/10 done，T101/V02 解锁。
+- 遗留：GitHub 凭据仍失效，本地提交尚未推送；发布前事项（cliff LICENSE、跨平台、真实远端 provider）保留。
+- outcome：done（T010/v0.1）。
+- 下一步：用户重新认证 GitHub 后推送；随后 T101 V02 VS Code Surface。
+- checkpoint completion：completed（r16）。
+
 ## L010 — T010 发布准备：材料、基准、安装 smoke、独立检查与接力演练
 
 - checkpoint_revision：r11；checkpoint_status：preparing。

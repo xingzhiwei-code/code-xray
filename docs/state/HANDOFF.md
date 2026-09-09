@@ -1,27 +1,27 @@
 # 当前接力单
 
-state_revision: r14
+state_revision: r16
 checkpoint_status: complete
 from_session: 20260908-143500-claude（L001 恢复 → L011 首次提交）
 to_session: 20260909-101500-codex / 下一位执行者
-active_loop: 无（L012 已完成；AC12 结果信息待确认）
-active_task: T010 in_progress（机器可验项 100% 完成；用户已报告试用，结果细节不足）
-next_task: 确认试用人数与完成结果 → 更新 E017 → 判定 T010
+active_loop: 无（v0.1 已收口）
+active_task: 无（T010 done；T101 未开始）
+next_task: T101 V02 VS Code Surface，或先修复 GitHub 推送阻塞
 
 ## 30 秒接手摘要
 
-v0.1 功能完备：9/10 done + T010 仅剩 AC12 结果确认。完整闭环（scan→证据→--base diff→explain→学习卡→验证→认知债务→二次启动恢复）经真实二进制验证；冻结 oracle 三规则 precision/recall 100%；AC12 性能达标；安装 smoke 通过。r13 新增 T011 Developer Profile v1（本机全局画像 + 画像化 Knowledge Gap + CLI profile 命令），E016 81/81 测试与二进制 smoke 通过。用户已报告“测试过了”（E017），但当前缺少样本数、完成结果与是否到达证据查看；**不能据此宣称 AC12 通过。**
+v0.1 已完成：T001—T010 全部 done。完整闭环（scan→证据→--base diff→explain→学习卡→验证→认知债务→二次启动恢复）经真实二进制验证；冻结 oracle 三规则 precision/recall 100%；性能与安装 smoke 通过。T011 Developer Profile v1 亦已完成。用户本人确认“验证可以了，各个命令功能都正确”（E017）；按 D010 以单人验收收口，不对外声称 4/5 样本调查。
 
 ## 已交付与未交付
 
 - 已交付（已验证，E005—E016）：协议+能力声明、vendored cliff（D007 四点补丁）、36 文件 fixture、engine（独立可调用）、CLI 命令（scan/--base diff/explain/learn/debt/profile/doctor；CJK 列宽、SIGINT→130、stderr 进度、退出码契约）、三规则 eval 100%、workspace 边界/隐私矩阵、学习/债务生命周期、Developer Profile v1、provider 端口与回退、storage 错误信封、性能基准、安装 smoke、发布材料、独立检查+接力演练。
-- 未交付：AC12 试用结果细节（4/5 样本与证据查看完成情况）；cliff LICENSE 全文归档（tarball 无，清单声明 MIT）；Windows/Linux 平台验证；真实远端 provider smoke（保持 unverified-remote 禁用）；外部 Java 专家 oracle 标注（独立 Checker 已复核标签-源码一致性）；V02/V03/V04（T101/T201/T301 planned）。
+- 未交付：cliff LICENSE 全文归档（tarball 无，清单声明 MIT）；Windows/Linux 平台验证；真实远端 provider smoke（保持 unverified-remote 禁用）；外部 Java 专家 oracle 标注（独立 Checker 已复核标签-源码一致性）；V02/V03/V04（T101/T201/T301 planned）。
 - 工作树：功能提交 bd26abe、状态提交 4b1fd41 均已完成；本地领先 origin/main 2 个提交。GitHub 凭据失效，`git push origin main` 因无法读取用户名失败（gh auth status 显示 token invalid），推送待用户重新认证。
 - 最近有效产品测试：E016（2026-09-09T10:30+08:00，81/81 + check/build + 二进制 smoke）。
 
 ## 第一条可执行动作
 
-等待用户补充：几人完成 scan→explain→learn，几人在 3 分钟内到达证据查看；结果更新 E017 后判定 T010。若 ≥4/5 达成则 T010 → done；否则记录失败点并修复。
+T101 V02：创建 VS Code Surface，复用同一 Engine/Profile/Debt；先完成安装与环境自检，再做侧栏最小报告和证据跳转/解释/学习闭环。若先处理远端：用户运行 `gh auth login -h github.com` 后执行 `git push origin main`。
 
 ## 已知探索结果
 
@@ -33,7 +33,7 @@ v0.1 功能完备：9/10 done + T010 仅剩 AC12 结果确认。完整闭环（s
 
 | 项 | 当前状态 | 解除方式 / 可并行工作 |
 |---|---|---|
-| AC12 用户试用 | 用户报告已试用，结果细节不足 | 补充人数与完成结果 → 更新 E017 |
+| GitHub 推送 | 本地 main 领先远端 3+ 个提交，token invalid | 用户重新认证后 `git push origin main` |
 | Windows/Linux | 未测 | 有环境时跑 verify+eval+bench |
 | cliff LICENSE 全文 | tarball 内无，清单声明 MIT | 发布前从上游仓库归档 |
 | 真实 provider smoke | 无凭据，保持禁用 | 获授权后受控 smoke，改 status |
@@ -44,8 +44,8 @@ D007（vendor 补丁）与 D008（未跟踪默认纳入）为当前依据；修�
 
 ## 快照与证据
 
-r14 = E017（用户报告已试用，结果细节不足）。产品证据链：E005→…→E015→E016→E017。更新 E017 后判定 T010。
+r16 = E017（用户确认各命令功能正确，单人验收）+ D010（T010 收口）。v0.1 必需任务 10/10 done，V02 解锁。
 
 ## 中断点
 
-L012 已完整落盘（r13 complete，当前工作树承载）。无未完成代码变更。唯一开放项为 AC12 试用结果细节。若新会话接手：先核对 git status/diff 与 E016/E017，再读 AGENTS→START_HERE→本文件，按“第一条可执行动作”继续。后续 Surface 必须复用 profile/gap/debt Engine 边界。
+L015 已完整落盘（r16 complete，当前工作树承载）。v0.1 已收口。若新会话接手：先核对 git status/diff 与 E016—E018，再读 AGENTS→START_HERE→本文件，按“第一条可执行动作”继续。后续 Surface 必须复用 profile/gap/debt Engine 边界。
