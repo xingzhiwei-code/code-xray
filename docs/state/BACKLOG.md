@@ -1,6 +1,6 @@
 # Backlog：任务状态的唯一来源
 
-当前 revision：r11（r10 L009；r11 L010 发布准备：AC01—AC12 机器可验项全映射 E014、独立检查有保留通过并修复保留项）。v0.1 必需任务 9/10 done（T001—T009）；T010 in_progress——仅剩 AC12 真实用户试用（Human Gate）与发布操作授权。拆分任务须保留原 ID、依赖和 AC 追踪。
+当前 revision：r14（r13 L012 Developer Profile v1；r14 用户报告已试用但 AC12 信息不足）。v0.1 必需任务 9/10 done（T001—T009）；T010 in_progress——AC12 已收到用户试用报告（E017），但缺少完成人数/结果，暂不能标 done。新增 T011 已实现并验证，不改变 v0.1 分母。拆分任务须保留原 ID、依赖和 AC 追踪。
 
 状态与更新规则见 [HANDOFF_PROTOCOL](../HANDOFF_PROTOCOL.md)，验收原文见 [PRD](../PRD.md)。单个任务只负责其交付范围内的 AC 子项，并在 Evidence 写明覆盖边界；完整 AC 的跨任务汇总由 T010 验收。不得将下游能力作为上游任务的隐含完成条件。
 
@@ -18,6 +18,7 @@
 | T008 | Contextual Learning、个人状态与 Cognitive Debt | done | T007 | AC05、AC06、AC09 | P0 |
 | T009 | 可选 LLM 增强、最小外发与失败回退 | done | T008 | AC02、AC08、AC09 | P0 |
 | T010 | 整体验收、实用评估、接力演练与发布准备 | in_progress | T007、T008、T009 | AC01—AC12 | P0 |
+| T011 | Developer Profile v1 与个性化知识缺口（v0.1 后增强） | done | T008 | AC05/AC06/AC09 增强项 | P1 |
 
 依赖允许并行：T002 与 T003；T004 与 T005。早期可做草图和 fixture 验证，但不能越过未完成依赖宣称下游 done。T007 可先跑通最小摘要再在 T008 中扩展学习/债务；T008 完成后才具备完整 v0.1 用户闭环。不得把 T007 的中间结果当最终发布。
 
@@ -86,6 +87,8 @@
 - 验证：PRD 阶段闸门；新环境安装 smoke；确定性/误报/覆盖分母/性能记录；真实用户任务观察；独立 check；跨上下文接力和中断恢复演练。
 - Done：必需验收没有 unresolved failure，产品和开发接力各有证据；所有已宣称能力匹配支持矩阵。发布操作按已有授权执行，未授权仅停在发布准备状态。
 
+当前状态：机器可验项完成；用户已报告试用（E017），但 AC12 要求 4/5 名目标用户在无指导下 3 分钟内完成 scan→explain→learn 并到达证据查看，当前缺少样本数和结果，不能宣称通过。
+
 ## 后续 Surface（不计入 v0.1 分母）
 
 | ID | 阶段与交付 | 状态 | 依赖 | 独立退出条件 |
@@ -110,6 +113,8 @@
 - r9：L008 完成——T008 done（E012：绑定生命周期 11 用例 + 真实二进制 AC01 闭环——verified 跨扫描保留、债务 30→28 精确复算、二次进程恢复）。T009 → ready。
 - r10：L009 完成——T009 done（E013：provider 契约 8 用例 + 二进制三级路径；真实远端未 smoke 保持 unverified-remote 禁用）。T010 → ready。
 - r11：L010 完成——T010 机器可验项全done：AC01—AC12 映射（E014）、性能基准（冷 1.04s/热 0.96s/331.1MiB 达标）、安装 smoke（修复 bin 符号链接 bug）、README/NOTICE/SUPPORT、独立 Checker（新上下文）"有保留通过" + 接力演练六问、按发现修复（storage 5 用例/usage/文档）。**T010 保持 in_progress：AC12 用户试用未招募（Human Gate）**；遗留 SNAPSHOT_CHANGED 混沌、LICENSE 归档、跨平台。
+- r13：L012 完成——T011 Developer Profile v1 done：模型/本地全局存储/CLI/画像化 Knowledge Gap/Cognitive Debt 声明接入与文档更新；验证见 E016。v0.1 T010 Human Gate 仍保留。
+- r14：用户报告“已经测试过了”，登记 E017；因缺少样本数、完成结果与是否到达证据查看，T010/AC12 保持 in_progress，不冒称通过。
 
 ## 活动任务扩展字段
 
@@ -151,3 +156,13 @@
 - decisions：D004、D007；evidence：E005、E006。
 - 完成依据：check+test 全绿（E006）；基线足以开展 T002/T003（BACKLOG T001 Done 条件满足）。
 - 最后 revision：r3。
+
+### T011 — Developer Profile v1 与个性化知识缺口（done）
+
+- owner：20260909-101500-codex；session：20260909-101500-codex；完成：2026-09-09。
+- 价值：把 Knowledge Gap 从“代码需要什么”扩展为“这份代码对这个开发者意味着什么”；画像缺失时保持既有链路可用。
+- 输入：用户 2026-09-09 明确要求在 code-xray 中实现 Developer Knowledge Profile / Developer Intelligence，并保持既有架构原则。
+- 交付：`developer-profile-v1` 数据模型（角色、语言/框架/工程/领域/工具技能，level+confidence+evidence）；本机全局 `developer/profile.json`；`xray profile show/init/update`；Knowledge Gap 结合报告所需技能、画像与项目学习状态；Cognitive Debt 输出声明画像参与个人建议而不改变代码发现；未来 Surface 复用同一 Engine/存储边界。
+- 非目标：不做能力评分、绩效比较、自动从代码推断掌握程度、云同步或团队画像。
+- 验证：E016（81/81 测试 + check/build + 二进制 smoke）。
+- 最后 revision：r13。

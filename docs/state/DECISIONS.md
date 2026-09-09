@@ -80,3 +80,13 @@
 - 证据：E004 文档修订检查；产品实现证据仍为 none。
 
 新 Decision 按 [RECORD_TEMPLATES](../RECORD_TEMPLATES.md) 追加。用户更新约束时记录对应变更并同步宪法/PRD/Backlog，项目文档不得反过来覆盖用户授权。
+
+## D009 — Developer Profile v1 采用本机全局状态与证据化技能模型
+
+- 状态：accepted；日期：2026-09-09；提出者：用户当前要求；checkpoint_revision：r13。
+- context：Knowledge Gap 需要区分“代码所需知识”与“这个开发者当前的知识信号”。现有 Learning State 按工作区记录概念 × 代码位置，不适合作为跨项目画像；但已验证理解必须继续以项目学习事件为准。
+- options：(a) 把技能合并进 Learning State——破坏项目状态与开发者状态边界；(b) 只存 beginner/intermediate/advanced 标签——丢失证据与置信度；(c) 开发者级 Profile 独立存储，技能由 level+confidence+evidence 组成，Knowledge Gap 再与项目 Learning State 匹配。
+- decision：采用 (c)。存储为用户数据目录 `developer/profile.json`，与 `workspaces/<id>/learning.json` 分离；CLI 提供 profile show/init/update；Engine 侧保留 `knowledgeGaps` 纯计算边界，未来 Surface 只能通过同一协议/Engine 使用。
+- reason：满足 local-first、画像与项目状态分离、未知不伪装成熟练度，且不改变既有代码发现与已验证学习事实。
+- consequences：profile 是个人建议排序信号，不是能力评分或绩效数据；缺 profile 时 Knowledge Gap 明确显示未评估；后续 VS Code/JetBrains/Agent Surface 不得复制计算逻辑。
+- evidence：E016；affects：T011、AC05/AC06/AC09 增强项。

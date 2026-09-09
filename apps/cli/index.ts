@@ -8,8 +8,13 @@ import { SCHEMA_VERSION, XrayError, type AnalysisReport, type AnalyzeRequest } f
 import { LocalStore } from '../../packages/storage-local/index.js';
 import {
   applyEvent, debtSummary, emptyLearningState, learningCard, LEARNING_CONTENT_VERSION, STATUS_LABELS, syncBindings,
+  learningStatusFor,
   type LearningBinding, type LearningState,
 } from '../../packages/learning/engine.js';
+import {
+  emptyDeveloperProfile, knowledgeGaps, setRoles, upsertSkill, DEVELOPER_PROFILE_VERSION,
+  type DeveloperProfile, type ProfileDimension, type ProfileEvidenceKind, type ProfileSkillLevel,
+} from '../../packages/developer-profile/engine.js';
 import { enhanceFinding, enhanceInputFrom, OUTBOUND_SCOPE, providerFromEnv } from '../../packages/explanation-providers/index.js';
 
 const exec = promisify(execFile);
@@ -25,11 +30,16 @@ function usage(): string {
     '       xray explain [编号] [--enhance]   单条发现完整上下文（--enhance 需显式配置 LLM provider）',
     '       xray learn [编号] [status|answer|ignore|restore|rebind|delete] …',
     '       xray debt                        透明认知债务模型',
+    '       xray profile [init|show|update]  本机开发者画像（角色/语言/框架/工程能力）',
     '       xray doctor',
     '无参数运行 xray 等价于 xray scan .；默认扫描工作区磁盘现状（含未跟踪文件）。',
     '--base 对照显式 Git 基线（commit/branch/HEAD~1 等）输出变更摘要；需要 Git 仓库。',
     '报告按扫描路径保存；explain/learn/debt 读取当前目录的最近报告（在项目目录内运行）。'].join('\n');
 }
+
+const PROFILE_LEVELS: ProfileSkillLevel[] = ['novice', 'beginner', 'intermediate', 'advanced', 'expert'];
+const PROFILE_CONFIDENCE = ['low', 'medium', 'high'] as const;
+const PROFILE_EVIDENCE_KINDS: ProfileEvidenceKind[] = ['self-assessment', 'onboarding-answer', 'verified-learning', 'cli-update', 'project-scan'];
 
 function parseScanArgs(args: string[]): ScanOptions {
   const options: ScanOptions = { path: '.', format: 'human', gitTrackedOnly: false, noSave: false, exclude: [] };
@@ -116,7 +126,7 @@ function terminalWidth(): number {
   return process.stdout.columns ?? 80;
 }
 
-function humanSummary(report: AnalysisReport): string {
+function humanSummary(report: AnalysisReport, gaps?: ReturnType<typeof knowledgeGaps>): string {
   const width = terminalWidth();
   const lines: string[] = [];
   lines.push(`Code X-Ray ${ENGINE_VERSION} · 协议 ${SCHEMA_VERSION}`);
@@ -143,7 +153,13 @@ function humanSummary(report: AnalysisReport): string {
       lines.push(`     下一步：${finding.nextCheck}`);
     }
     const concepts = [...new Set(report.findings.map(f => f.conceptId))];
+    const profileNote = gaps
+      ? gaps.profileConfigured
+        ? `开发者画像：已启用（${gaps.items.filter(item => item.reason === 'profile-signal' || item.reason === 'learning-state-used').length}/${gaps.items.length} 个概念有画像信号）`
+        : `开发者画像：未评估——先运行 xray profile init，再结合个人画像查看缺口。`
+      : '';
     lines.push(...[`知识缺口：${concepts.slice(0, 3).join('、')}${concepts.length > 3 ? ' 等' : ''}（${concepts.length} 个概念）——用 xray learn 逐个掌握，xray debt 查看认知债务。`]);
+    if (profileNote) lines.push(profileNote);
   } else if (report.coverage.parsed > 0) {
     lines.push('未发现可报告的模式。零发现不等于没有问题；未知与限制见 --format json。');
   }
@@ -169,13 +185,20 @@ async function runScan(args: string[], signal?: AbortSignal): Promise<void> {
     await store.saveReport(options.path, report.analysisId, report);
     // Learning bindings follow the saved report; reading never changes status.
     await store.updateState(options.path, emptyLearningState(), state => syncBindings(state, report).state);
+    const [profile, learningState] = await Promise.all([
+      store.readProfile(emptyDeveloperProfile()),
+      store.readState(options.path, emptyLearningState()),
+    ]);
+    const gaps = knowledgeGaps(report, Object.keys(profile.skills).length ? profile : undefined, learningState);
+    if (process.env.XRAY_PROFILE_DIAGNOSTICS === '1')
+      process.stderr.write(`知识缺口（Developer Profile）：${gaps.items.map(item => `${item.conceptId}=${item.reasonLabel}`).join('、')}\n`);
     saved = `报告已保存到本地（analysisId ${report.analysisId.slice(0, 8)}…）；--no-save 可跳过。`;
+    if (options.format === 'human') process.stdout.write(humanSummary(report, gaps) + `\n${saved}\n`);
   }
   if (options.format === 'json') {
     process.stdout.write(JSON.stringify(report) + '\n');
-  } else {
-    process.stdout.write(humanSummary(report) + (saved ? `\n${saved}\n` : '\n'));
   }
+  else if (options.noSave) process.stdout.write(humanSummary(report) + '\n');
 }
 
 async function runDoctor(): Promise<void> {
@@ -376,6 +399,8 @@ async function runDebt(): Promise<void> {
   const width = terminalWidth();
   const state = await store.readState('.', emptyLearningState());
   const summary = debtSummary(state);
+  const profile = await store.readProfile(emptyDeveloperProfile());
+  const profileConfigured = Object.keys(profile.skills).length > 0;
   const lines = [
     `认知债务（${summary.modelVersion}，个人启发式，不是能力评分）`,
     `总债务：${summary.total}（${summary.calculatedCount} 条计入；未评估 ${summary.unassessedCount}、待复核 ${summary.staleCount}、未知关联 ${summary.unknownCount}、已忽略 ${summary.ignoredCount}）`,
@@ -383,6 +408,7 @@ async function runDebt(): Promise<void> {
     `含义：${summary.meaning}`,
     `范围：${summary.scope}`,
     `去重：${summary.deduplication}`,
+    `开发者画像：${profileConfigured ? `${DEVELOPER_PROFILE_VERSION}（本机全局，影响个人建议排序，不改变代码发现）` : '未评估——xray profile init 后可结合画像计算个人知识缺口'}`,
     '',
     '明细（按优先级降序）：',
   ];
@@ -393,12 +419,89 @@ async function runDebt(): Promise<void> {
   process.stdout.write(lines.join('\n') + '\n');
 }
 
+function parseProfileArgs(args: string[]): { dimension: ProfileDimension; key: string; label: string; level: ProfileSkillLevel; confidence: 'low' | 'medium' | 'high'; evidenceKind: ProfileEvidenceKind; evidenceSummary?: string; roleKeys: string[]; primaryRole?: string } {
+  const values = new Map<string, string>();
+  for (let i = 0; i < args.length; i++) {
+    const arg = args[i]!;
+    if (!arg.startsWith('--')) throw new XrayError('INVALID_ARGUMENT', `未知 profile 参数：${arg}`, 2);
+    const flag = arg.slice(2);
+    const value = args[++i];
+    if (value === undefined) throw new XrayError('INVALID_ARGUMENT', `--${flag} 需要一个值。`, 2);
+    values.set(flag, value);
+  }
+  const dimension = values.get('dimension');
+  if (!dimension || !['language', 'framework', 'engineering', 'domain', 'tool'].includes(dimension))
+    throw new XrayError('INVALID_ARGUMENT', 'dimension 需为 language/framework/engineering/domain/tool。', 2);
+  const key = values.get('key');
+  const label = values.get('label') ?? key;
+  const level = values.get('level');
+  if (!key || !label) throw new XrayError('INVALID_ARGUMENT', '--key 和 --label 均需提供。', 2);
+  if (!level || !PROFILE_LEVELS.includes(level as ProfileSkillLevel))
+    throw new XrayError('INVALID_ARGUMENT', 'level 需为 novice/beginner/intermediate/advanced/expert。', 2);
+  const confidence = values.get('confidence') ?? 'medium';
+  if (!PROFILE_CONFIDENCE.includes(confidence as 'low')) throw new XrayError('INVALID_ARGUMENT', 'confidence 需为 low/medium/high。', 2);
+  const evidenceKind = values.get('evidence-kind') ?? 'self-assessment';
+  if (!PROFILE_EVIDENCE_KINDS.includes(evidenceKind as ProfileEvidenceKind))
+    throw new XrayError('INVALID_ARGUMENT', 'evidence-kind 需为 self-assessment/onboarding-answer/verified-learning/cli-update/project-scan。', 2);
+  const roles = values.get('roles');
+  return {
+    dimension: dimension as ProfileDimension, key, label, level: level as ProfileSkillLevel,
+    confidence: confidence as 'low', evidenceKind: evidenceKind as ProfileEvidenceKind,
+    evidenceSummary: values.get('evidence'), roleKeys: roles ? roles.split(',').map(role => role.trim()).filter(Boolean) : [],
+    primaryRole: values.get('primary-role'),
+  };
+}
+
+function renderProfile(profile: DeveloperProfile): string {
+  const lines = [
+    `Developer Profile（${profile.schemaVersion}，本机全局；不是能力评分）`,
+    `角色：${profile.roles.length ? profile.roles.join('、') : '未设置'}${profile.primaryRole ? ` · 主角色：${profile.primaryRole}` : ''}`,
+    `技能：${Object.keys(profile.skills).length} 项 · 证据：${Object.keys(profile.evidence).length} 条`,
+  ];
+  for (const skill of Object.values(profile.skills).sort((a, b) => a.key.localeCompare(b.key, 'en')))
+    lines.push(`  ${skill.dimension} · ${skill.key}：${skill.label} = ${skill.level}（confidence ${skill.confidence}，证据 ${skill.evidenceIds.length} 条）`);
+  return lines.join('\n');
+}
+
+async function runProfile(args: string[]): Promise<void> {
+  const sub = args[0] ?? 'show';
+  if (sub === '--help' || sub === '-h') {
+    process.stdout.write(['用法：xray profile show',
+      '       xray profile init --roles <逗号分隔> --primary-role <role> --dimension <language|framework|engineering|domain|tool>',
+      '           --key <技能> --label <显示名> --level <novice|beginner|intermediate|advanced|expert>',
+      '           [--confidence <low|medium|high>] [--evidence-kind <...>] [--evidence <说明>]',
+      '       xray profile update …（参数同 init，更新已有画像；保留历史证据）'].join('\n') + '\n');
+    return;
+  }
+  const store = new LocalStore(process.env.XRAY_DATA_DIR ? { dataDir: process.env.XRAY_DATA_DIR } : {});
+  if (sub === 'show') {
+    const profile = await store.readProfile(emptyDeveloperProfile());
+    process.stdout.write(renderProfile(profile) + '\n');
+    if (!Object.keys(profile.skills).length) process.stdout.write('下一步：xray profile init --roles frontend,backend --primary-role frontend --dimension language --key Java --label Java --level beginner --confidence medium\n');
+    return;
+  }
+  if (sub !== 'init' && sub !== 'update') throw new XrayError('INVALID_ARGUMENT', `未知 profile 子命令：${sub}（可用 init/show/update）`, 2);
+  const rest = args.slice(1).filter(arg => arg !== '--help' && arg !== '-h');
+  const parsed = parseProfileArgs(rest);
+  const updated = await store.updateProfile(emptyDeveloperProfile(), profile => {
+    let next = sub === 'init' ? emptyDeveloperProfile() : profile;
+    if (parsed.roleKeys.length || parsed.primaryRole !== undefined) next = setRoles(next, parsed.roleKeys, parsed.primaryRole);
+    return upsertSkill(next, {
+      dimension: parsed.dimension, key: parsed.key, label: parsed.label, level: parsed.level,
+      confidence: parsed.confidence, evidenceKind: parsed.evidenceKind, evidenceSummary: parsed.evidenceSummary,
+    });
+  });
+  process.stdout.write(renderProfile(updated) + '\n');
+  process.stdout.write('画像仅保存在本机用户数据目录，不写入当前项目或 Git。\n');
+}
+
 export function buildCommands(signal?: AbortSignal): { name: string; description: string; run: (args: string[]) => Promise<void> }[] {
   return [
     { name: 'scan', description: '扫描 Java 项目并输出有证据的分析摘要', run: args => runScan(args, signal) },
     { name: 'explain', description: '查看最近报告中单条发现的完整上下文（证据/前提/未知）', run: runExplain },
     { name: 'learn', description: '学习知识缺口：查看学习卡、自述状态、验证理解', run: runLearn },
     { name: 'debt', description: '查看透明的认知债务模型与明细', run: () => runDebt() },
+    { name: 'profile', description: '查看或更新本机开发者画像（角色与技能证据）', run: runProfile },
     { name: 'doctor', description: '检查运行环境、依赖与本地数据状态', run: () => runDoctor() },
   ];
 }

@@ -19,6 +19,7 @@ export class LocalStore {
   readonly dataDir: string;
   readonly lockTimeoutMs: number;
   private canonicalRoot: string | null = null;
+  private developerProfileDirectory: string | null = null;
   constructor(options: { dataDir?: string; lockTimeoutMs?: number } = {}) {
     const base = process.platform === 'darwin' ? join(homedir(), 'Library', 'Application Support')
       : process.platform === 'win32' ? process.env.LOCALAPPDATA || join(homedir(), 'AppData', 'Local')
@@ -145,6 +146,45 @@ export class LocalStore {
   }
   async readState<T>(workspace: string, initial: T): Promise<T> {
     return (await this.read<T>(join(await this.directory(workspace), 'learning.json'))) ?? clone(initial);
+  }
+  private async developerDirectory(): Promise<string> {
+    if (this.developerProfileDirectory) return this.developerProfileDirectory;
+    const root = await this.root();
+    await this.ensureDir(root, root);
+    const directory = join(root, 'developer');
+    await this.ensureDir(directory, root);
+    const canonical = await realpath(directory);
+    if (canonical !== directory) throw new LocalStoreError('STORAGE_BOUNDARY', '开发者画像目录不能通过符号链接重定向。');
+    this.developerProfileDirectory = directory;
+    return directory;
+  }
+  async readProfile<T>(initial: T): Promise<T> {
+    return (await this.read<T>(join(await this.developerDirectory(), 'profile.json'))) ?? clone(initial);
+  }
+  async updateProfile<T>(initial: T, update: (profile: T) => T | Promise<T>): Promise<T> {
+    const directory = await this.developerDirectory();
+    const root = dirname(directory);
+    const lock = join(directory, '.write-lock');
+    const deadline = Date.now() + this.lockTimeoutMs;
+    while (true) {
+      try { await mkdir(lock, { mode: 0o700 }); break; }
+      catch (error) {
+        if ((error as NodeJS.ErrnoException).code !== 'EEXIST') throw error;
+        const info = await lstat(lock);
+        if (!info.isDirectory() || info.isSymbolicLink()) throw new LocalStoreError('STORAGE_BOUNDARY', '写入锁边界无效。');
+        if (Date.now() >= deadline) throw new LocalStoreError('STORAGE_LOCKED', '另一个进程持有开发者画像写锁；若此前进程已崩溃，请确认其退出后删除 developer/.write-lock 目录再重试。原数据未重置。');
+        await new Promise(resolveWait => setTimeout(resolveWait, 15));
+      }
+    }
+    try {
+      const path = join(directory, 'profile.json');
+      const profile = (await this.read<T>(path)) ?? clone(initial);
+      const updated = await update(profile);
+      await this.atomicWrite(directory, path, updated);
+      return clone(updated);
+    } finally {
+      await rm(lock, { recursive: true, force: true });
+    }
   }
   async updateState<T>(workspace: string, initial: T, update: (state: T) => T | Promise<T>): Promise<T> {
     return this.locked(workspace, async directory => {

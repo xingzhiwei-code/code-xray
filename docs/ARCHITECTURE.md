@@ -96,6 +96,7 @@ T003 将下表实现为真实 schema。当前示例是设计，不是可直接�
 | `Finding` | `id`, `ruleId`, `ruleVersion`, `severity`, `claimIds`, `conceptIds`, `nextCheck` | 风险严重性和证据确定性分开；结果 ID 可追踪，不含秘密明文 |
 | `Flow` | `nodes`, `edges`, `entry`, `coverage`, `limits` | 每条边带 observed、inferred 或 unresolved 状态及证据；静态候选路径不得称作实际运行 trace |
 | `LearningCard` | `conceptId`, `findingIds`, `what`, `whyHere`, `hiddenMechanisms`, `whatIfChangedOrRemoved`, `example`, `check`, `references` | 四段内容必填；条件性影响需保留前提与证据；来源与适用版本明确，前端类比可选且说明边界 |
+| `DeveloperProfile` | `schemaVersion`, `roles`, `skills[level,confidence,evidenceIds]`, `evidence` | 开发者级画像，本机全局保存；level 不是能力评分，confidence 表达证据强度，未知技能不得默认为熟练 |
 | `CognitiveDebtItem` | `conceptId`, `codeRefs`, `riskContext`, `learningState`, `evidenceRefs` | 描述概念与维护场景之间的未验证理解，不给个人能力打分 |
 | `AnalysisResult` | `schemaVersion`, `analysisId`, `snapshot`, `status`, `coverage`, `claims`, `findings`, `evidence`, `diagnostics`, `provenance` | 保留不支持范围、所用规则/解析器/配置版本、LLM 是否参与 |
 

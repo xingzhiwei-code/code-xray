@@ -24,8 +24,33 @@
 - 用户授权：本轮明确指示提交到 github.com/xingzhiwei-code/code-xray——此为 HANDOFF/CURRENT 中登记的 Human Gate 之一（发布操作）的解除。
 - 任务状态：T010 仍 in_progress——发布操作已执行，**AC12 真实用户试用仍未执行**（唯一剩余项）。
 - outcome：done（本 Loop）。
-- 下一步：用户试用（3 分钟无指导 scan→explain→learn）→ E016 → T010 done；或开始 V02（T101）。
+- 下一步：用户试用（3 分钟无指导 scan→explain→learn）→ E017 → T010 done；或开始 V02（T101）。
 - checkpoint completion：completed（r12，本 checkpoint 由首次 git commit 承载）。
+
+## L012 — Developer Profile v1 与个性化知识缺口
+
+- checkpoint_revision：r13；checkpoint_status：preparing。
+- 日期：2026-09-09；session：20260909-101500-codex。
+- 目标：按用户要求实现 Developer Knowledge Profile / Developer Intelligence 的 v0.1 可落地能力，并保持一个 Engine、多个 Surface 的边界。
+- 变更：新增 `packages/developer-profile`（level+confidence+evidence 模型、Knowledge Gap 计算）；LocalStore 增开发者级 `developer/profile.json`；CLI 新增 `profile show/init/update`；scan 结合画像与项目学习状态计算缺口（诊断可用 XRAY_PROFILE_DIAGNOSTICS=1 打开）；debt 输出声明画像参与个人建议；README/SUPPORT/ARCHITECTURE/BACKLOG/DECISIONS/EVIDENCE 同步。
+- 验证（E016）：check 0；81/81 tests；build 0；真实二进制 profile 初始化/更新/show；scan JSON 解析与画像信号 smoke。
+- 检查（self-separated）：(1) 画像与项目 learning 状态分离并在测试中断言；(2) 无 profile 时不猜技能，priority=null 且原因可见；(3) verified learning 仍由项目事件驱动，profile 不能自动升级；(4) CLI 只做参数与展示，计算在 developer-profile/learning 领域层；(5) 默认不写项目目录、不进 Git，数据在用户数据目录。
+- outcome：done（T011）。v0.1 T010 的 AC12 真实用户试用 Human Gate 仍保留。
+- 下一步：等待用户试用（scan→explain→learn）；如进入 V02，VS Code Surface 必须调用同一 Engine/Profile/Debt 逻辑。
+- checkpoint completion：completed（r13）。
+
+## L013 — 用户试用报告登记
+
+- checkpoint_revision：r14；checkpoint_status：preparing。
+- 日期：2026-09-09；session：20260909-101500-codex。
+- 目标：登记用户报告的试用事实，并核对 AC12 是否可判定。
+- 变更：仅状态文件（EVIDENCE E017、BACKLOG T010、CURRENT、HANDOFF）。
+- 事实：用户报告“已经测试过了”。未提供试用人数、是否 3 分钟内完成 scan→explain→learn、是否到达证据查看或失败点。
+- 判定：T010/AC12 保持 in_progress；不能把用户一句话报告直接升级为 4/5 验收通过。
+- Evidence：E017（result=blocked，user-reported）。
+- outcome：blocked（AC12 结果信息不足）。
+- 下一步：用户补充“几人测试、几人完成、是否到达证据查看”后更新 E017；若 ≥4/5 达成则 T010 → done，否则记录失败点并进入修复。
+- checkpoint completion：completed（r14）。
 
 ## L010 — T010 发布准备：材料、基准、安装 smoke、独立检查与接力演练
 

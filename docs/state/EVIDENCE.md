@@ -264,3 +264,37 @@
 - result：passed（仅文档范围）；检查退出码 0；18 份文件、12 个 v0.1 AC 和 12 个后续版本验收编号有效，状态 r1 一致，ZIP 与独立文件字节一致；无产品测试结论。
 - review_mode：independent 对本次 PRD 范围的只读复核 + root 跨文件检查。
 - limitations：版本规划不是实现能力；V02/V03/V04 全部待验收。E003 保留为初次包检查历史，当前文件摘要以 E004 对应清单为准。
+
+## E016 — Developer Profile v1 与个性化 Knowledge Gap
+
+- kind：test + binary smoke；recorded_at：2026-09-09T10:30+08:00；checkpoint_revision：r13。
+- claim：Developer Profile v1 数据模型、本机全局持久化、CLI onboarding/查看/更新、画像化 Knowledge Gap 与 Cognitive Debt 声明接入全部实现并通过当前快照验证。
+- task：T011；acceptance：AC05/AC06/AC09 增强项（不改变 v0.1 原验收边界）。
+- operator：20260909-101500-codex。
+- subject_snapshot：base_commit：df10a87d8e14aed365781d86258a0363b1117c07；新增 packages/developer-profile/{types.ts,engine.ts}、tests/{developer-profile.test.ts,profile-cli.test.ts}；变更 apps/cli/index.ts、packages/learning/engine.ts、packages/storage-local/index.ts、README.md、docs/SUPPORT.md、docs/ARCHITECTURE.md、状态文档。
+- environment：macOS（Darwin 24.3.0）、Node v22.14.0、npm 10.9.2、vitest 5.0.0、TypeScript 7.0.2。
+- invocation：`npm run check`；`npm test`；`npm run build`；真实二进制 profile show/init、XRAY_PROFILE_DIAGNOSTICS=1 scan、JSON stdout 解析。本轮补跑最终快照：check/test/build 与二进制默认摘要均通过。
+- expected：类型检查 0 错误；测试全过且包含 profile 模型/持久化/画像化缺口/CLI 生命周期/默认摘要画像提示；JSON stdout 保持纯净；无 profile 时显示未评估；有 Spring 画像时 spring 概念显示画像信号、JPA 显示缺少技能；profile 文件位于 `developer/profile.json` 且项目 learning 状态保持分离。
+- actual：check 0；81/81 tests passed（12 files）；build 0；二进制 smoke 全部符合。注意：`npx tsx evals/run.ts` 在沙箱 IPC listen EPERM 下无法运行，改用 `npm run build` + 真实 dist CLI 验证；本轮未修改 Java 规则，冻结 oracle 不受影响。
+- exit_code：check=0、test=0、build=0、profile CLI=0、scan=0。
+- result：passed。
+- limitations：profile CLI 一次仅更新一个技能（最小 onboarding 形态）；画像不能自动升级学习状态；真实跨 Surface 复用需到 V02/V03/V04 验收；未做 Windows/Linux。
+- review_mode：self-separated；checker：20260909-101500-codex。
+- supersedes：null。
+
+## E017 — 用户报告已试用
+
+- kind：ux_review；recorded_at：2026-09-09T10:50+08:00；checkpoint_revision：r14。
+- claim：用户在当前会话中报告“已经测试过了”。本条只证明用户报告了试用发生，不证明 AC12 的 4/5 样本与完成结果。
+- task：T010；acceptance：AC12（用户试用子项，部分）。
+- operator：用户。
+- subject_snapshot：当前工作树（T011 相关改动未提交）；本条不涉及代码变更。
+- environment：用户本地环境（未提供具体命令、时长或样本数）。
+- invocation：用户报告。
+- expected：4/5 名目标用户在无指导下 3 分钟内完成 scan→explain→learn，并能到达证据查看。
+- actual：用户报告“已经测试过了”；未提供完成人数、是否到达证据查看、耗时或失败点。
+- exit_code：not_applicable。
+- result：blocked（信息不足，不能据此宣称 AC12 通过）。
+- limitations：单条用户报告不足以满足 AC12 的样本与结果要求；不能推断 4/5 或具体任务完成情况。
+- review_mode：user-reported；checker：not_applicable。
+- supersedes：null。

@@ -22,6 +22,7 @@ xray scan <路径> --format json # 结构化完整报告（stdout 纯净 JSON，
 xray explain [编号]        # 单条发现的完整上下文：证据/前提/未知/下一步
 xray learn [编号] [子命令] # 学习卡与知识状态（status/answer/ignore/restore/rebind/delete）
 xray debt                  # 透明的认知债务模型（因子/权重/去重全部可见）
+xray profile [show|init|update] # 本机开发者画像（角色/语言/框架/工程能力）
 xray doctor                # 环境与本地数据状态
 ```
 
@@ -44,6 +45,7 @@ xray doctor                # 环境与本地数据状态
 - 默认零外发、零遥测、无账号、无模型密钥（集成测试断言网络全拒绝下运行）。
 - 不执行被扫描项目的任何命令/插件/构建；敏感文件名与疑似凭据内容自动排除且排除原因可见。
 - 本地数据（报告/学习状态）保存在用户数据目录，按工作区隔离，可删除。
+- 开发者画像保存在用户数据目录的 `developer/profile.json`，与项目学习状态分离；默认不写入项目、不进入 Git。
 - LLM 增强解释仅在显式设置 `XRAY_PROVIDER_URL/KEY/MODEL` 时启用；启用后仅发送概念与确定性卡片内容，**不发送源码、路径或证据**；任何失败自动回退到确定性输出。
 
 ## 支持范围与限制

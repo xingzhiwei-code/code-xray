@@ -268,3 +268,10 @@ export function debtSummary(state: LearningState): DebtSummary {
     items,
   };
 }
+
+export function learningStatusFor(state: LearningState, conceptId: ConceptId): Exclude<LearningStatus, 'ignored'> {
+  const bindings = Object.values(state.bindings).filter(binding => binding.conceptId === conceptId && binding.status !== 'ignored');
+  if (!bindings.length) return 'unassessed';
+  const ranking: Exclude<LearningStatus, 'ignored'>[] = ['stale', 'verified', 'self-reported', 'learning', 'to-learn', 'unassessed'];
+  return ranking.find(status => bindings.some(binding => binding.status === status)) ?? 'unassessed';
+}

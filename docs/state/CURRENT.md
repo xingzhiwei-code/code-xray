@@ -3,43 +3,45 @@
 | 字段 | 值 |
 |---|---|
 | state_schema_version | 1 |
-| state_revision | r12 |
+| state_revision | r14 |
 | checkpoint_status | complete |
-| updated_at | 2026-09-08T17:40+08:00（L011 故障注入测试 + 首次提交推送执行） |
+| updated_at | 2026-09-09T10:50+08:00（用户报告已试用，E017） |
 | project | Code X-Ray |
 | phase | v0.1 CLI / 功能完备，待用户试用与发布授权 |
-| implementation_status | in_progress（仅 T010 的用户试用与发布操作） |
-| progress | v0.1 必需任务 9/10 done（T001—T009）；T010 in_progress（机器可验项全部完成，仅剩真人试用）；任务非等量 |
+| implementation_status | in_progress（T010 仅剩 AC12 试用结果信息确认） |
+| progress | v0.1 必需任务 9/10 done（T001—T009）；T010 in_progress（机器可验项全部完成，仅剩真人试用）；T011 done（Developer Profile v1）；任务非等量 |
 | active_task | T010（Human Gate：仅剩 AC12 用户试用） |
-| active_loop | 无（等待用户试用） |
-| next_task | 用户执行 3 分钟无指导试用（scan→explain→learn）→ E016 → T010 done |
-| session_owner | 20260908-143500-claude |
+| active_loop | 无（L012 已完成） |
+| next_task | 确认用户试用样本数与结果：几人完成 scan→explain→learn，几人到达证据查看 → 更新 E017 → T010 判定 |
+| session_owner | 20260909-101500-codex |
 | repo_path | /Users/01443732/Documents/Codex/2026-09-08/referenced-chatgpt-conversation-this-is-an/outputs/code-xray |
-| git_branch / head | main / 9a38288302bd562a734e63474694cdacb1b0586b（已推送 origin=github.com/xingzhiwei-code/code-xray，工作树清洁） |
-| worktree_state | 首次提交后应清洁；node_modules/dist/.idea/.DS_Store 已由 .gitignore 排除 |
-| last_product_verification | E015：75/75 测试（含 SNAPSHOT_CHANGED 故障注入）+ 全套验证绿 + 首次提交推送（2026-09-08T17:40+08:00） |
-| package_evidence | E005—E015 产品证据链完整（…→发布映射+独立检查→故障注入+首次提交）；E001—E004 文档 |
-| blockers | Human Gate（仅剩一项）：AC12 真实用户试用未执行；git commit 已授权并完成 |
+| git_branch / head | main / df10a87d8e14aed365781d86258a0363b1117c07（T011 改动未提交） |
+| worktree_state | T011 相关实现/测试/文档改动待提交；node_modules/dist/.idea/.DS_Store 已由 .gitignore 排除 |
+| last_product_verification | E016：81/81 测试 + check/build + Developer Profile 二进制 smoke；E017：用户报告已试用但结果信息不足 |
+| package_evidence | E005—E017 产品证据链完整（…→故障注入+首次提交→Developer Profile v1→用户试用报告）；E001—E004 文档 |
+| blockers | AC12 试用报告缺少样本数与完成结果，不能判定通过 |
 
 ## 唯一下一步
 
-**唯一剩余验收**：AC12 真实用户试用——3 分钟无指导（仅凭 README）完成 `xray scan <项目>` → `xray explain 1` → `xray learn`，是否到达证据查看（目标 ≥4/5）。结果记 E016 后 T010 → done，v0.1 收官。之后可选：开始 V02（T101 VS Code）。SNAPSHOT_CHANGED 故障注入测试已完成（E015）。
+**唯一剩余 v0.1 验收**：AC12 真实用户试用结果确认——用户已报告“测试过了”（E017），但需要补充几人完成 `xray scan <项目>` → `xray explain 1` → `xray learn`，几人在 3 分钟内到达证据查看。若达到 ≥4/5，更新 E017 后 T010 → done；否则记录失败点并修复。T011 Developer Profile v1 已由 E016 验证。
 
 ## required_reads
 
 - [项目宪法](../CONSTITUTION.md)、[Loop 协议](../LOOP_PROTOCOL.md)、[接力协议](../HANDOFF_PROTOCOL.md)
 - [BACKLOG](BACKLOG.md) 的 T010 与后续 Surface 任务
+- [BACKLOG](BACKLOG.md) 的 T011、[DECISIONS](DECISIONS.md) 的 D009（Developer Profile）
 - [README.md](../../README.md)（产品使用说明）、[NOTICE.md](../../NOTICE.md)、[SUPPORT.md](../SUPPORT.md)
-- 代码：packages/{protocol,engine,analyzer-java,workspace-local,storage-local,learning,explanation-providers}、apps/cli、tests/×9、evals/
+- 代码：packages/{protocol,engine,analyzer-java,workspace-local,storage-local,learning,developer-profile,explanation-providers}、apps/cli、tests/×12、evals/
 
 ## 当前已知事实与限制
 
-- v0.1 功能闭环完整可用：扫描→证据→diff→explain→学习卡→验证→认知债务→二次启动恢复，全部经真实二进制与 75 项测试验证；冻结 oracle 上三规则 precision/recall 100%、unknown 零泄漏（独立 Checker 复核）。
+- v0.1 功能闭环完整可用：扫描→证据→diff→explain→学习卡→验证→认知债务→二次启动恢复，全部经真实二进制验证；冻结 oracle 上三规则 precision/recall 100%、unknown 零泄漏（独立 Checker 复核）。当前快照含 T011 后共 81/81 测试通过（E016）。
+- T011 新增 Developer Profile v1：本机全局角色/技能/证据模型，`xray profile show/init/update`；Knowledge Gap 结合当前代码所需技能、开发者画像与项目学习状态；画像缺失时保持可用并显式“未评估”；不改变代码发现、已验证学习事实或退出码。
 - AC12 性能达标（100 文件/20,000 非空行：冷 1.04s/热 0.96s/331.1MiB，macOS arm64）；安装 smoke 通过（含 bin 符号链接 bug 修复）；SNAPSHOT_CHANGED 检测路径已经故障注入测试（E015）。
-- T010 遗留（不阻塞试用）：真实用户试用未执行（Human Gate）；cliff LICENSE 全文需发布前归档；Windows/Linux 未测；真实远端 provider 保持 unverified-remote 禁用；oracle 标签为实现者制定（独立 Checker 已复核标签-源码一致性，外部专家标注未做）。
+- T010 遗留：用户试用已报告但缺少结果细节；cliff LICENSE 全文需发布前归档；Windows/Linux 未测；真实远端 provider 保持 unverified-remote 禁用；oracle 标签为实现者制定（独立 Checker 已复核标签-源码一致性，外部专家标注未做）。
 - 凭据检测/脱敏关键词仅英文（password/secret/api key/token/sk-）——已在 SUPPORT.md 声明。
 - 默认离线、隐私优先在所有路径成立（独立 Checker 确认报告无源码/学习状态泄漏、bundle 无多余网络调用点）。
 
 ## 继续开发时不要重复
 
-不要重写 PRD/架构文档；不要把磁盘实现当未验证（E005—E014 已覆盖）；不要用 mock cliff 或 mock provider 冒充真实集成；不要在未招募用户时宣称 AC12 试用通过；不要未经授权 git commit；修改 vendor/ 必须同步 VENDOR_PATCH.md 并重跑 cliff-adapter 测试。
+不要重写 PRD/架构文档；不要把磁盘实现当未验证（E005—E016 已覆盖）；不要用 mock cliff 或 mock provider 冒充真实集成；不要把“用户说测试过了”直接写成 AC12 通过；不要未经授权 git commit；修改 vendor/ 必须同步 VENDOR_PATCH.md 并重跑 cliff-adapter 测试；未来 Surface 不得复制 profile/gap/debt 计算逻辑。
