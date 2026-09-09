@@ -52,6 +52,18 @@
 - 下一步：用户补充“几人测试、几人完成、是否到达证据查看”后更新 E017；若 ≥4/5 达成则 T010 → done，否则记录失败点并进入修复。
 - checkpoint completion：completed（r14）。
 
+## L014 — 本地提交与推送尝试
+
+- checkpoint_revision：r15；checkpoint_status：preparing。
+- 日期：2026-09-09；session：20260909-101500-codex。
+- 目标：按用户要求提交 Developer Profile 与状态记录，并推送远端。
+- 验证：`npm run verify` 通过（check 0、81/81 tests、build 0）；`git diff --check` 无输出。
+- 变更/提交：bd26abe `feat: add developer profile and personalized knowledge gaps`；4b1fd41 `state: record developer profile checkpoint`。
+- 阻塞：`git push origin main` 失败（无法读取 GitHub 用户名，非交互环境）；`gh auth status` 显示 xingzhiwei-code token invalid。
+- 下一步：用户运行 `gh auth login -h github.com` 重新认证后，执行 `git push origin main`。
+- outcome：done（本地提交）/ blocked（远端推送）。
+- checkpoint completion：completed（r15）。
+
 ## L010 — T010 发布准备：材料、基准、安装 smoke、独立检查与接力演练
 
 - checkpoint_revision：r11；checkpoint_status：preparing。

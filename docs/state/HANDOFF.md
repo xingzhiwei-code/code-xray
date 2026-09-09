@@ -16,7 +16,7 @@ v0.1 功能完备：9/10 done + T010 仅剩 AC12 结果确认。完整闭环（s
 
 - 已交付（已验证，E005—E016）：协议+能力声明、vendored cliff（D007 四点补丁）、36 文件 fixture、engine（独立可调用）、CLI 命令（scan/--base diff/explain/learn/debt/profile/doctor；CJK 列宽、SIGINT→130、stderr 进度、退出码契约）、三规则 eval 100%、workspace 边界/隐私矩阵、学习/债务生命周期、Developer Profile v1、provider 端口与回退、storage 错误信封、性能基准、安装 smoke、发布材料、独立检查+接力演练。
 - 未交付：AC12 试用结果细节（4/5 样本与证据查看完成情况）；cliff LICENSE 全文归档（tarball 无，清单声明 MIT）；Windows/Linux 平台验证；真实远端 provider smoke（保持 unverified-remote 禁用）；外部 Java 专家 oracle 标注（独立 Checker 已复核标签-源码一致性）；V02/V03/V04（T101/T201/T301 planned）。
-- 工作树：T011 已提交为 bd26abe；CURRENT 的 HEAD 回填改动待第二次提交（.gitignore 排除 node_modules/dist/.idea/.DS_Store/*.tgz/.xray/artifacts/tmp）；状态文件 r14 已完成写入。
+- 工作树：功能提交 bd26abe、状态提交 4b1fd41 均已完成；本地领先 origin/main 2 个提交。GitHub 凭据失效，`git push origin main` 因无法读取用户名失败（gh auth status 显示 token invalid），推送待用户重新认证。
 - 最近有效产品测试：E016（2026-09-09T10:30+08:00，81/81 + check/build + 二进制 smoke）。
 
 ## 第一条可执行动作

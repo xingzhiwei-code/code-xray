@@ -298,3 +298,20 @@
 - limitations：单条用户报告不足以满足 AC12 的样本与结果要求；不能推断 4/5 或具体任务完成情况。
 - review_mode：user-reported；checker：not_applicable。
 - supersedes：null。
+
+## E018 — Developer Profile 提交与推送尝试
+
+- kind：handoff；recorded_at：2026-09-09T11:00+08:00；checkpoint_revision：r15。
+- claim：用户要求的本地 Git 提交已完成；推送因 GitHub 凭据失效未完成。
+- task：T011 / T010；acceptance：AC11（开发接力状态）。
+- operator：20260909-101500-codex；授权：用户本轮明确要求“先把代码提交 git 上”。
+- subject_snapshot：npm run verify 通过（check 0、81/81 tests、build 0）；提交前 git diff --check 无输出。
+- environment：macOS、Node v22.14.0、npm 10.9.2、git 2.39.5、gh CLI（账号 xingzhiwei-code）。
+- invocation：`npm run verify`；`git diff --check`；`git add -A`；`git commit -m "feat: add developer profile and personalized knowledge gaps"`；`git add -A`；`git commit -m "state: record developer profile checkpoint"`；`git push origin main`；`gh auth status`。
+- expected：验证通过后功能与状态进入本地 Git 历史，并推送到 origin/main。
+- actual：提交完成：bd26abe（功能，16 文件 +674/-38）、4b1fd41（状态回填）。推送失败：`fatal: could not read Username for 'https://github.com': Device not configured`；`gh auth status` 显示 xingzhiwei-code 的 token invalid。
+- exit_code：verify=0、commit×2=0、push=128、gh_auth=1。
+- result：passed（本地提交范围）/ blocked（远端推送）。
+- limitations：远端 GitHub 未更新；重新认证后可执行 `git push origin main`。
+- review_mode：self-separated；checker：20260909-101500-codex。
+- supersedes：null。

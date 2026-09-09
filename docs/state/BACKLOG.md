@@ -1,6 +1,6 @@
 # Backlog：任务状态的唯一来源
 
-当前 revision：r14（r13 L012 Developer Profile v1；r14 用户报告已试用但 AC12 信息不足）。v0.1 必需任务 9/10 done（T001—T009）；T010 in_progress——AC12 已收到用户试用报告（E017），但缺少完成人数/结果，暂不能标 done。新增 T011 已实现并验证，不改变 v0.1 分母。拆分任务须保留原 ID、依赖和 AC 追踪。
+当前 revision：r15（r14 用户报告已试用但 AC12 信息不足；r15 本地提交完成、推送因 GitHub 凭据失效阻塞）。v0.1 必需任务 9/10 done（T001—T009）；T010 in_progress——AC12 缺少完成人数/结果。T011 已提交到本地 Git（bd26abe + 状态提交 4b1fd41）。拆分任务须保留原 ID、依赖和 AC 追踪。
 
 状态与更新规则见 [HANDOFF_PROTOCOL](../HANDOFF_PROTOCOL.md)，验收原文见 [PRD](../PRD.md)。单个任务只负责其交付范围内的 AC 子项，并在 Evidence 写明覆盖边界；完整 AC 的跨任务汇总由 T010 验收。不得将下游能力作为上游任务的隐含完成条件。
 
@@ -115,6 +115,7 @@
 - r11：L010 完成——T010 机器可验项全done：AC01—AC12 映射（E014）、性能基准（冷 1.04s/热 0.96s/331.1MiB 达标）、安装 smoke（修复 bin 符号链接 bug）、README/NOTICE/SUPPORT、独立 Checker（新上下文）"有保留通过" + 接力演练六问、按发现修复（storage 5 用例/usage/文档）。**T010 保持 in_progress：AC12 用户试用未招募（Human Gate）**；遗留 SNAPSHOT_CHANGED 混沌、LICENSE 归档、跨平台。
 - r13：L012 完成——T011 Developer Profile v1 done：模型/本地全局存储/CLI/画像化 Knowledge Gap/Cognitive Debt 声明接入与文档更新；验证见 E016。v0.1 T010 Human Gate 仍保留。
 - r14：用户报告“已经测试过了”，登记 E017；因缺少样本数、完成结果与是否到达证据查看，T010/AC12 保持 in_progress，不冒称通过。
+- r15：按用户要求提交本地 Git：bd26abe（Developer Profile 功能）+ 4b1fd41（状态回填）；`npm run verify` 通过。GitHub 凭据失效导致 push 失败，登记 E018，远端待重新认证后推送。
 
 ## 活动任务扩展字段
 
