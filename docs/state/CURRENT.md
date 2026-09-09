@@ -15,8 +15,8 @@
 | next_task | 确认用户试用样本数与结果：几人完成 scan→explain→learn，几人到达证据查看 → 更新 E017 → T010 判定 |
 | session_owner | 20260909-101500-codex |
 | repo_path | /Users/01443732/Documents/Codex/2026-09-08/referenced-chatgpt-conversation-this-is-an/outputs/code-xray |
-| git_branch / head | main / df10a87d8e14aed365781d86258a0363b1117c07（T011 改动未提交） |
-| worktree_state | T011 相关实现/测试/文档改动待提交；node_modules/dist/.idea/.DS_Store 已由 .gitignore 排除 |
+| git_branch / head | main / bd26abe（T011 已提交） |
+| worktree_state | T011 提交后还有状态回填改动待提交；node_modules/dist/.idea/.DS_Store 已由 .gitignore 排除 |
 | last_product_verification | E016：81/81 测试 + check/build + Developer Profile 二进制 smoke；E017：用户报告已试用但结果信息不足 |
 | package_evidence | E005—E017 产品证据链完整（…→故障注入+首次提交→Developer Profile v1→用户试用报告）；E001—E004 文档 |
 | blockers | AC12 试用报告缺少样本数与完成结果，不能判定通过 |
