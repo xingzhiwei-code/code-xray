@@ -45,6 +45,10 @@
       {
         "command": "codeXray.markLearning",
         "title": "Code X-Ray: Mark Finding As Learning"
+      },
+      {
+        "command": "codeXray.scanSelection",
+        "title": "Code X-Ray: Scan Selected File or Folder"
       }
     ],
     "menus": {
@@ -53,6 +57,12 @@
           "command": "codeXray.scan",
           "when": "view == codeXray.findings",
           "group": "navigation"
+        }
+      ],
+      "explorer/context": [
+        {
+          "command": "codeXray.scanSelection",
+          "group": "4_search"
         }
       ]
     }

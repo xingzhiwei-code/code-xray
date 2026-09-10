@@ -24,10 +24,12 @@
   "scripts": {
     "build": "node scripts/build.mjs",
     "build:vscode": "node scripts/build-vscode.mjs",
-    "check": "tsc --noEmit",
+    "check:cli": "node scripts/check-cli.mjs",
+    "check:vscode": "node scripts/check-vscode.mjs",
+    "check": "npm run check:cli && npm run check:vscode",
     "test": "vitest run",
     "dev": "node --import tsx apps/cli/index.ts",
-    "verify": "npm run check && npm test && npm run build",
+    "verify": "npm run check && npm test && npm run build && npm run build:vscode",
     "prepack": "npm run build"
   },
   "dependencies": {

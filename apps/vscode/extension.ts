@@ -2,6 +2,7 @@ import {
   commands, Event, EventEmitter, ExtensionContext, Range, ThemeIcon, TreeDataProvider,
   TreeItem, TreeItemCollapsibleState, Uri, window, workspace,
 } from 'vscode';
+import { relative } from 'node:path';
 import { analyze } from '../../packages/engine/index.js';
 import type { AnalysisReport, Finding } from '../../packages/protocol/index.js';
 import { LocalStore } from '../../packages/storage-local/index.js';
@@ -12,6 +13,12 @@ type TreeNode =
   | { kind: 'summary'; text: string; tooltip: string }
   | { kind: 'action'; text: string; tooltip: string }
   | { kind: 'finding'; finding: Finding; report: AnalysisReport };
+
+type SelectionScope =
+  | { mode: 'selected'; paths: string[] }
+  | { mode: 'uncommitted' };
+
+type MaybeUri = { scheme?: unknown; fsPath?: unknown };
 
 class FindingsTree implements TreeDataProvider<TreeNode> {
   private readonly changeEmitter = new EventEmitter<TreeNode | undefined>();
@@ -75,10 +82,21 @@ class FindingsTree implements TreeDataProvider<TreeNode> {
   }
 }
 
+function selectedPaths(root: Uri): string[] {
+  const paths = selectedUris.length ? selectedUris : (window.activeTextEditor ? [window.activeTextEditor.document.uri] : []);
+  return paths
+    .filter(uri => uri.scheme === 'file' && (uri.path === root.path || uri.path.startsWith(root.path + '/')))
+    .map(uri => relative(root.fsPath, uri.fsPath));
+}
+
+let selectedUris: Uri[] = [];
+
 async function analyzeVisibleWorkspace(root: Uri): Promise<AnalysisReport> {
   const unsaved = workspace.textDocuments.filter(document => !document.isUntitled && document.isDirty);
   if (unsaved.length) window.showWarningMessage(`Code X-Ray: ${unsaved.length} unsaved editor buffer(s) are not included. Save before scanning.`);
-  return analyze({ path: root.fsPath });
+  const paths = selectedPaths(root);
+  const scope: SelectionScope = paths.length ? { mode: 'selected', paths } : { mode: 'uncommitted' };
+  return analyze({ path: root.fsPath, scope });
 }
 
 export async function activate(context: ExtensionContext): Promise<void> {
@@ -121,12 +139,27 @@ export async function activate(context: ExtensionContext): Promise<void> {
       window.showErrorMessage('Code X-Ray: open a workspace folder first.');
       return;
     }
-  await window.withProgress({ location: { viewId: 'codeXray.findings' }, title: 'Code X-Ray: analyzing workspace' }, async () => {
-    const report = await analyzeVisibleWorkspace(root);
-    tree.set(report);
-    await new LocalStore().saveReport(root.fsPath, report.analysisId, report);
-    await new LocalStore().updateState(root.fsPath, emptyLearningState(), state => syncBindings(state, report).state);
+  await window.withProgress({ location: { viewId: 'codeXray.findings' }, title: 'Code X-Ray: analyzing selected scope' }, async () => {
+    try {
+      const report = await analyzeVisibleWorkspace(root);
+      tree.set(report);
+      await new LocalStore().saveReport(root.fsPath, report.analysisId, report);
+      await new LocalStore().updateState(root.fsPath, emptyLearningState(), state => syncBindings(state, report).state);
+    } catch (error) {
+      if (error instanceof Error && 'code' in error && (error as { code?: string }).code === 'INVALID_SCOPE') {
+        window.showErrorMessage('Code X-Ray: 请选择文件或文件夹；没有选择且没有未提交更改时不扫描。');
+        return;
+      }
+      throw error;
+    }
   });
   });
-  context.subscriptions.push(provider, scan, openFinding, markLearning);
+  const scanSelection = commands.registerCommand('codeXray.scanSelection', async (arg?: MaybeUri | MaybeUri[]) => {
+    selectedUris = [arg ?? []].flat().filter((item): item is Uri =>
+      Boolean(item) && typeof (item as MaybeUri).scheme === 'string' && typeof (item as MaybeUri).fsPath === 'string'
+    );
+    await commands.executeCommand('codeXray.scan');
+    selectedUris = [];
+  });
+  context.subscriptions.push(provider, scan, scanSelection, openFinding, markLearning);
 }

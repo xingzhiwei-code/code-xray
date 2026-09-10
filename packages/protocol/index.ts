@@ -44,7 +44,11 @@ export interface AnalysisReport {
 export interface AnalyzeRequest {
   path: string; base?: string; includeUntracked?: boolean; exclude?: string[];
   maxFiles?: number; maxFileBytes?: number; signal?: AbortSignal;
+  scope?: AnalyzeScope;
 }
+export type AnalyzeScope =
+  | { mode: 'selected'; paths: string[] }
+  | { mode: 'uncommitted' };
 /** Versioned capability declaration: what the engine can and cannot do, per language. */
 export interface LanguageCapability {
   id: string; analyzerId: string; analyzerVersion: string;

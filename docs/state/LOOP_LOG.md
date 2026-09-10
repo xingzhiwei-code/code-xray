@@ -87,6 +87,28 @@
 - 下一步：授权 VS Code CLI 写扩展目录或由用户在宿主终端安装 VSIX，随后完成真实 VS Code smoke；再做 Hover/CodeLens、Diff 与完整学习/债务面板。
 - checkpoint completion：preparing（r17）。
 
+## L017 — T101 范围感知扫描
+
+- checkpoint_revision：r18；checkpoint_status：preparing。
+- 日期：2026-09-10；session：20260909-101500-codex。
+- 目标：按用户要求实现 selected 范围、uncommitted 范围、无范围不扫描三种语义，并保持逻辑在共享 Engine/Workspace 层。
+- 变更：`AnalyzeRequest.scope` 增加 `selected|uncommitted`；workspace 层校验范围边界并过滤文件；uncommitted 使用 hardened Git status；VS Code active editor 文件作为 selected，否则退回 uncommitted，并捕获 `INVALID_SCOPE` 提示用户。
+- 验证（E023）：VS Code tsc 0；workspace 23/23；build:vscode 0；VSIX 重新打包。
+- outcome：continue（Explorer 文件夹/多选接入与宿主验证待做）。
+- 下一步：接入 Explorer selection 或提供文件/文件夹选择器；用户重装 VSIX 验证 selected/uncommitted/no-scope 三种路径。
+- checkpoint completion：preparing（r18）。
+
+## L018 — T101 Explorer 选择范围接入
+
+- checkpoint_revision：r18；checkpoint_status：preparing。
+- 日期：2026-09-10；session：20260909-101500-codex。
+- 目标：让用户能从 VS Code Explorer 直接选择文件/文件夹（含多选）并只扫描选择范围。
+- 变更：新增 `codeXray.scanSelection` 命令与 `explorer/context` 菜单；解析 command URI 参数，过滤 file scheme 和 workspace 内路径；执行后清空临时选择；无 Explorer 参数时沿用 active editor/uncommitted。
+- 验证（E024）：VS Code tsc 0；86/86 tests；build:vscode 0；VSIX manifest 确认 scanSelection 与 explorer/context。
+- outcome：continue（待用户在真实宿主验证四种路径）。
+- 下一步：用户重装 VSIX，分别验证 Explorer 单选文件/文件夹、多选、active editor、uncommitted/no-scope；结果记 E025。
+- checkpoint completion：preparing（r18）。
+
 ## L010 — T010 发布准备：材料、基准、安装 smoke、独立检查与接力演练
 
 - checkpoint_revision：r11；checkpoint_status：preparing。

@@ -40,6 +40,65 @@ describe('snapshotWorkspace: directory scan without Git', () => {
   });
 });
 
+describe('snapshotWorkspace: explicit scan scopes', () => {
+  it('scans only a selected file and ignores other Java files', async () => {
+    const root = tempDir('scope-file');
+    writeFileSync(join(root, 'A.java'), JAVA('A'));
+    writeFileSync(join(root, 'B.java'), JAVA('B'));
+    const snapshot = await snapshotWorkspace({ path: root, scope: { mode: 'selected', paths: ['B.java'] } });
+    expect(snapshot.files.map(f => f.path)).toEqual(['B.java']);
+  });
+
+  it('scans only files under a selected folder', async () => {
+    const root = tempDir('scope-folder');
+    mkdirSync(join(root, 'src'), { recursive: true });
+    mkdirSync(join(root, 'other'), { recursive: true });
+    writeFileSync(join(root, 'src', 'A.java'), JAVA('A'));
+    writeFileSync(join(root, 'src', 'B.java'), JAVA('B'));
+    writeFileSync(join(root, 'other', 'C.java'), JAVA('C'));
+    writeFileSync(join(root, 'D.java'), JAVA('D'));
+    const snapshot = await snapshotWorkspace({ path: root, scope: { mode: 'selected', paths: ['src'] } });
+    expect(snapshot.files.map(f => f.path)).toEqual(['src/A.java', 'src/B.java']);
+  });
+
+  it('rejects absolute, traversal, and outside-workspace scope paths', async () => {
+    const root = tempDir('scope-boundary');
+    writeFileSync(join(root, 'A.java'), JAVA('A'));
+    await expect(snapshotWorkspace({ path: root, scope: { mode: 'selected', paths: ['/tmp/A.java'] } })).rejects.toMatchObject({ code: 'INVALID_SCOPE' });
+    await expect(snapshotWorkspace({ path: root, scope: { mode: 'selected', paths: ['../escape.java'] } })).rejects.toMatchObject({ code: 'INVALID_SCOPE' });
+    await expect(snapshotWorkspace({ path: root, scope: { mode: 'selected', paths: [] } })).rejects.toMatchObject({ code: 'INVALID_SCOPE' });
+  });
+});
+
+describe('snapshotWorkspace: uncommitted scope', () => {
+  it('includes only modified and untracked Java files', async () => {
+    const root = tempDir('scope-git');
+    git(root, 'init', '-q');
+    mkdirSync(join(root, 'src'), { recursive: true });
+    writeFileSync(join(root, 'src', 'Modified.java'), JAVA('Modified'));
+    writeFileSync(join(root, 'src', 'Unchanged.java'), JAVA('Unchanged'));
+    git(root, 'add', '.');
+    git(root, 'commit', '-q', '-m', 'base');
+    writeFileSync(join(root, 'src', 'Modified.java'), JAVA('Modified', 'int changed = 1;'));
+    writeFileSync(join(root, 'src', 'Untracked.java'), JAVA('Untracked'));
+    writeFileSync(join(root, 'notes.txt'), 'not java');
+    const snapshot = await snapshotWorkspace({ path: root, scope: { mode: 'uncommitted' } });
+    expect(snapshot.files.map(f => f.path).sort()).toEqual(['src/Modified.java', 'src/Untracked.java']);
+  });
+
+  it('rejects when no selected scope and no uncommitted Java changes exist', async () => {
+    const root = tempDir('scope-clean');
+    git(root, 'init', '-q');
+    writeFileSync(join(root, 'A.java'), JAVA('A'));
+    git(root, 'add', '.');
+    git(root, 'commit', '-q', '-m', 'base');
+    await expect(snapshotWorkspace({ path: root, scope: { mode: 'uncommitted' } })).rejects.toMatchObject({
+      code: 'INVALID_SCOPE',
+      exitCode: 2,
+    });
+  });
+});
+
 describe('snapshotWorkspace: file boundaries', () => {
   it('skips binary files (NUL bytes) with a visible reason', async () => {
     const root = tempDir('binary');

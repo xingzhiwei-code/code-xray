@@ -299,6 +299,57 @@
 - review_mode：user-reported；checker：20260909-101500-codex。
 - supersedes：null。
 
+## E023 — T101 范围感知扫描实现
+
+- kind：test + build；recorded_at：2026-09-10T19:35+08:00；checkpoint_revision：r18。
+- claim：共享 Engine/Workspace 层支持显式 selected 与 uncommitted 扫描范围；VS Code 扫描优先使用当前 active editor 文件作为 selected 范围，否则退回 uncommitted 范围，均无时用 typed error 阻止扫描。
+- task：T101；acceptance：V02-1/V02-3/V02-4 的范围语义子项。
+- operator：20260909-101500-codex。
+- subject_snapshot：packages/protocol/index.ts（AnalyzeScope）；packages/workspace-local/index.ts（scope 过滤与 git status）；apps/vscode/extension.ts（active editor scope + INVALID_SCOPE 提示）；tests/workspace.test.ts（+5 用例）。
+- environment：macOS、Node v22.14.0、TypeScript 7.0.2、vitest 5.0.0、esbuild 0.28.2。
+- invocation：`cd apps/vscode && ../../node_modules/.bin/tsc -p tsconfig.json --noEmit`；`npx vitest run tests/workspace.test.ts`；`npm run build:vscode`；重新打包 VSIX。
+- expected：selected 文件/文件夹只扫描范围内 `.java`；uncommitted 只包含 modified/staged/untracked 的 `.java`；无范围且无未提交 Java 时 `INVALID_SCOPE` exitCode=2；范围越界/绝对路径/traversal 拒绝；VS Code 捕获 `INVALID_SCOPE` 并提示用户选择文件或文件夹。
+- actual：VS Code 类型检查 0；workspace 23/23 tests；build 0；VSIX 重新打包成功。
+- exit_code：tsc=0、vitest=0、build=0、pack=0。
+- result：passed（机器验证范围）。
+- limitations：VS Code 侧当前只读取 active editor 文件，尚未接入 Explorer 多选 TreeView/API；用户需在宿主重装 VSIX 后验证三种交互路径。git status 解析覆盖常规与 rename 目标，复杂 submodule/ignored 状态未测。
+- review_mode：self-separated；checker：20260909-101500-codex。
+- supersedes：null。
+
+## E024 — T101 Explorer 选择范围接入
+
+- kind：test + build；recorded_at：2026-09-10T19:45+08:00；checkpoint_revision：r18。
+- claim：VS Code Explorer 右键菜单可将当前选择的文件/文件夹（含多选 URI 参数）作为 selected scope 扫描；Findings 视图/命令面板无 Explorer 选择时沿用 active editor 或 uncommitted 规则。
+- task：T101；acceptance：V02-1/V02-3/V02-4 的范围交互子项。
+- operator：20260909-101500-codex。
+- subject_snapshot：apps/vscode/package.json（新增 `codeXray.scanSelection` 与 `explorer/context` 菜单）；apps/vscode/extension.ts（URI 参数解析、selected scope、执行后清空）。
+- environment：macOS、Node v22.14.0、TypeScript 7.0.2、vitest 5.0.0、esbuild 0.28.2。
+- invocation：`cd apps/vscode && ../../node_modules/.bin/tsc -p tsconfig.json --noEmit`；`npm test`；`npm run build:vscode`；重新打包 VSIX 并检查 manifest。
+- expected：Explorer 单选/多选文件或文件夹触发 selected 扫描；URI 必须 file scheme 且位于第一个 workspace folder 内；无 Explorer 选择时仍走 active editor/uncommitted；无范围且无未提交更改提示用户。
+- actual：VS Code tsc 0；86/86 tests；build 0；VSIX 内确认 `scanSelection` 与 `explorer/context`。
+- exit_code：tsc=0、test=0、build=0、pack=0。
+- result：passed（构建与包检查；宿主交互待用户验证）。
+- limitations：未在真实宿主自动点击 Explorer 菜单；多选参数行为依赖 VS Code command URI 传参契约，需要用户安装新 VSIX 验证。
+- review_mode：self-separated；checker：20260909-101500-codex。
+- supersedes：null。
+
+## E025 — T101 范围扫描最终验证
+
+- kind：test + build；recorded_at：2026-09-10T19:57+08:00；checkpoint_revision：r18。
+- claim：范围感知扫描、Explorer 选择接入与统一 verify 流程在当前快照全部通过。
+- task：T101；acceptance：V02-1/V02-3/V02-4 机器可验子项。
+- operator：20260909-101500-codex。
+- subject_snapshot：packages/{protocol,workspace-local}、apps/vscode、tests/workspace.test.ts、scripts/{check-cli,check-vscode,build-vscode}.mjs、package.json、tsconfig.json。
+- environment：macOS、Node v22.14.0、TypeScript 7.0.2、vitest 5.0.0、esbuild 0.28.2。
+- invocation：`npm run verify`。
+- expected：CLI/Engine 类型检查、VS Code 类型检查、测试、CLI build、VS Code build 全部通过。
+- actual：`npm run verify` 退出 0；86/86 tests 通过；CLI 与 VS Code bundle 均构建成功。
+- exit_code：0。
+- result：passed。
+- limitations：Explorer 单选/多选与 no-scope 提示仍需用户在真实宿主重装 VSIX 后验证。
+- review_mode：self-separated；checker：20260909-101500-codex。
+- supersedes：null。
+
 ## E021 — T101 侧栏可用性第二轮：空状态动作、视图扫描按钮、saved report 恢复与 stale 守卫
 
 - kind：test；recorded_at：2026-09-09T16:40+08:00；checkpoint_revision：r17。

@@ -3,27 +3,27 @@
 | 字段 | 值 |
 |---|---|
 | state_schema_version | 1 |
-| state_revision | r17 |
+| state_revision | r18 |
 | checkpoint_status | complete |
-| updated_at | 2026-09-09T15:45+08:00（T101 V02 第一轮实现待宿主验证） |
+| updated_at | 2026-09-10T19:35+08:00（T101 范围感知扫描已实现待宿主验证） |
 | project | Code X-Ray |
 | phase | v0.2 VS Code Surface / 第一轮纵向切片 |
-| implementation_status | in_progress（T101 已实现待真实宿主验证） |
+| implementation_status | in_progress（T101 Explorer 选择范围已实现，待真实宿主验证） |
 | progress | v0.1 必需任务 10/10 done（T001—T010）；T011 done（Developer Profile v1）；任务非等量 |
 | active_task | T101（VS Code Surface 第一轮） |
-| active_loop | L016（实现已写，真实宿主安装/激活/交互待验证） |
-| next_task | 获取 VS Code CLI 写入用户扩展目录权限 → 安装本地 VSIX → 真实宿主 smoke：激活、扫描、侧栏、证据跳转、学习状态 |
+| active_loop | L017（范围感知扫描与 Explorer 选择接入完成，待宿主验证） |
+| next_task | 用户重装 VSIX 验证：Explorer 单选/多选、active editor、uncommitted、no-scope 四种路径 → 记录 E025 |
 | session_owner | 20260909-101500-codex |
 | repo_path | /Users/01443732/Documents/Codex/2026-09-08/referenced-chatgpt-conversation-this-is-an/outputs/code-xray |
 | git_branch / head | main / 4b1fd41（T011 与状态回填均已提交） |
 | worktree_state | 本地领先远端 2 个提交；GitHub 凭据失效，推送阻塞；node_modules/dist/.idea/.DS_Store 已由 .gitignore 排除 |
 | last_product_verification | E016：81/81 测试 + check/build + Developer Profile 二进制 smoke；E017：用户确认各命令功能正确（单人验收） |
 | package_evidence | E005—E017 产品证据链完整（…→故障注入+首次提交→Developer Profile v1→用户验收）；E001—E004 文档 |
-| blockers | VS Code CLI 无法写入 `~/.vscode/extensions` 与 Code 日志目录，本地 VSIX 安装被沙箱阻塞；GitHub 推送仍因 token invalid 阻塞 |
+| blockers | VS Code Explorer 多选交互待用户宿主验证；GitHub 推送仍因 token invalid 阻塞 |
 
 ## 唯一下一步
 
-**T101 第一轮已实现待验证**：新增 VS Code 扩展（活动栏 Findings 树、Scan Workspace、证据跳转、解释弹窗、标记学习、未保存缓冲区提示），复用同一 Engine/Storage/Learning。TypeScript 检查与 bundle 构建通过；真实 VS Code 宿主安装/激活/交互因沙箱无法写 `~/.vscode/extensions` 暂未验证。
+**T101 范围感知扫描已实现待验证**：共享 `AnalyzeScope` 支持 selected 与 uncommitted；VS Code Explorer 右键支持单选/多选文件或文件夹，Findings 标题按钮/命令面板使用 active editor 或未提交范围。无选择且无未提交更改时提示“请选择文件或文件夹”，不扫描。
 
 ## required_reads
 

@@ -10,6 +10,7 @@ import {type AnalyzeRequest,type SourceFile,type Diagnostic,type Snapshot,XrayEr
 const exec = promisify(execFile);
 export const digest = (input:string|Buffer):string=>createHash('sha256').update(input).digest('hex');
 const within = (root:string,file:string)=>file===root || file.startsWith(root+path.sep);
+const withinPosix = (root:string,file:string)=>file===root || file.startsWith(root+'/');
 const hidden = new Set(['.git','node_modules','target','build','dist','.idea','.gradle','.xray','vendor']);
 const secretPath = /(^|\/)(?:\.env(?:\..*)?|credentials[^/]*|secrets?[^/]*|[^/]*\.(?:pem|key|p12|pfx|keystore))$/i;
 export const hasSecret = (text:string)=> /-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----|\b(?:AKIA[0-9A-Z]{16}|ghp_[A-Za-z0-9]{20,}|sk-[A-Za-z0-9_-]{24,})\b|(?:password|api[_-]?key|secret|token)\s*[:=]\s*["'][^"'\n]{8,}["']/i.test(text);
@@ -53,6 +54,39 @@ export async function snapshotWorkspace(request:AnalyzeRequest):Promise<Workspac
     tracked=new Set((await git(root,['ls-files','--cached','-z'])).split('\0').filter(Boolean));
   }
   const exclusions=ignore().add(request.exclude??[]);
+  let selected:string[]|null=null;
+  if(request.scope?.mode==='selected'){
+    selected=request.scope.paths.map(target=>path.normalize(target).split(path.sep).join('/')).filter(Boolean);
+    if(!selected.length)throw new XrayError('INVALID_SCOPE','请选择要扫描的文件或文件夹。',2);
+    for(const target of selected){
+      if(target.startsWith('/')||target.split('/').includes('..'))throw new XrayError('INVALID_SCOPE','扫描范围必须位于当前工作区内。',2);
+      const targetRoot=await realpath(await realpath(root)+'/'+target);
+      const workspaceRoot=await realpath(root);
+      try{if(targetRoot!==workspaceRoot && !targetRoot.startsWith(workspaceRoot+path.sep))throw new Error();}
+      catch{throw new XrayError('INVALID_SCOPE','扫描范围必须位于当前工作区内。',2);}
+    }
+  }
+  if(request.scope?.mode==='uncommitted'){
+    if(!gitRoot)throw new XrayError('NOT_GIT','未提交范围需要 Git 仓库。',2);
+    const status=(await git(root,['status','--porcelain=v1','-z','--untracked-files=all'])).split('\0').filter(Boolean);
+    selected=status.flatMap(entry=>{
+      const code=entry.slice(0,2);
+      if(code.includes('D')||code.includes('!'))return [];
+      const raw=entry.startsWith('R')?entry.slice(entry.indexOf('->')+2):entry.slice(3);
+      const value=raw.split(path.sep).join('/');
+      return value.endsWith('.java')?[value]:[];
+    });
+    if(!selected.length)throw new XrayError('INVALID_SCOPE','没有选中的文件或文件夹，也没有未提交更改。请先选择文件或文件夹。',2);
+  }
+  if(selected){
+    // Selected directories are roots; selected files are exact include filters.
+    const exact=new Set(selected.filter(target=>target.endsWith('.java')));
+    const prefixes=selected.filter(target=>!target.endsWith('.java'));
+    selected=[...new Set([
+      ...exact,
+      ...prefixes,
+    ])];
+  }
   let discovered=0,visited=0,limitReached=false;
   async function walk(dir:string,localIgnore:ReturnType<typeof ignore>):Promise<void>{
     cancelled(request.signal);
@@ -73,6 +107,7 @@ export async function snapshotWorkspace(request:AnalyzeRequest):Promise<Workspac
       if(rules.ignores(rel+(entry.isDirectory()?'/':''))||exclusions.ignores(rel+(entry.isDirectory()?'/':''))){if(entry.name.endsWith('.java'))reasons.push({path:rel,code:'EXCLUDED',message:'按忽略规则排除。'});continue;}
       if(entry.isDirectory()){await walk(rel,rules);continue;}
       if(!entry.name.endsWith('.java'))continue;
+      if(selected && !selected.some(target=>rel===target||withinPosix(target,rel)))continue;
       discovered++;
       if(!entry.isFile()){reasons.push({path:rel,code:'SPECIAL_FILE',message:'跳过非常规文件。'});continue;}
       // Working-tree scan sees what is on disk: untracked files are current
