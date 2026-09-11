@@ -35,7 +35,7 @@ describe('real CLI end-to-end through cliff dispatch', () => {
       const report = JSON.parse(std.stdout);
       expect(report.schemaVersion).toBe('0.1');
       expect(report.coverage.parsed).toBe(36);
-      expect(report.findings).toHaveLength(15);
+      expect(report.findings).toHaveLength(27);
       expect(report.provenance.offline).toBe(true);
     } finally {
       std.restore();
@@ -52,7 +52,7 @@ describe('real CLI end-to-end through cliff dispatch', () => {
       expect(exit).toBe(0);
       expect(std.stderr).toBe('');
       expect(std.stdout).not.toMatch(/\[/);
-      expect(std.stdout).toContain('15 项发现');
+      expect(std.stdout).toContain('27 项发现');
       expect(std.stdout).toContain('demo/orders/OrderService.java');
       // Bounded default summary: exactly three numbered findings, no fourth.
       expect(std.stdout).toContain('  1. ');
@@ -75,7 +75,7 @@ describe('real CLI end-to-end through cliff dispatch', () => {
       expect(exit).toBe(0);
       // From the repo root the walk finds the fixture sources (36 files).
       expect(std.stdout).toContain('36 个文件完成解析');
-      expect(std.stdout).toContain('15 项发现');
+      expect(std.stdout).toContain('27 项发现');
     } finally {
       std.restore();
       rmSync(dataDir, { recursive: true, force: true });

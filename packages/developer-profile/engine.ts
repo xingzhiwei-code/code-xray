@@ -25,6 +25,9 @@ const CONCEPT_SKILLS: Record<ConceptId, { key: string; label: string }> = {
   'spring.transaction-proxy': { key: 'framework:spring', label: 'Spring' },
   'jpa.query-amplification': { key: 'framework:jpa', label: 'JPA / Hibernate' },
   'jpa.entity-boundary': { key: 'framework:jpa', label: 'JPA / Hibernate' },
+  'spring.bean-relationship': { key: 'framework:spring', label: 'Spring' },
+  'spring.transaction-boundary': { key: 'framework:spring', label: 'Spring' },
+  'jpa.persistence-context': { key: 'framework:jpa', label: 'JPA / Hibernate' },
 };
 
 export function emptyDeveloperProfile(at = new Date().toISOString()): DeveloperProfile {

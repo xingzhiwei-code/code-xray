@@ -1,22 +1,22 @@
 # 当前接力单
 
-state_revision: r17
+state_revision: r19
 checkpoint_status: complete
 from_session: 20260908-143500-claude（L001 恢复 → L011 首次提交）
 to_session: 20260909-101500-codex / 下一位执行者
-active_loop: L016（T101 第一轮实现已写，真实宿主验证阻塞）
-active_task: T101 in_progress
-next_task: 获取 VS Code CLI 用户扩展目录写入权限 → 安装本地 VSIX → 真实宿主 smoke
+active_loop: L019（T201 共享深化分析内核已实现，fixture/eval 与 JetBrains 壳待做）
+active_task: T101 交互重设计待需求；T201 in_progress
+next_task: 为 Bean/事务/JPA 三类规则补正/负/未知 fixture 与独立评估；环境解除后建 JetBrains 插件壳
 
 ## 30 秒接手摘要
 
-v0.1 已完成：T001—T010 全部 done。完整闭环（scan→证据→--base diff→explain→学习卡→验证→认知债务→二次启动恢复）经真实二进制验证；冻结 oracle 三规则 precision/recall 100%；性能与安装 smoke 通过。T011 Developer Profile v1 亦已完成。用户本人确认“验证可以了，各个命令功能都正确”（E017）；按 D010 以单人验收收口，不对外声称 4/5 样本调查。
+当前状态：v0.1 完成；T101 VS Code 基础闭环和范围感知扫描已实现，但交互重设计需求待用户想清楚；T201 共享深化分析内核第一轮已实现，新增 Bean/事务/JPA 三类规则，fixture 发现数 15→27。JetBrains 宿主受环境阻塞（默认 Java 8、无 Gradle、网络不可用）。
 
 ## 已交付与未交付
 
 - 已交付（已验证，E005—E016）：协议+能力声明、vendored cliff（D007 四点补丁）、36 文件 fixture、engine（独立可调用）、CLI 命令（scan/--base diff/explain/learn/debt/profile/doctor；CJK 列宽、SIGINT→130、stderr 进度、退出码契约）、三规则 eval 100%、workspace 边界/隐私矩阵、学习/债务生命周期、Developer Profile v1、provider 端口与回退、storage 错误信封、性能基准、安装 smoke、发布材料、独立检查+接力演练。
-- 未交付：cliff LICENSE 全文归档（tarball 无，清单声明 MIT）；Windows/Linux 平台验证；真实远端 provider smoke（保持 unverified-remote 禁用）；外部 Java 专家 oracle 标注（独立 Checker 已复核标签-源码一致性）；V02/V03/V04（T101/T201/T301 planned）。
-- 工作树：功能提交 bd26abe、状态提交 4b1fd41 均已完成；本地领先 origin/main 2 个提交。GitHub 凭据失效，`git push origin main` 因无法读取用户名失败（gh auth status 显示 token invalid），推送待用户重新认证。
+- 未交付：V02 交互重设计；V03 三类规则独立正/负/未知 fixture 与评估；JetBrains 插件壳；cliff LICENSE 全文归档；Windows/Linux 平台验证；真实远端 provider smoke；外部 Java 专家 oracle 标注。
+- 工作树：T201 深化分析改动待提交。GitHub 凭据失效，推送待用户重新认证。
 - 最近有效产品测试：E016（2026-09-09T10:30+08:00，81/81 + check/build + 二进制 smoke）。
 
 ## 第一条可执行动作

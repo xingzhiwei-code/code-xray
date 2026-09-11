@@ -1,5 +1,11 @@
 export const LEARNING_CONTENT_VERSION = 'learning-v1';
-export type ConceptId = 'spring.transaction-proxy' | 'jpa.query-amplification' | 'jpa.entity-boundary';
+export type ConceptId =
+  | 'spring.transaction-proxy'
+  | 'jpa.query-amplification'
+  | 'jpa.entity-boundary'
+  | 'spring.bean-relationship'
+  | 'spring.transaction-boundary'
+  | 'jpa.persistence-context';
 export type LearningStatus = 'unassessed' | 'to-learn' | 'learning' | 'self-reported' | 'verified' | 'stale' | 'ignored';
 export const STATUS_LABELS: Record<LearningStatus, string> = {
   unassessed: '未评估', 'to-learn': '待学习', learning: '学习中',

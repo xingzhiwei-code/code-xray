@@ -52,7 +52,7 @@ describe('Developer Profile v1', () => {
     const report = await analyze({ path: FIXTURE });
     const missing = knowledgeGaps(report, undefined);
     expect(missing.profileConfigured).toBe(false);
-    expect(missing.items).toHaveLength(3);
+    expect(missing.items).toHaveLength(6);
     for (const item of missing.items) {
       expect(item.reason).toBe('profile-missing');
       expect(item.priority).toBeNull();

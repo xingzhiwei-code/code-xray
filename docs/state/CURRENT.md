@@ -3,27 +3,27 @@
 | 字段 | 值 |
 |---|---|
 | state_schema_version | 1 |
-| state_revision | r18 |
+| state_revision | r19 |
 | checkpoint_status | complete |
-| updated_at | 2026-09-10T19:35+08:00（T101 范围感知扫描已实现待宿主验证） |
+| updated_at | 2026-09-11T10:15+08:00（T201 V03 深化分析内核第一轮） |
 | project | Code X-Ray |
-| phase | v0.2 VS Code Surface / 第一轮纵向切片 |
-| implementation_status | in_progress（T101 Explorer 选择范围已实现，待真实宿主验证） |
+| phase | v0.3 JetBrains / 共享深化分析内核 |
+| implementation_status | in_progress（T101 交互待重设计；T201 深化分析内核已实现，评估与 JetBrains 壳待做） |
 | progress | v0.1 必需任务 10/10 done（T001—T010）；T011 done（Developer Profile v1）；任务非等量 |
-| active_task | T101（VS Code Surface 第一轮） |
-| active_loop | L017（范围感知扫描与 Explorer 选择接入完成，待宿主验证） |
-| next_task | 用户重装 VSIX 验证：Explorer 单选/多选、active editor、uncommitted、no-scope 四种路径 → 记录 E025 |
+| active_task | T201（V03 共享深化分析） |
+| active_loop | L019（三类深化规则实现完成，fixture/eval 与 JetBrains 壳待做） |
+| next_task | 为 Bean/事务/JPA 三类规则补正例、反例、未知 fixture → 独立评估 → JetBrains 插件壳（需 JDK17/Gradle/网络） |
 | session_owner | 20260909-101500-codex |
 | repo_path | /Users/01443732/Documents/Codex/2026-09-08/referenced-chatgpt-conversation-this-is-an/outputs/code-xray |
-| git_branch / head | main / 4b1fd41（T011 与状态回填均已提交） |
-| worktree_state | 本地领先远端 2 个提交；GitHub 凭据失效，推送阻塞；node_modules/dist/.idea/.DS_Store 已由 .gitignore 排除 |
+| git_branch / head | main / 64638e7（V02 范围扫描已提交；T201 深化分析待提交） |
+| worktree_state | T201 相关实现/测试/文档改动待提交；GitHub 凭据失效，推送阻塞；node_modules/dist/.idea/.DS_Store 已由 .gitignore 排除 |
 | last_product_verification | E016：81/81 测试 + check/build + Developer Profile 二进制 smoke；E017：用户确认各命令功能正确（单人验收） |
 | package_evidence | E005—E017 产品证据链完整（…→故障注入+首次提交→Developer Profile v1→用户验收）；E001—E004 文档 |
-| blockers | VS Code Explorer 多选交互待用户宿主验证；GitHub 推送仍因 token invalid 阻塞 |
+| blockers | JetBrains 宿主开发受环境阻塞（默认 Java 8、无 Gradle、网络不可用）；V02 交互重设计需求待用户想清楚；GitHub 推送仍因 token invalid 阻塞 |
 
 ## 唯一下一步
 
-**T101 范围感知扫描已实现待验证**：共享 `AnalyzeScope` 支持 selected 与 uncommitted；VS Code Explorer 右键支持单选/多选文件或文件夹，Findings 标题按钮/命令面板使用 active editor 或未提交范围。无选择且无未提交更改时提示“请选择文件或文件夹”，不扫描。
+**T201 已进入共享深化分析**：新增 Bean 候选/注入关系、事务边界、JPA 持久化上下文三类规则，当前 fixture 发现数 15→27，直接改善“扫描不够深”的问题。V02 交互重设计暂挂，等用户想清楚；JetBrains 壳受 JDK/Gradle/网络环境阻塞。
 
 ## required_reads
 

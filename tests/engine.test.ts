@@ -74,7 +74,10 @@ describe('engine facade as an independent protocol consumer', () => {
     expect(capabilities.languages).toHaveLength(1);
     const java = capabilities.languages[0];
     expect(java.id).toBe('java');
-    expect([...java.rules].sort()).toEqual(['JPA_CALL_IN_LOOP', 'TX_SELF_INVOCATION', 'WEB_ENTITY_RELATION']);
+    expect([...java.rules].sort()).toEqual([
+      'JPA_CALL_IN_LOOP', 'JPA_PERSISTENCE_CONTEXT', 'SPRING_BEAN_CANDIDATE',
+      'TRANSACTION_BOUNDARY', 'TX_SELF_INVOCATION', 'WEB_ENTITY_RELATION',
+    ]);
     expect(java.bounds.length).toBeGreaterThanOrEqual(4);
     expect(java.analyzerVersion).toMatch(/^\d+\.\d+\.\d+$/);
   });

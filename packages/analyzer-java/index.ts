@@ -4,7 +4,10 @@ import type { JavaAnalysis, JavaDiagnostic, JavaEvidence, JavaFinding, JavaSourc
 export type * from './types.js';
 
 export const JAVA_ANALYZER_VERSION = '0.1.0';
-export const JAVA_RULES = ['TX_SELF_INVOCATION', 'JPA_CALL_IN_LOOP', 'WEB_ENTITY_RELATION'] as const;
+export const JAVA_RULES = [
+  'TX_SELF_INVOCATION', 'JPA_CALL_IN_LOOP', 'WEB_ENTITY_RELATION',
+  'SPRING_BEAN_CANDIDATE', 'TRANSACTION_BOUNDARY', 'JPA_PERSISTENCE_CONTEXT',
+] as const;
 const TX = 'org.springframework.transaction.annotation.Transactional';
 const WEB = 'org.springframework.web.bind.annotation.';
 const REPOSITORIES = new Set(['org.springframework.data.jpa.repository.JpaRepository', 'org.springframework.data.repository.CrudRepository', 'org.springframework.data.repository.ListCrudRepository']);
@@ -12,6 +15,11 @@ const RELATIONS = new Set(['OneToMany', 'ManyToMany', 'OneToOne', 'ManyToOne'].f
 const ENTITIES = new Set(['jakarta.persistence.Entity', 'javax.persistence.Entity']);
 const MAPPINGS = new Set(['RequestMapping', 'GetMapping', 'PostMapping', 'PutMapping', 'DeleteMapping', 'PatchMapping'].map(n => WEB + n));
 const QUERY_NAMES = new Set(['findById', 'findAll', 'getReferenceById', 'getOne', 'getById', 'existsById', 'count', 'save', 'saveAndFlush', 'delete', 'deleteById', 'flush']);
+const BEAN_ANNOTATIONS = new Set([
+  'org.springframework.stereotype.Service', 'org.springframework.stereotype.Component',
+  'org.springframework.stereotype.Repository', 'org.springframework.stereotype.Controller',
+  'org.springframework.web.bind.annotation.RestController',
+]);
 const LOOPS = new Set(['basicForStatement', 'enhancedForStatement', 'whileStatement', 'doStatement']);
 const NESTED = new Set(['classDeclaration', 'interfaceDeclaration', 'recordDeclaration', 'enumDeclaration', 'anonymousClassBody']);
 type Node = CstNode;
@@ -175,9 +183,58 @@ export async function analyzeJava(files: JavaSourceFile[], onProgress?: (parsed:
         result.facts.push({id:`fact_${hash(unit.source.path,method.signature)}`,kind:'method',name:method.name,qualifiedName:method.signature,evidenceIds:[ev(unit,method.header,'declaration')],attributes:{returnType:method.type,owner:type.full,annotations:method.annotations.map(a=>a.full??a.raw)}});
         addAnnotations(method.annotations,unit,method.signature);
         webRule(method);
+        beanAndTransactionRules(method);
+        persistenceRule(method);
         if(method.body) visitBody(method.body,method);
       }
     }
+  }
+  function beanAndTransactionRules(method:Method) {
+    const type=method.owner, unit=type.file;
+    const beanAnnotation=type.annotations.find(a=>BEAN_ANNOTATIONS.has(a.full??''));
+    if(!beanAnnotation) return;
+    const injected=[];
+    for(const field of type.fields) {
+      const declared=localType(field.type,unit);
+      if(!declared || declared.full===type.full) continue;
+      const candidateBean=declared.annotations.find(a=>BEAN_ANNOTATIONS.has(a.full??''));
+      if(!candidateBean) continue;
+      injected.push({field,declared,candidateBean});
+    }
+    if(injected.length) {
+      const evidenceIds=[ev(unit,beanAnnotation.node,'annotation'),ev(unit,method.header,'declaration'),...injected.flatMap(x=>[
+        ev(unit,x.field.node,'declaration'),ev(x.declared.file,x.candidateBean.node,'annotation'),ev(x.declared.file,x.declared.node,'declaration')
+      ])];
+      finding('SPRING_BEAN_CANDIDATE','spring.bean-relationship','Bean 候选与注入关系需要核对代理边界',`${type.full} 是 Spring Bean 候选，${method.signature} 可通过候选 Bean 关系进入 ${injected.map(x=>x.declared.full).join(', ')}。`,method.signature,evidenceIds,
+        ['仅当这些类型实际由 Spring 容器注册并通过代理调用时，Bean 关系成立。'],
+        ['静态分析不能确认组件扫描范围、条件 Bean、Profile、多实现选择或代理模式。','同名类型或多个候选时可能存在其他绑定。'],
+        '用真实 Spring 上下文打印 Bean 类型并验证调用路径是否经过代理。');
+    }
+    const tx=method.annotations.find(a=>a.full===TX);
+    if(!tx) return;
+    const external=type.methods.some(other=>other!==method && other.body && descendants(other.body,'primary').some(primary=>{
+      const before=tokens(primary); return before.some(t=>t.image===method.name);
+    }));
+    finding('TRANSACTION_BOUNDARY','spring.transaction-boundary','事务边界需要用外部入口验证',`${method.signature} 标有 @Transactional，事务拦截依赖从 Bean 外部经过代理进入。`,method.signature,
+      [ev(unit,tx.node,'annotation'),ev(unit,method.header,'declaration')],
+      ['方法由容器管理 Bean 调用且使用基于代理的事务时，拦截器在该边界工作。','同类内部 this 调用不经过代理，事务边界可能不同。'],
+      ['未解析事务管理器、传播配置、异常类型、回滚规则、AspectJ 或实际 Bean 绑定。'],
+      external
+        ? '从另一个 Bean 调用该方法并断言回滚行为；同时测试同类 this 调用路径。'
+        : '从测试中的外部 Bean 调用该方法并断言回滚行为；避免只测试 this 调用。');
+  }
+  function persistenceRule(method:Method) {
+    const type=method.owner, unit=type.file;
+    const entity=localType(method.type,unit);
+    if(!entity || !entity.annotations.some(a=>ENTITIES.has(a.full??''))) return;
+    const entityAnn=entity.annotations.find(a=>ENTITIES.has(a.full??''))!;
+    const relations=entity.fields.flatMap(f=>f.annotations.filter(a=>RELATIONS.has(a.full??'')));
+    if(!relations.length) return;
+    finding('JPA_PERSISTENCE_CONTEXT','jpa.persistence-context','返回实体关系需检查持久化上下文边界',`${method.signature} 返回实体 ${entity.full}；调用方可能触发持久化关系加载或把实体带出事务边界。`,method.signature,
+      [ev(unit,method.header,'return-type'),ev(entity.file,entityAnn.node,'annotation'),...relations.map(a=>ev(entity.file,a.node,'annotation'))],
+      ['返回对象确实是该 JPA 实体，并且调用方访问声明的持久化关系。'],
+      ['静态分析不确认 fetch 策略、Open Session in View、DTO 转换、序列化访问路径或事务状态。'],
+      '在调用方访问关系字段并记录 SQL/LazyInitializationException；如需稳定 API，请在事务内完成加载或返回 DTO。');
   }
   function webRule(method:Method) {
     const {owner:type}=method, unit=type.file, anns=[...method.annotations,...type.annotations];

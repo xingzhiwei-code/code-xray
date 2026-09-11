@@ -109,6 +109,18 @@
 - 下一步：用户重装 VSIX，分别验证 Explorer 单选文件/文件夹、多选、active editor、uncommitted/no-scope；结果记 E025。
 - checkpoint completion：preparing（r18）。
 
+## L019 — T201 V03 共享深化分析第一轮
+
+- checkpoint_revision：r19；checkpoint_status：preparing。
+- 日期：2026-09-11；session：20260909-101500-codex。
+- 目标：响应“扫描结果不够深”，先落地 PRD V03 的三类共享深化分析，而不先做被环境阻塞的 JetBrains 壳。
+- 变更：新增 `SPRING_BEAN_CANDIDATE`、`TRANSACTION_BOUNDARY`、`JPA_PERSISTENCE_CONTEXT`；新增三张学习卡和 Developer Profile 技能映射；能力声明补充静态候选边界；更新测试期望。
+- 验证（E026）：`npm run verify` 0；86/86 tests；fixture 发现数 15→27（Bean 1、事务边界 7、持久化上下文 4）。
+- 阻塞：JetBrains 插件壳需要 JDK17/Gradle/网络，当前 Java 8、无 Gradle、网络不可用；V02 交互重设计需求待用户想清楚。
+- outcome：continue（共享内核已实现，独立 eval 与 JetBrains 壳待做）。
+- 下一步：补三类规则正/负/未知 fixture 与评估；环境解除后建 JetBrains 插件壳。
+- checkpoint completion：preparing（r19）。
+
 ## L010 — T010 发布准备：材料、基准、安装 smoke、独立检查与接力演练
 
 - checkpoint_revision：r11；checkpoint_status：preparing。

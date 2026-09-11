@@ -1,6 +1,6 @@
 # Backlog：任务状态的唯一来源
 
-当前 revision：r17（r16 v0.1 收口；r17 T101 V02 最小纵向切片 in_progress）。v0.1 必需任务 10/10 done（T001—T010）；T011 done（Developer Profile v1）；T101 in_progress（VS Code Surface 第一轮）。拆分任务须保留原 ID、依赖和 AC 追踪。
+当前 revision：r19（r17—r18 V02 扫描范围交互；r19 进入 V03 深化分析内核）。v0.1 必需任务 10/10 done；T011 done；T101 in_progress（VS Code 交互待重设计）；T201 in_progress（共享深化分析内核，JetBrains 宿主受环境阻塞）。拆分任务须保留原 ID、依赖和 AC 追踪。
 
 状态与更新规则见 [HANDOFF_PROTOCOL](../HANDOFF_PROTOCOL.md)，验收原文见 [PRD](../PRD.md)。单个任务只负责其交付范围内的 AC 子项，并在 Evidence 写明覆盖边界；完整 AC 的跨任务汇总由 T010 验收。不得将下游能力作为上游任务的隐含完成条件。
 
@@ -94,7 +94,7 @@
 | ID | 阶段与交付 | 状态 | 依赖 | 独立退出条件 |
 |---|---|---|---|---|
 | T101 | v0.2 VS Code：侧栏、Hover/CodeLens、选中解释、Diff 审查与完整学习/债务闭环 | in_progress | T010 | PRD 第 8.3 节 V02-1—V02-4；继承 v0.1，同快照/能力结果一致，真实编辑器生命周期验收 |
-| T201 | v0.3 JetBrains：完整 IDE 闭环、PSI 事实补充及 Bean/事务/JPA 三类深化 | planned | T101 | PRD 第 8.4 节 V03-1—V03-4；三类深化有正反未知案例；增强事实注明来源，规则留在 Engine |
+| T201 | v0.3 JetBrains：完整 IDE 闭环、PSI 事实补充及 Bean/事务/JPA 三类深化 | in_progress | T101 | PRD 第 8.4 节 V03-1—V03-4；三类深化有正反未知案例；增强事实注明来源，规则留在 Engine |
 | T301 | v0.4 Agent：两宿主接入、修改后审查、证据读取、可配置关口与报告恢复 | planned | T201 | PRD 第 8.5 节 V04-1—V04-4；实测基线→改动→审查→修正→再验，未知/失败不伪装通过 |
 
 修改阶段顺序或压缩范围需要记录 Decision；阶段完成不自动代表后续阶段可用。
@@ -177,3 +177,12 @@
 - 待验证：真实 VS Code 宿主安装/激活/扫描/侧栏/证据跳转/学习状态。当前沙箱拒绝 VS Code CLI 写入 `~/.vscode/extensions` 与 Code 日志目录，安装被阻塞。
 - 下一步：解除 VS Code CLI 写入权限后安装本地 VSIX，完成真实宿主 smoke，再扩展 Hover/CodeLens、Diff 与完整学习卡/债务面板。
 - 最后 revision：r17。
+
+### T201 — v0.3 JetBrains / 共享深化分析（in_progress）
+
+- owner：20260909-101500-codex；session：20260909-101500-codex；开始：2026-09-11。
+- 当前目标：先交付共享 Engine 的 Bean/代理关系、事务边界、JPA 持久化上下文三类深化分析；JetBrains 壳后续复用。
+- 已完成：新增规则 `SPRING_BEAN_CANDIDATE`、`TRANSACTION_BOUNDARY`、`JPA_PERSISTENCE_CONTEXT`；对应学习卡与 Developer Profile 技能映射；能力边界声明“静态候选，不确认容器运行时”；当前 fixture 上发现数 15→27。
+- 阻塞：真实 JetBrains 插件壳需要 IntelliJ Platform Gradle 插件与 JDK 17，当前默认 Java 8、无 Gradle、网络不可用；环境解除前只能实现共享分析内核。
+- 下一步：补充三类规则的正/负/未知 fixture 与独立评估；建立 JetBrains 项目骨架；等待 V02 交互重设计需求。
+- 最后 revision：r19。

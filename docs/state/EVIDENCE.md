@@ -350,6 +350,23 @@
 - review_mode：self-separated；checker：20260909-101500-codex。
 - supersedes：null。
 
+## E026 — T201 V03 共享深化分析第一轮
+
+- kind：test + build；recorded_at：2026-09-11T10:15+08:00；checkpoint_revision：r19。
+- claim：共享 Java Analyzer 新增 Bean 候选/注入关系、事务边界、JPA 持久化上下文三类静态深化规则，并同步学习卡、Developer Profile 映射和能力边界；JetBrains 壳尚未实现。
+- task：T201；acceptance：V03-2 的 Engine 子项（非完整 V03 验收）。
+- operator：20260909-101500-codex。
+- subject_snapshot：packages/analyzer-java/index.ts（3 个新规则）；packages/learning/{types.ts,engine.ts}（3 张学习卡）；packages/developer-profile/engine.ts（技能映射）；packages/engine/index.ts（能力边界）；tests/{engine,cli,developer-profile}.test.ts。
+- environment：macOS、Node v22.14.0、TypeScript 7.0.2、vitest 5.0.0、esbuild 0.28.2。
+- invocation：`npm run verify`。
+- expected：类型检查、测试、CLI build、VS Code build 全绿；新增规则公开在能力声明中；输出明确为静态候选与验证建议，不宣称运行时事实。
+- actual：verify 退出 0；86/86 tests；fixture 报告发现数 15→27（新增 Bean 1、事务边界 7、持久化上下文 4）。
+- exit_code：0。
+- result：passed（共享分析内核机器验证）。
+- limitations：三类规则尚无独立正/负/未知 fixture 与冻结评估；未接入 JetBrains PSI；本机默认 Java 8、无 Gradle、网络不可用，IntelliJ 插件壳被环境阻塞。
+- review_mode：self-separated；checker：20260909-101500-codex。
+- supersedes：null。
+
 ## E021 — T101 侧栏可用性第二轮：空状态动作、视图扫描按钮、saved report 恢复与 stale 守卫
 
 - kind：test；recorded_at：2026-09-09T16:40+08:00；checkpoint_revision：r17。

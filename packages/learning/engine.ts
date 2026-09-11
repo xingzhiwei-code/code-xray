@@ -211,6 +211,63 @@ const CARDS: Record<ConceptId, CardContent> = {
     },
     sources: [{ title: 'Jakarta Persistence 3.2: Entity Relationships', url: 'https://jakarta.ee/specifications/persistence/3.2/jakarta-persistence-spec-3.2' }],
   },
+  'spring.bean-relationship': {
+    title: 'Spring Bean 候选与注入关系',
+    what: 'Spring 通过组件扫描和依赖注入把标有 stereotype 注解的类型注册为 Bean，并把候选依赖注入到容器管理的对象中。',
+    whyHere: '当前代码存在 Bean 候选与字段注入关系。调用是否经过代理、最终绑定哪个实现，取决于容器配置而不是源码形态本身。',
+    hiddenMechanisms: '组件扫描范围、@Conditional、Profile、限定符和多实现都会影响绑定；基于代理的 Bean 与同类 this 调用行为不同。',
+    whatIfRemoved: '若不理解 Bean 绑定，容易把"字段类型"当成"运行时唯一实现"，进而误判事务代理、拦截器和调用路径。',
+    question: {
+      id: 'spring-bean-relationship-q1',
+      prompt: '一个 Service 字段声明为接口类型，静态源码能确定运行时注入的是哪个实现吗？',
+      options: [
+        { id: 'a', text: '不能；需要组件扫描、条件注解、Profile 和限定符等容器信息' },
+        { id: 'b', text: '能；源码字段类型就是唯一运行时实现' },
+        { id: 'c', text: '能；Spring 一定选择字母序最小的实现' },
+      ],
+      answerId: 'a',
+      rationale: '静态字段类型只是候选类型；实际 Bean 绑定由容器配置和运行时条件决定。',
+    },
+    sources: [{ title: 'Spring Framework: Dependency Injection', url: 'https://docs.spring.io/spring-framework/reference/core/beans/dependencies/factory-collaborators.html' }],
+  },
+  'spring.transaction-boundary': {
+    title: 'Spring 事务边界与代理入口',
+    what: '@Transactional 声明的是事务边界，实际拦截发生在 Spring 代理转发方法调用的位置。',
+    whyHere: '当前方法标有 @Transactional。它从事务代理外部进入时，代理负责开启、提交或回滚事务。',
+    hiddenMechanisms: '事务管理器、传播行为、异常回滚规则、只读标记、代理模式和织入方式都会影响最终行为；同类 this 调用绕过代理。',
+    whatIfRemoved: '若只看注解，容易认为注解本身保证事务；实际调用入口、传播配置和异常类型共同决定提交或回滚。',
+    question: {
+      id: 'spring-transaction-boundary-q1',
+      prompt: '基于代理的 Spring 事务中，哪个调用路径最可能触发 @Transactional 拦截？',
+      options: [
+        { id: 'a', text: '从另一个容器管理 Bean 调用该方法' },
+        { id: 'b', text: '同一个类内部 this 调用该方法' },
+        { id: 'c', text: '任意静态方法调用该方法' },
+      ],
+      answerId: 'a',
+      rationale: '代理拦截通常发生在从 Bean 外部进入目标方法的调用；this 自调用不经过代理。',
+    },
+    sources: [{ title: 'Spring Framework: Declarative Transactions', url: 'https://docs.spring.io/spring-framework/reference/data-access/transaction/declarative.html' }],
+  },
+  'jpa.persistence-context': {
+    title: 'JPA 持久化上下文与实体返回',
+    what: 'JPA 实体受持久化上下文管理；关系字段的加载时机与事务边界、fetch 策略和访问位置相关。',
+    whyHere: '当前方法返回带关系注解的 JPA 实体。调用方访问这些关系时，可能在事务外触发加载或遇到 LazyInitializationException。',
+    hiddenMechanisms: '一级缓存、延迟/立即加载、flush 时机、Open Session in View 和 DTO 转换都会改变实际 SQL 与异常行为。',
+    whatIfRemoved: '若忽略持久化上下文，会误以为返回实体只是返回一个普通对象；关系访问可能带来额外 SQL 或事务边界错误。',
+    question: {
+      id: 'jpa-persistence-context-q1',
+      prompt: '方法返回 JPA 实体后，调用方在事务外访问延迟加载关系，典型风险是什么？',
+      options: [
+        { id: 'a', text: '可能触发额外加载，或在无可用持久化上下文时抛 LazyInitializationException' },
+        { id: 'b', text: 'JPA 会自动把该关系转为空集合' },
+        { id: 'c', text: '实体关系字段永远不访问数据库' },
+      ],
+      answerId: 'a',
+      rationale: '延迟关系需要在可用持久化上下文中初始化；事务外访问可能导致额外 SQL 或异常。',
+    },
+    sources: [{ title: 'Jakarta Persistence 3.2: Entity Operations', url: 'https://jakarta.ee/specifications/persistence/3.2/jakarta-persistence-spec-3.2' }],
+  },
 };
 
 /** The card for a binding, with current-code references injected. */
