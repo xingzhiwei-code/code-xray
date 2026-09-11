@@ -15,8 +15,8 @@
 | next_task | 为 Bean/事务/JPA 三类规则补正例、反例、未知 fixture → 独立评估 → JetBrains 插件壳（需 JDK17/Gradle/网络） |
 | session_owner | 20260909-101500-codex |
 | repo_path | /Users/01443732/Documents/Codex/2026-09-08/referenced-chatgpt-conversation-this-is-an/outputs/code-xray |
-| git_branch / head | main / 64638e7（V02 范围扫描已提交；T201 深化分析待提交） |
-| worktree_state | T201 相关实现/测试/文档改动待提交；GitHub 凭据失效，推送阻塞；node_modules/dist/.idea/.DS_Store 已由 .gitignore 排除 |
+| git_branch / head | main / e896353（T201 深化分析已提交） |
+| worktree_state | 状态回填改动待提交；GitHub 凭据失效，推送阻塞；node_modules/dist/.idea/.DS_Store 已由 .gitignore 排除 |
 | last_product_verification | E016：81/81 测试 + check/build + Developer Profile 二进制 smoke；E017：用户确认各命令功能正确（单人验收） |
 | package_evidence | E005—E017 产品证据链完整（…→故障注入+首次提交→Developer Profile v1→用户验收）；E001—E004 文档 |
 | blockers | JetBrains 宿主开发受环境阻塞（默认 Java 8、无 Gradle、网络不可用）；V02 交互重设计需求待用户想清楚；GitHub 推送仍因 token invalid 阻塞 |
