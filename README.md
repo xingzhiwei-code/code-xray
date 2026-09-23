@@ -68,6 +68,16 @@ npm run build:agent        # 产出 dist/agent.js
 
 **幂等与过期**：reviewId 由目标快照内容寻址（workspace+snapshot+规则版本），重复触发返回同一记录（`reused:true`）；代码再变更后读取旧审查会得到 `stale:true` 且关口降级为 `incomplete`——旧结论不冒充新改动。
 
+**自动触发（opt-in）**：默认所有分析都由 Agent 显式调用工具触发。若希望每轮修改结束时自动审查，可在宿主配置 hook（用户显式启用，产品不自动安装）：
+
+```jsonc
+// Claude Code settings.json（hooks.Stop 或 hooks.PostToolUse）
+{ "hooks": [{ "type": "command",
+    "command": "node <仓库绝对路径>/scripts/agent-review-hook.mjs <项目路径>" }] }
+```
+
+hook 走 CLI 同一 Engine（`scan --base HEAD`），report-only 模式下永远 exit 0、只输出摘要；仅当显式设置 `XRAY_AGENT_GATE=enforce` 时，非 pass 关口才以 exit 2 向宿主反馈阻塞。分析失败/输出不可解析时明确声明"结论不可用"，绝不伪装通过。
+
 **隐私边界**：被分析源码只经 `xray_evidence` 进入工具通道，固定包裹"数据而非指令"声明；恶意源码文本不会进入摘要、关口理由或建议（有注入遏制契约测试）。审查会话的基线缓存保存在用户数据目录（0600），`deleteData('reviews')` 可清除。Agent 不能替用户确认知识掌握——学习状态变更只能经 CLI/IDE 显式事件。
 
 ## 隐私

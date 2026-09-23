@@ -109,6 +109,20 @@
 - 下一步：用户重装 VSIX，分别验证 Explorer 单选文件/文件夹、多选、active editor、uncommitted/no-scope；结果记 E025。
 - checkpoint completion：preparing（r18）。
 
+## L025 — T301d(第三轮) Stop hook opt-in + V04 验收映射 + 独立 Checker
+
+- checkpoint_revision：r26；checkpoint_status：completed。
+- 日期：2026-09-23；session：20260922-claude-v04。
+- 目标：完成 T301d 中不依赖 Codex 网络的全部剩余项：自动触发 hook（opt-in）、V04-1..4 验收映射表、独立 Checker 复查；用户明确指示 Codex 宿主实测搁置。
+- 起始快照：main@5b80594（r25）。
+- 变更：scripts/agent-review-hook.mjs（CLI 同 Engine 通道，report-only 永 0/enforce 才 2/失败明示不可用，XRAY_HOOK_BASE='' 支持无 git 基线）；tests/agent-hook.test.ts（4 契约用例）；README hook opt-in 段；docs/state/V04_ACCEPTANCE.md（V04-2/3/4 passed、V04-1 open 仅剩 Codex）。
+- 验证（E033）：npm run verify 退出 0（119/119，16 文件）；hook 四路径手工实测（fixture 0/2、坏路径 0+2 且明示"请勿视为审查通过"、干净目录 enforce=0）。
+- 独立 Checker（全新上下文 general-purpose agent）：总结论"有保留通过"——验收映射诚实（V04-1 open/T301 不得 done 无偷换）、机器验证可复现（verify 115/115 当时、demo 13/13）、架构边界/gate 默认/注入遏制/隐私/hook 行为/状态一致性全 ✓；发现：[高] V04_ACCEPTANCE 引用当时不存在的 E033 且 hook 无契约测试——本轮已补齐（E033 落盘 + agent-hook 4 用例 + 映射改引真实证据）；[低] CURRENT head 滞后——已更新；[说明] demo 脚本重跑覆写 E031 产物（Checker 已恢复，副作用记入 HANDOFF）。
+- outcome：done（本轮目标）；T301d 仅剩 Codex 第二宿主实测（用户指示搁置，环境恢复后按 HANDOFF 既定流程执行）；T301 保持 in_progress，不得 done。
+- 反思：Checker 抓到"验收文档引用未来证据"这一自指缺陷，正是独立复查的价值——验收映射必须以已落盘证据为引用；hook 复用 CLI 通道避免了第二套 gate 实现。
+- 下一步：Codex 上游恢复后 codex exec 双轮闭环（V04-1 收口唯一缺口）→ 更新 V04_ACCEPTANCE → T301/T301d done。等待期间无阻塞开发项；可选回补 V03-2 评估债（D012 挂起项）或 T101 交互重设计（待用户需求）。
+- checkpoint completion：completed（r26，本记录与 E033/V04_ACCEPTANCE/BACKLOG/CURRENT/HANDOFF 同轮落盘）。
+
 ## L024 — T301d(第二轮) Claude Code 宿主内自主调用双轮 review 闭环
 
 - checkpoint_revision：r25；checkpoint_status：completed。

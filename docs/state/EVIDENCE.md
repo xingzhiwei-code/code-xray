@@ -553,3 +553,20 @@
 - limitations:V04-1 要求"两个不同宿主"——Codex CLI 仍被上游代理 502 阻塞,双宿主收口条件未达成;Stop hook 自动触发未实现(本轮为显式调用);转录为摘要级(完整返回在会话记录,关键 ID/数值已摘录)。
 - review_mode:self-separated;checker:20260922-claude-v04。
 - supersedes:null。
+
+## E033 — T301d Stop hook opt-in(scripts/agent-review-hook.mjs)+ 契约测试 + 独立 Checker 复查
+
+- kind:test + ux_review(独立 Checker);recorded_at:2026-09-23T19:45+08:00;checkpoint_revision:r26。
+- claim:(1) 交付 opt-in 宿主 hook(scripts/agent-review-hook.mjs):走 CLI 同一 Engine(scan --base,XRAY_HOOK_BASE='' 可关基线),report-only 默认永 exit 0 只输出诚实摘要(含"未知不等于无风险"与 analysisId 指针);仅 XRAY_AGENT_GATE=enforce 时非 pass 关口 exit 2;分析失败/输出不可解析明示"审查未完成…请勿视为审查通过",绝不伪装;README 声明 opt-in 默认不启用。(2) tests/agent-hook.test.ts 4 契约用例锁定上述语义;verify 119/119(16 文件)。(3) 独立 Checker(全新上下文 general-purpose agent)复查 V04 验收映射与实现:总结论"有保留通过"——架构边界/gate 默认/注入遏制/隐私/hook 行为/状态一致性全部 ✓,发现 1 高 2 低问题:V04_ACCEPTANCE 引用当时尚不存在的 E033 且 hook 无契约测试(高)、CURRENT git head 滞后一轮(低)、demo 脚本重跑覆写 E031 产物(Checker 已 git checkout 恢复,说明级)。
+- task:T301(T301d);acceptance:V04-2(自动触发子项:opt-in hook 契约测试)、V04-4(gate 仅启用范围生效的 hook 侧)。
+- operator:20260922-claude-v04(实现)+ 独立 Checker agent(复查,a6d4c51477b6d8c58)。
+- subject_snapshot:scripts/agent-review-hook.mjs;tests/agent-hook.test.ts;README.md(hook opt-in 段);docs/state/V04_ACCEPTANCE.md;修复按 Checker 发现落盘(本条 E033 补写、V04_ACCEPTANCE 自动触发行改引 E033+测试、CURRENT head 更新)。
+- environment:macOS arm64、Node v22.14.0、vitest 5.0.0。
+- invocation:`npm run verify`;`npx vitest run tests/agent-hook.test.ts`;手工四路径实测(fixture report-only=0/enforce=2、坏路径 0+2、干净目录 enforce=0)。
+- expected:hook 四路径语义正确;119/119;Checker 发现的"高"问题在本轮闭环(E033 存在 + 契约测试落地 + 验收映射改引真实证据)。
+- actual:与预期一致;Checker 总结论"有保留通过",其唯一高级别发现(E033 缺失/hook 无测试)已按建议补齐后本条成立。
+- exit_code:0。
+- result:passed(hook opt-in 交付与契约化;独立 Checker 复查完成且发现已处置)。
+- limitations:hook 在真实宿主 settings.json 的端到端触发未配置实测(opt-in 交付边界,用户启用时验证);Codex 第二宿主实测仍搁置(V04-1 open);demo 脚本重跑会覆写 E031 产物——已在 HANDOFF 记录该副作用,验收以已提交快照为准。
+- review_mode:independent(全新上下文 Checker);checker:general-purpose agent a6d4c51477b6d8c58。
+- supersedes:null。

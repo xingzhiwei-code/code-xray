@@ -1,6 +1,6 @@
 # Backlog：任务状态的唯一来源
 
-当前 revision：r25（r24 T301d 第一轮；r25 Claude Code 宿主内自主调用双轮闭环通过 E032——V04-1 单宿主收口）。v0.1 必需任务 10/10 done；T011 done；T101 in_progress（VS Code 交互待重设计）；T201 in_progress（挂起：V03-2 评估债 + JetBrains 壳环境阻塞）；T301 in_progress（T301a/b/c done；T301d in_progress——演示/文档/Claude 宿主实测 done，剩 Codex 宿主、hook、验收映射、独立 Checker）。拆分任务须保留原 ID、依赖和 AC 追踪。
+当前 revision：r26（r25 Claude 宿主闭环 E032；r26 hook opt-in + V04 验收映射 + 独立 Checker E033——T301d 仅剩 Codex 实测，用户指示搁置）。v0.1 必需任务 10/10 done；T011 done；T101 in_progress（VS Code 交互待重设计）；T201 in_progress（挂起：V03-2 评估债 + JetBrains 壳环境阻塞）；T301 in_progress（T301a/b/c done；T301d 仅剩 Codex 第二宿主实测（V04-1 唯一缺口，搁置中）——hook/验收映射/独立 Checker 已 done）。拆分任务须保留原 ID、依赖和 AC 追踪。
 
 状态与更新规则见 [HANDOFF_PROTOCOL](../HANDOFF_PROTOCOL.md)，验收原文见 [PRD](../PRD.md)。单个任务只负责其交付范围内的 AC 子项，并在 Evidence 写明覆盖边界；完整 AC 的跨任务汇总由 T010 验收。不得将下游能力作为上游任务的隐含完成条件。
 
@@ -104,7 +104,7 @@
 | T301a | MCP stdio server（手写 JSON-RPC 2.0 + NDJSON，零新依赖）+ capabilities/scan/evidence 三工具 + envelope + 构建/检查脚本 + 契约测试 | done（E027 机器验证 + E028 Claude Code 真实宿主闭环；Codex 实测归 T301d） | V04-1（单宿主部分）、V04-2 部分 |
 | T301b | Review 会话：review_start/finish、ReviewRecord 持久化、幂等/过期、explain/summary 工具、gate（默认 report-only） | done（E029：9 契约用例 + 二进制 smoke；宿主内双轮闭环归 T301d） | V04-1、V04-3 |
 | T301c | 契约加固：取消/超时/partial/failed、注入 fixture 与测试、消息上限、stderr 无敏感 | done（E030：10 契约用例 + injection fixture + 隐私矩阵；verify 115/115） | V04-2、V04-4 |
-| T301d | 双宿主验收：Claude Code + Codex CLI 实测完整闭环、hook opt-in、文档、独立检查 | in_progress（E031 演示 + E032 Claude Code 宿主闭环 done；剩 Codex 宿主实测/hook opt-in/V04 映射/独立 Checker） | V04-1—V04-4 |
+| T301d | 双宿主验收：Claude Code + Codex CLI 实测完整闭环、hook opt-in、文档、独立检查 | in_progress（E031/E032/E033：演示+Claude 宿主闭环+hook opt-in+V04 映射+独立 Checker done；仅剩 Codex 宿主实测——V04-1 双宿主硬条件，用户指示搁置待环境） | V04-1—V04-4 |
 
 修改阶段顺序或压缩范围需要记录 Decision；阶段完成不自动代表后续阶段可用。
 
@@ -126,6 +126,7 @@
 - r14：用户报告“已经测试过了”，登记 E017；因缺少样本数、完成结果与是否到达证据查看，T010/AC12 保持 in_progress，不冒称通过。
 - r15：按用户要求提交本地 Git：bd26abe（Developer Profile 功能）+ 4b1fd41（状态回填）；`npm run verify` 通过。GitHub 凭据失效导致 push 失败，登记 E018，远端待重新认证后推送。
 - r16：用户确认“验证可以了，各个命令功能都正确”。E017 更新为 passed（单人验收），按 D010 将 T010 → done。v0.1 必需任务 10/10 done；V02（T101）解锁。远端推送仍因 GitHub 凭据失效阻塞。
+- r26：L025——Stop hook opt-in（scripts/agent-review-hook.mjs + 4 契约用例，report-only 永 0/enforce 才 2/失败明示不可用）；docs/state/V04_ACCEPTANCE.md 验收映射（V04-2/3/4 passed，V04-1 open 仅剩 Codex）；独立 Checker（新上下文）"有保留通过"，其高级别发现（映射引用未落盘 E033/hook 无测试）本轮闭环；verify 0（119/119，16 文件，E033）。用户指示 Codex 实测搁置。
 - r25：L024——用户重启 Claude Code 会话后，宿主 LLM 自主调用完成双轮 review 闭环（E032 九步：基线→修改→审查→explain/evidence→再修改→重扫→旧审查 stale 降级→跨会话幂等同 reviewId）；V04-1 单宿主收口，Codex 侧仍 502。
 - r24：L023 完成 T301d 第一轮——scripts/demo-v04-double-loop.py 在真实 dist/agent.js MCP 通道上 13/13 断言通过（基线→修改→审查→证据→再修改→重扫 + 幂等 + 旧审查 stale/incomplete + removed 检出，E031，transcript 存 artifacts/evidence/E031/）；README +AI Agent 接入章节、SUPPORT +Agent Surface 章节。Codex 上游仍 502；当前 Claude 会话 server 为 Loop A 构建（3 工具），review 工具宿主实测需重启会话。
 - r23：L022 完成 T301c——取消/超时/1MB 上限/注入遏制（fixtures/injection-java，恶意文本仅 evidence source-data 出口）/session 缓存 0600 与 deleteData('reviews') 清除；verify 0（115/115，15 文件）+ 冻结 oracle eval 100%（E030）。根扫描计数测试按新 fixture 事实更新（36→38/27→28）。
@@ -205,8 +206,8 @@
 ### T301 — v0.4 Agent Integration（in_progress）
 
 - owner：20260922-claude-v04；session：20260922-claude-v04；开始：2026-09-22。
-- 当前目标：T301d 收尾——宿主 LLM 会话内自主调用实测（Claude Code 重启后 + Codex 网络恢复后）、Stop hook opt-in、V04-1..4 验收映射、独立 Checker。
+- 当前目标：T301d 仅剩 Codex 第二宿主实测（用户指示搁置；上游恢复后按 HANDOFF 流程执行并更新 V04_ACCEPTANCE）。
 - 已完成（待宿主实测收口）：apps/agent/{index.ts,host/{jsonrpc,mcp,bridge}.ts,tools/index.ts}；protocol +Envelope/Gate；scripts/build-agent.mjs+check-agent.mjs 入 verify 链；tests/agent-mcp.test.ts 10 用例（握手、tools/list、scan 27 findings、evidence 回源、域错误 envelope、协议错误码、parse error、stderr 纯净、跨进程确定性）；.mcp.json（Claude Code）；codex mcp add 全局注册。
-- 阻塞：Codex CLI 上游代理 502（第二宿主实测）；当前 Claude 会话加载的 server 为 Loop A 构建，review 工具需用户重启会话后实测（E028 已验证 3 工具闭环）。
+- 阻塞：Codex CLI 上游代理 502（CC Switch 本地代理→127.0.0.1:15721 失败）——V04-1 双宿主收口唯一缺口，用户 2026-09-23 指示搁置；Claude 宿主侧已收口（E032，8 工具会话实测）；探测命令与流程已写入 HANDOFF。
 - 下一步：用户重启 Claude Code 会话后宿主内跑真实 review 闭环并记录；Codex 恢复后同流程；Stop hook opt-in 设计；V04-1..4 映射 + 独立 Checker（新上下文）。
-- decisions：D011、D012；evidence：E027—E032；最后 revision：r25。
+- decisions：D011、D012；evidence：E027—E033；最后 revision：r26。
