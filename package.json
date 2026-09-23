@@ -24,12 +24,15 @@
   "scripts": {
     "build": "node scripts/build.mjs",
     "build:vscode": "node scripts/build-vscode.mjs",
+    "build:agent": "node scripts/build-agent.mjs",
     "check:cli": "node scripts/check-cli.mjs",
     "check:vscode": "node scripts/check-vscode.mjs",
-    "check": "npm run check:cli && npm run check:vscode",
+    "check:agent": "node scripts/check-agent.mjs",
+    "check": "npm run check:cli && npm run check:vscode && npm run check:agent",
     "test": "vitest run",
     "dev": "node --import tsx apps/cli/index.ts",
-    "verify": "npm run check && npm test && npm run build && npm run build:vscode",
+    "dev:agent": "node --import tsx apps/agent/index.ts",
+    "verify": "npm run check && npm test && npm run build && npm run build:vscode && npm run build:agent",
     "prepack": "npm run build"
   },
   "dependencies": {

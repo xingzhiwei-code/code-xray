@@ -60,6 +60,20 @@ export interface Capabilities {
 export class XrayError extends Error {
   constructor(public code:string,message:string,public exitCode=1) { super(message); this.name='XrayError'; }
 }
+/** Surface-facing result envelope (ARCHITECTURE §11): success and failure both serialize to one legal envelope. */
+export type Envelope<T> =
+  | { schemaVersion: '0.1'; status: 'ok'; data: T }
+  | { schemaVersion: '0.1'; status: 'error'; error: { code: string; message: string; exitCode: number } };
+export function okEnvelope<T>(data: T): Envelope<T> { return { schemaVersion: '0.1', status: 'ok', data }; }
+export function errorEnvelope<T = never>(error: unknown): Envelope<T> {
+  const code = error instanceof XrayError ? error.code : 'INTERNAL';
+  const exitCode = error instanceof XrayError ? error.exitCode : 1;
+  const message = error instanceof Error ? error.message : String(error);
+  return { schemaVersion: '0.1', status: 'error', error: { code, message, exitCode } };
+}
+/** Review gate (PRD §8.5-5): blocking only when the user explicitly enabled an enforce policy. */
+export type GateState = 'pass' | 'needs_human' | 'incomplete' | 'failed' | 'disabled';
+export interface Gate { state: GateState; reasons: string[]; blocking: boolean }
 const str = {type:'string'};
 const strings = {type:'array',items:str};
 const obj = (properties: Record<string, unknown>, required=Object.keys(properties)) => ({type:'object',properties,required,additionalProperties:false});

@@ -99,3 +99,26 @@
 - reason：用户是当前授权范围内的产品验收人；其明确确认覆盖 CLI 各命令功能正确性；继续保持阻塞没有新的验证收益。
 - consequences：v0.1 可进入后续 V02（VS Code）；对外或发布材料不得声称“4/5 目标用户试用通过”，只能说“产品 owner 单人验收通过”。
 - evidence：E017；affects：T010、AC12。
+
+## D011 — Agent Surface 采用进程内 bridge 单 seam(暂缓独立 engine-host 进程)
+
+- 状态:accepted;日期:2026-09-22;提出者:20260922-claude-v04;checkpoint_revision:r20。
+- context:ARCHITECTURE §3 规划 `apps/engine-host/`(stdio JSON-RPC bridge)在"第二个宿主接入前"完成;实际 VS Code Surface(T101)已按进程内直调 Engine 交付(E019),v0.4 Agent Surface 若坚持独立 bridge 进程,需同时维护双进程构建、生命周期与 IPC 三层成本,而当前只有一个新增消费者。
+- options:(a) 先建独立 engine-host 进程,agent 作为其客户端——隔离好但成本高、延迟大;(b) MCP server 进程内直调 Engine,但把全部领域访问收敛到单一 `apps/agent/host/bridge.ts` seam——与 vscode 模式一致,未来拆进程只改 bridge 一层;(c) 每个 tool 各自 import engine——违反 Surface 边界,拒绝。
+- decision:采用 (b)。`host/bridge.ts` 是唯一 import engine/storage/learning 的文件;tools 层只依赖 bridge;JSON-RPC/MCP 协议层不知道领域语义。
+- reason:最小交付面达成 V04 工具契约;bridge seam 保留架构演进路径;D001(一 Engine 四 Surface)与 D009(不复制计算逻辑)边界不受影响。
+- consequences:Agent Surface 崩溃域与 Engine 同进程(可接受:server 无状态、宿主自动重启);未来 JetBrains/更多宿主接入或需要沙箱隔离时,把 bridge 换成 engine-host stdio 客户端并补回环测试;ARCHITECTURE §3 的 engine-host 条目保持"规划中"。
+- evidence:E027;affects:T301、V04-1/2/4。
+- supersedes:null(对 §3 目录规划记录在案的偏离,不修改架构文档正文)。
+- revisit_when:第二个非 CLI 宿主进程需要共享 Engine、或 Agent Surface 需要权限沙箱时。
+
+## D012 — 用户授权跳过 v0.3 剩余项,直接启动 v0.4
+
+- 状态:accepted;日期:2026-09-22;提出者:用户当前明确指示;checkpoint_revision:r20。
+- context:v0.3(T201)未完成:三类深化规则的正/负/未知 fixture 与独立评估(V03-2)未做;JetBrains 插件壳被环境硬阻塞(默认 Java 8、无 Gradle、网络不可用)。BACKLOG 规定"修改阶段顺序或压缩范围需要记录 Decision"。
+- decision:按用户 2026-09-22 明确指示,v0.3 剩余项原样挂起(T101/T201 保持 in_progress 与既有阻塞记录),立即启动 T301(v0.4 Agent Integration);首批双宿主实测目标为 Claude Code + Codex CLI(用户选定)。
+- reason:v0.4 依赖的 Engine/Protocol/快照/存储/学习链路在 v0.1 已冻结并有完整证据链(E005—E017);JetBrains 壳对 Agent 接入无实质依赖;用户判断 Agent Integration 是当前价值最高的一步。
+- consequences:V03-2 评估债保留在 T201,不得在 v0.4 收口时宣称 v0.3 完成;v0.4 期间三类深化规则的输出按"未经独立 fixture 评估"对待,Agent 工具返回继续携带 limitations;T301 依赖 T201 的原顺序在 BACKLOG 中标注为本 Decision 授权的例外。
+- evidence:E027;affects:T201、T301、V03-2、V04-1..4。
+- supersedes:null。
+- revisit_when:JetBrains 环境解除(JDK17+Gradle+网络)或用户要求回补 V03-2 时。

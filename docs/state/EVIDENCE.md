@@ -451,3 +451,37 @@
 - limitations：未在宿主内截图确认；需要用户重新安装 VSIX 并 Reload Window。
 - review_mode：self-separated；checker：20260909-101500-codex。
 - supersedes：null。
+
+## E027 — T301a Agent Surface MCP stdio server 第一轮（Loop A）
+
+- kind：test + build + source_inspection；recorded_at：2026-09-22T16:30+08:00；checkpoint_revision：r20。
+- claim：新增 apps/agent（手写 JSON-RPC 2.0 + NDJSON 的 MCP stdio server，协议版本 2025-06-18/回退 2024-11-05，零新依赖），提供 xray_capabilities/xray_scan/xray_evidence 三工具，全部返回产品 envelope（schemaVersion/status/data|error）；域失败走 isError envelope，协议失败走 JSON-RPC 错误码；证据回源包裹为 source-data 且逐行脱敏；跨进程同快照确定性成立。Claude Code 与 Codex CLI 均已注册该 server，但两宿主的 LLM 闭环实测分别被"待交互批准"与"上游代理 502"阻塞。
+- task：T301（T301a）；acceptance：V04-1（单宿主工具链部分）、V04-2 部分（错误/协议契约）、V04-4 部分（evidence 数据边界与脱敏）。
+- operator：20260922-claude-v04。
+- subject_snapshot：apps/agent/{index.ts,host/jsonrpc.ts,host/mcp.ts,host/bridge.ts,tools/index.ts,tsconfig.json}；packages/protocol/index.ts（+Envelope/Gate/okEnvelope/errorEnvelope）；scripts/{build-agent.mjs,check-agent.mjs}；package.json（check/verify 链 + dev:agent）；tests/agent-mcp.test.ts（10 用例）；.mcp.json；Codex 全局 config.toml（codex mcp add code-xray）。
+- environment：macOS arm64、Node v22.14.0、TypeScript 7.0.2、vitest 5.0.0、esbuild 0.28.2、claude CLI 与 codex CLI 均在 PATH。
+- invocation：`npm run verify`；手工 NDJSON smoke（initialize/tools/list/tools/call capabilities/scan/evidence/bogus method）；`claude mcp list`；`codex mcp add code-xray -- node dist/agent.js && codex mcp list`；`claude -p`（headless）与 `codex exec`（LLM 闭环尝试）。
+- expected：check（cli+vscode+agent）0 错误；96/96 测试通过（含 agent-mcp 10 用例：握手返回 2025-06-18 与 serverInfo；tools/list 恰为三工具；capabilities 报告 gatePolicy=report-only 与 java bounds；scan 冻结 fixture 27 findings、findingsTruncated=true、snapshotId 为 64hex；evidence 回源 OrderService.java:29 带 source-data notice、stale=false、行数与 range 一致；未知工具 -32602、未知方法 -32601、坏 JSON -32700 id=null；缺 path 为 INVALID_ARGUMENT envelope 而非协议错误；stderr 无源码；两个独立进程同快照 scan 结果除 analysisId/savedTo 外深度相等）；build:agent 产出可执行 dist/agent.js；宿主 CLI 能发现 server。
+- actual：verify 退出 0，96/96 tests（13 文件），dist/agent.js 构建并可运行；手工 smoke 输出与预期一致（握手/tools list/capabilities/scan 27 findings/evidence 回源行 29 orderRepository.save(order)）；`claude mcp list` 显示 code-xray "Pending approval"；`codex mcp list` 显示 code-xray enabled。headless 宿主闭环未完成：`claude -p` 报 "Not logged in"；`codex exec` 报 CC Switch 本地代理 502（上游 127.0.0.1:15721 连接失败）。
+- exit_code：verify=0；claude mcp list=0；codex mcp add=0；claude -p=阻塞（未登录）；codex exec=502（上游代理失败）。
+- result：passed（机器可验部分：契约/确定性/构建/宿主注册）；blocked（双宿主 LLM 闭环实测——V04-1 收口条件未达成，保持 in_progress）。
+- limitations：未在真实宿主会话内完成"修改→分析→读证据→再修改→重扫"（V04-1 留待 T301d）；取消/超时/注入 fixture 契约归 T301c；review 会话与 gate 归 T301b；structuredContent 字段按 MCP 2025-06-18 提供但未对旧宿主降级验证；scan 进度通知（notifications/progress）未实现。
+- review_mode：self-separated；checker：20260922-claude-v04。
+- supersedes：null。
+
+## E028 — T301a Claude Code 真实宿主闭环 smoke（用户批准后）
+
+- kind：test；recorded_at：2026-09-22T17:05+08:00；checkpoint_revision：r21。
+- claim：用户在交互 Claude Code 会话批准 .mcp.json 中的 code-xray server 后，真实宿主内完成 capabilities→scan→evidence 三步闭环：MCP 握手加载成功（server instructions 出现在宿主系统提示）、xray_capabilities 返回 gatePolicy=report-only 与 java 能力边界、xray_scan 对冻结 fixture 返回 ok envelope（36 文件解析、27 findings、findingsTruncated=true、status=complete、snapshotId=ec46f53e…5317 与 E027 跨进程确定性测试值一致）、xray_evidence 按 evidenceId 回源 OrderService.java:29（source-data notice、stale=false、行内容与 CLI 时代 oracle 一致）。
+- task：T301（T301a）；acceptance：V04-1 单宿主（Claude Code）"分析→读取证据"子项；V04-4 宿主通道数据边界子项。
+- operator：20260922-claude-v04（宿主会话内真实工具调用，用户在场批准）。
+- subject_snapshot：dist/agent.js（build-agent 产物，与 E027 同一构建）；.mcp.json；fixtures/java-spring-jpa（冻结，未改动）。
+- environment：macOS arm64、Node v22.14.0、Claude Code 交互会话（宿主经 .mcp.json 以 stdio 启动 node dist/agent.js）。
+- invocation：宿主内依次调用 mcp__code-xray__xray_capabilities、xray_scan{path=fixtures/java-spring-jpa}、xray_evidence{evidenceId=ev_5ad60533fadc19fddd1e, analysisId=fa8be088-…}。
+- expected：三步全部 status=ok；scan 结果与 E027 契约测试断言一致（27 findings、同 snapshotId）；evidence 返回 source-data 包裹与真实源码行。
+- actual：与预期完全一致；scan 报告已存入 LocalStore（analysisId fa8be088-2f23-4c89-b884-f580c8dedcaa）；coverage.unknown=38 条原因全部可见，无伪装完整。
+- exit_code：not_applicable（宿主内工具调用）。
+- result：passed（Claude Code 单宿主工具闭环）。
+- limitations：未覆盖"修改→再扫"完整 V04-1 双轮流程（归 T301d）；Codex CLI 宿主仍被上游代理 502 阻塞；review/gate 工具未实现（T301b）。
+- review_mode：self-separated；checker：20260922-claude-v04。
+- supersedes：null。

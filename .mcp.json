@@ -1,0 +1,10 @@
+{
+  "mcpServers": {
+    "code-xray": {
+      "command": "node",
+      "args": [
+        "/Users/01443732/Documents/Codex/2026-09-08/referenced-chatgpt-conversation-this-is-an/outputs/code-xray/dist/agent.js"
+      ]
+    }
+  }
+}

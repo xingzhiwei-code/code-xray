@@ -109,6 +109,21 @@
 - 下一步：用户重装 VSIX，分别验证 Explorer 单选文件/文件夹、多选、active editor、uncommitted/no-scope；结果记 E025。
 - checkpoint completion：preparing（r18）。
 
+## L020 — T301a Agent Surface：MCP stdio server 最小端到端（Loop A）
+
+- checkpoint_revision：r21；checkpoint_status：completed。
+- 日期：2026-09-22；session：20260922-claude-v04。
+- 目标：按用户指示（D012）跳过 v0.3 剩余项启动 v0.4；交付 MCP stdio server + capabilities/scan/evidence 三工具最小端到端，双宿主可加载。
+- 起始快照：main@18f80b0，工作树干净（r19）。
+- 计划：protocol 加 Envelope/Gate；apps/agent 分层（jsonrpc 协议层/mcp 会话层/bridge 领域 seam/tools）；构建照 vscode 模式（build-agent/check-agent 入 verify 链）；spawn 真实进程的 NDJSON 契约测试；.mcp.json + codex mcp add 双宿主注册。
+- 变更：新增 apps/agent/**（6 文件）、scripts/{build,check}-agent.mjs、tests/agent-mcp.test.ts、.mcp.json；packages/protocol/index.ts +Envelope/Gate/okEnvelope/errorEnvelope；package.json scripts。修复：源文件 shebang 与 esbuild banner 重复导致 dist 语法错误（已知坑再现，移除源 shebang）；tools/call 未知工具按 MCP 规范用 -32602；测试客户端用 StringDecoder 处理 CJK 跨 chunk 截断。
+- 验证（E027）：npm run verify 退出 0（96/96 tests，13 文件）；手工 NDJSON smoke 全通过；claude mcp list 显示 code-xray（待批准）；codex mcp list 显示 enabled。
+- 检查（self-separated）：(1) tools 层不 import engine/storage，仅经 bridge——Surface 边界保持（D001/D009/D011）；(2) 域错误与协议错误分离，partial/failed 不会被包装成 ok；(3) evidence 逐行 hasSecret 脱敏 + source-data notice + 工作区边界检查；(4) 零新依赖、零网络（手写 JSON-RPC）；(5) 确定性：跨进程同快照 scan 深度相等（analysisId/savedTo 除外）。
+- outcome：done（T301a：E027 机器验证 + 用户批准后 E028 Claude Code 宿主内 capabilities→scan→evidence 闭环实测通过，snapshotId 与契约测试一致；Codex 上游 502 归 T301d）。r21 本地提交（用户授权）。
+- 反思：手写 MCP 的关键风险在握手字段与错误码语义，spawn 真实进程的契约测试能一次锁定；esbuild banner+shebang 坑第二次出现，已在新 build 脚本注释外再次实证。
+- 下一步：T301b——protocol 加 ReviewRecord；storage-local 加 saveReview/loadReview/findReviewByTargetSnapshot；tools 加 xray_review_start/xray_review_finish/xray_explain/xray_summary；gate 默认 report-only；测试覆盖幂等（同 targetSnapshotId → 同 reviewId + reused）与过期（stalePaths → stale+incomplete）。预期 npm run verify 全绿。
+- checkpoint completion：completed（r20，本记录与 E027/D011/D012/BACKLOG/CURRENT/HANDOFF 同轮落盘）。
+
 ## L019 — T201 V03 共享深化分析第一轮
 
 - checkpoint_revision：r19；checkpoint_status：preparing。

@@ -3,45 +3,44 @@
 | 字段 | 值 |
 |---|---|
 | state_schema_version | 1 |
-| state_revision | r19 |
+| state_revision | r21 |
 | checkpoint_status | complete |
-| updated_at | 2026-09-11T10:15+08:00（T201 V03 深化分析内核第一轮） |
+| updated_at | 2026-09-22T17:10+08:00（T301a 收口：Claude Code 宿主闭环 E028） |
 | project | Code X-Ray |
-| phase | v0.3 JetBrains / 共享深化分析内核 |
-| implementation_status | in_progress（T101 交互待重设计；T201 深化分析内核已实现，评估与 JetBrains 壳待做） |
-| progress | v0.1 必需任务 10/10 done（T001—T010）；T011 done（Developer Profile v1）；任务非等量 |
-| active_task | T201（V03 共享深化分析） |
-| active_loop | L019（三类深化规则实现完成，fixture/eval 与 JetBrains 壳待做） |
-| next_task | 为 Bean/事务/JPA 三类规则补正例、反例、未知 fixture → 独立评估 → JetBrains 插件壳（需 JDK17/Gradle/网络） |
-| session_owner | 20260909-101500-codex |
+| phase | v0.4 Agent Integration（v0.2/v0.3 遗留项按 D012 挂起） |
+| implementation_status | in_progress（T301a done；T301b ready） |
+| progress | v0.1 必需任务 10/10 done（T001—T010）；T011 done；T101/T201 in_progress 挂起；T301 in_progress（T301a done） |
+| active_task | T301（v0.4 Agent Integration，子任务 T301a） |
+| active_loop | L020（已收口）；下一 Loop 进入 T301b |
+| next_task | T301b Review 会话：ReviewRecord 类型 + saveReview/loadReview/findReviewByTargetSnapshot + xray_review_start/finish/explain/summary 工具 + gate（默认 report-only）+ 幂等/stale 测试 |
+| session_owner | 20260922-claude-v04 |
 | repo_path | /Users/01443732/Documents/Codex/2026-09-08/referenced-chatgpt-conversation-this-is-an/outputs/code-xray |
-| git_branch / head | main / e896353（T201 深化分析已提交） |
-| worktree_state | 状态回填改动待提交；GitHub 凭据失效，推送阻塞；node_modules/dist/.idea/.DS_Store 已由 .gitignore 排除 |
-| last_product_verification | E016：81/81 测试 + check/build + Developer Profile 二进制 smoke；E017：用户确认各命令功能正确（单人验收） |
-| package_evidence | E005—E017 产品证据链完整（…→故障注入+首次提交→Developer Profile v1→用户验收）；E001—E004 文档 |
-| blockers | JetBrains 宿主开发受环境阻塞（默认 Java 8、无 Gradle、网络不可用）；V02 交互重设计需求待用户想清楚；GitHub 推送仍因 token invalid 阻塞 |
+| git_branch / head | main / r21 提交（Loop A + 宿主 smoke）|
+| worktree_state | r21 已本地提交（用户授权）；GitHub 凭据失效，推送仍阻塞 |
+| last_product_verification | E027（verify 0，96/96）+ E028（Claude Code 真实宿主 capabilities→scan→evidence 闭环，snapshotId 与契约测试一致） |
+| package_evidence | E005—E017 v0.1 产品证据链完整；E019—E026 V02/V03 进行中；E027/E028 T301a |
+| blockers | Codex CLI 上游代理 502（第二宿主实测归 T301d）；JetBrains 壳环境阻塞（挂起）；GitHub 推送 token invalid |
 
 ## 唯一下一步
 
-**T201 已进入共享深化分析**：新增 Bean 候选/注入关系、事务边界、JPA 持久化上下文三类规则，当前 fixture 发现数 15→27，直接改善“扫描不够深”的问题。V02 交互重设计暂挂，等用户想清楚；JetBrains 壳受 JDK/Gradle/网络环境阻塞。
+**T301b Review 会话**：T301a 已收口（E027 机器验证 + E028 Claude Code 真实宿主闭环，用户批准并实测）。下一步在 protocol 增加 ReviewRecord 类型；storage-local 增加 saveReview/loadReview/findReviewByTargetSnapshot（reviews/<digest>.json + index.json，复用 atomicWrite/locked/redactReport）；tools 增加 xray_review_start/xray_review_finish/xray_explain/xray_summary；gate 默认 report-only；测试覆盖幂等（同 targetSnapshotId → 同 reviewId + reused:true）与过期（stalePaths → stale + gate incomplete）。完成后进入 T301c 契约加固（取消/超时/注入 fixture）。
 
 ## required_reads
 
 - [项目宪法](../CONSTITUTION.md)、[Loop 协议](../LOOP_PROTOCOL.md)、[接力协议](../HANDOFF_PROTOCOL.md)
-- [BACKLOG](BACKLOG.md) 的 T010 与后续 Surface 任务
-- [BACKLOG](BACKLOG.md) 的 T011、[DECISIONS](DECISIONS.md) 的 D009（Developer Profile）
-- [README.md](../../README.md)（产品使用说明）、[NOTICE.md](../../NOTICE.md)、[SUPPORT.md](../SUPPORT.md)
-- 代码：packages/{protocol,engine,analyzer-java,workspace-local,storage-local,learning,developer-profile,explanation-providers}、apps/cli、tests/×12、evals/
+- [PRD 第 8.5 节](../PRD.md)（V04-1—V04-4 验收原文）、[ARCHITECTURE §3/§7/§11](../ARCHITECTURE.md)（Surface 边界、stdio bridge、envelope 与退出码契约）
+- [DECISIONS](DECISIONS.md) 的 D009/D011/D012；[BACKLOG](BACKLOG.md) 的 T301 拆分表与 T301 扩展字段
+- 代码：apps/agent/{index.ts,host/{jsonrpc,mcp,bridge}.ts,tools/index.ts}、packages/{protocol,engine,storage-local,workspace-local,learning,developer-profile}、tests/agent-mcp.test.ts、scripts/{build,check}-agent.mjs、.mcp.json
 
 ## 当前已知事实与限制
 
-- v0.1 功能闭环完整可用：扫描→证据→diff→explain→学习卡→验证→认知债务→二次启动恢复，全部经真实二进制验证；冻结 oracle 上三规则 precision/recall 100%、unknown 零泄漏（独立 Checker 复核）。当前快照含 T011 后共 81/81 测试通过（E016）。
-- T011 新增 Developer Profile v1：本机全局角色/技能/证据模型，`xray profile show/init/update`；Knowledge Gap 结合当前代码所需技能、开发者画像与项目学习状态；画像缺失时保持可用并显式“未评估”；不改变代码发现、已验证学习事实或退出码。
-- AC12 性能达标（100 文件/20,000 非空行：冷 1.04s/热 0.96s/331.1MiB，macOS arm64）；安装 smoke 通过（含 bin 符号链接 bug 修复）；SNAPSHOT_CHANGED 检测路径已经故障注入测试（E015）。
-- T010 验收：用户本人确认各命令功能正确（E017，单人验收）。遗留发布前事项：cliff LICENSE 全文归档、Windows/Linux 未测、真实远端 provider 保持 unverified-remote 禁用、外部 Java 专家 oracle 标注未做。
-- 凭据检测/脱敏关键词仅英文（password/secret/api key/token/sk-）——已在 SUPPORT.md 声明。
-- 默认离线、隐私优先在所有路径成立（独立 Checker 确认报告无源码/学习状态泄漏、bundle 无多余网络调用点）。
+- v0.1 CLI 闭环完整可用（E005—E017）；VS Code 基础闭环已实现、真实宿主验证被沙箱阻塞（E019/E025）；V03 三类深化规则已实现但 V03-2 独立评估未做（E026），按 D012 挂起。
+- Agent Surface（T301a done，E027/E028）：MCP 2025-06-18（回退 2024-11-05）stdio server；三工具全部返回 envelope{schemaVersion,status,data|error}；域失败 isError=true、协议失败 JSON-RPC 错误码（未知工具 -32602、未知方法 -32601、坏 JSON -32700）；evidence 回源带 source-data notice、逐行 hasSecret 脱敏、工作区边界与 200 行上限；gatePolicy 默认 report-only（XRAY_AGENT_GATE=enforce 才可能阻塞——gate 实体在 T301b 落地）。
+- 双进程同快照 scan 结果除 analysisId/savedTo 外深度相等；冻结 fixture 27 findings 断言已入契约测试；E028 宿主内 scan 的 snapshotId 与契约测试值一致（ec46f53e…5317）。
+- 取消（notifications/cancelled→AbortController）代码路径已实现，但取消/超时/注入的正式契约测试归 T301c；review 会话与 ReviewRecord 持久化归 T301b；Codex 完整闭环与 V04-1 验收归 T301d。
+- 宿主接入现状：Claude Code 已由用户批准并在宿主内完成三工具闭环实测（E028）；Codex CLI 已全局注册（enabled），LLM 闭环被上游代理 502 阻塞，归 T301d。
+- 默认离线、零新依赖在手写 MCP 实现下继续成立；stderr 无源码内容已有测试断言。
 
 ## 继续开发时不要重复
 
-不要重写 PRD/架构文档；不要把磁盘实现当未验证（E005—E016 已覆盖）；不要用 mock cliff 或 mock provider 冒充真实集成；不要把“用户说测试过了”直接写成 AC12 通过；不要未经授权 git commit；修改 vendor/ 必须同步 VENDOR_PATCH.md 并重跑 cliff-adapter 测试；未来 Surface 不得复制 profile/gap/debt 计算逻辑。
+不要重写 PRD/架构文档；不要把 E027 已验证的契约当未实现；不要用 MCP SDK 替换手写实现（node_modules 无 SDK、网络受阻，且零依赖是隐私基线的一部分）；不要在 tools 层直接 import engine/storage（必须经 host/bridge.ts，D011）；不要让 gate 默认阻塞（PRD §8.5-5：仅显式配置后 finding 才影响流程）；不要把宿主 tool-call 格式渗入 protocol 包（ARCHITECTURE §7）；不要未经授权 git commit；修改 vendor/ 必须同步 VENDOR_PATCH.md 并重跑 cliff-adapter 测试；未来 Surface 不得复制 profile/gap/debt 计算逻辑。
