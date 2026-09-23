@@ -109,6 +109,20 @@
 - 下一步：用户重装 VSIX，分别验证 Explorer 单选文件/文件夹、多选、active editor、uncommitted/no-scope；结果记 E025。
 - checkpoint completion：preparing（r18）。
 
+## L024 — T301d(第二轮) Claude Code 宿主内自主调用双轮 review 闭环
+
+- checkpoint_revision：r25；checkpoint_status：completed。
+- 日期：2026-09-23；session：20260922-claude-v04（用户重启宿主会话后继续）。
+- 目标：V04-1 单宿主收口——在真实 Claude Code 会话内由 LLM 自主调用 8 工具完成 PRD §8.5 完整用户流程。
+- 起始快照：main@23ad4b3（r24）。
+- 变更：无产品代码改动；新增 artifacts/evidence/E032/host-session-transcript.md（九步调用序列摘要）；EVIDENCE +E032；状态文件本条。
+- 验证（E032）：基线捕获与冻结 fixture snapshotId 一致 → auditAll 循环修改被精确检出（new=1 锚定新符号、modified 单文件）→ explain/evidence 回源 → saveAll 修复 + restockOne 新风险同轮检出（JPA_CALL_IN_LOOP 6→5、TX_SELF_INVOCATION 5→6、debtDelta 56→56.46 与新绑定对应）→ 旧审查 stale+incomplete 降级 → 跨会话重复 finish 收敛同一 reviewId（内容寻址幂等在宿主内成立）。
+- 检查（self-separated）：(1) 全程宿主 LLM 自主工具调用，非脚本；(2) gate 全程 report-only、blocking=false；(3) unknown 39 项显式列出未伪装；(4) reviewId/snapshotId 与 E031 演示语义一一对应。
+- outcome：done（本轮目标）；T301d 保持 in_progress——Codex 第二宿主（上游 502）、Stop hook opt-in、V04 验收映射、独立 Checker 未完成，T301 不得 done。
+- 反思：跨会话 finish 收敛同一 reviewId 是比脚本演示更强的幂等证据（不同 sessionId、同一目标快照）；宿主重启才加载新构建这个顺序约束已实证并写入接力单。
+- 下一步：Codex 上游恢复后 codex exec 同流程（V04-1 双宿主收口）；Stop hook opt-in 设计（默认不启用）；V04-1..4 验收映射表；独立 Checker（新上下文）复查。
+- checkpoint completion：completed（r25，本记录与 E032/BACKLOG/CURRENT/HANDOFF 同轮落盘）。
+
 ## L023 — T301d(第一轮) 双轮闭环演示 + Agent Surface 文档
 
 - checkpoint_revision：r24；checkpoint_status：completed。

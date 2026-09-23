@@ -3,27 +3,27 @@
 | 字段 | 值 |
 |---|---|
 | state_schema_version | 1 |
-| state_revision | r24 |
+| state_revision | r25 |
 | checkpoint_status | complete |
-| updated_at | 2026-09-23T10:40+08:00（L023 T301d 第一轮：双轮闭环演示 + 文档） |
+| updated_at | 2026-09-23T11:25+08:00（L024 Claude Code 宿主内双轮闭环 E032） |
 | project | Code X-Ray |
 | phase | v0.4 Agent Integration（v0.2/v0.3 遗留项按 D012 挂起） |
-| implementation_status | in_progress（T301a/b/c done；T301d in_progress——演示/文档 done，双宿主 LLM 实测待做） |
+| implementation_status | in_progress（T301a/b/c done；T301d——演示/文档/Claude 宿主实测 done，剩 Codex/hook/验收映射/独立 Checker） |
 | progress | v0.1 必需任务 10/10 done（T001—T010）；T011 done；T101/T201 in_progress 挂起；T301 in_progress（T301a/b/c done，T301d 进行中） |
 | active_task | T301（v0.4 Agent Integration，子任务 T301a） |
-| active_loop | L023（已收口）；T301d 收尾待宿主环境 |
-| next_task | 用户重启 Claude Code 会话（加载 8 工具 server）后宿主内实测 review 闭环并记录；Codex 恢复后同流程；Stop hook opt-in + V04 验收映射 + 独立 Checker |
+| active_loop | L024（已收口）；T301d 剩余项待 Codex 网络 |
+| next_task | Codex 上游恢复后 codex exec 同流程（V04-1 双宿主收口）；Stop hook opt-in 设计；V04-1..4 验收映射表；独立 Checker 复查 |
 | session_owner | 20260922-claude-v04 |
 | repo_path | /Users/01443732/Documents/Codex/2026-09-08/referenced-chatgpt-conversation-this-is-an/outputs/code-xray |
-| git_branch / head | main / 2e1204a（r23）；r24（演示+文档）改动待提交 |
-| worktree_state | r24 改动待提交；GitHub 凭据失效，推送仍阻塞 |
-| last_product_verification | E031（双轮闭环演示 13/13，真实 dist/agent.js MCP 通道）；E030（verify 0，115/115）；E027—E029 |
-| package_evidence | E005—E017 v0.1 产品证据链完整；E019—E026 V02/V03 进行中；E027—E031 T301a/b/c/d1 |
-| blockers | Codex CLI 上游代理 502（第二宿主实测归 T301d）；JetBrains 壳环境阻塞（挂起）；GitHub 推送 token invalid |
+| git_branch / head | main / 23ad4b3（r24）；r25（E032+状态）改动待提交 |
+| worktree_state | r25 改动待提交；GitHub 凭据失效，推送仍阻塞 |
+| last_product_verification | E032（Claude Code 宿主内自主调用双轮闭环，V04-1 单宿主）；E031（演示 13/13）；E030（verify 0，115/115） |
+| package_evidence | E005—E017 v0.1 产品证据链完整；E019—E026 V02/V03 进行中；E027—E032 T301a/b/c/d |
+| blockers | Codex CLI 上游代理 502（V04-1 双宿主收口的唯一硬阻塞）；JetBrains 壳环境阻塞（挂起）；GitHub 推送 token invalid |
 
 ## 唯一下一步
 
-**T301d 收尾（依赖宿主环境）**：工具链双轮闭环已在真实 dist/agent.js 的 MCP 通道上 13/13 断言通过（E031：基线→修改→审查→证据→再修改→重扫、幂等 reused、旧审查 stale+incomplete、removed 检出），README/SUPPORT Agent Surface 文档已交付。剩余：(1) **用户重启 Claude Code 会话**——当前会话加载的 server 是 Loop A 构建（仅 3 工具），重启后宿主内自主跑一轮 review 闭环并记录证据；(2) Codex 上游代理恢复后重复同流程（第二宿主，V04-1 收口条件）；(3) Stop hook opt-in 设计（宿主策略，显式启用）；(4) V04-1..4 逐项验收映射 + 独立 Checker（新上下文）复查。全部完成前 T301 不得 done。
+**T301d 收尾**：V04-1 的 Claude Code 侧已在宿主 LLM 会话内自主调用收口（E032 九步：基线→修改→审查→explain/evidence→再修改→重扫→旧审查 stale+incomplete→跨会话幂等同 reviewId；gate 全程 report-only）。剩余四件事：(1) Codex CLI 上游代理恢复后 `codex exec` 重复同流程——V04-1 要求"两个不同宿主"，这是 T301 done 的硬条件；(2) Stop hook opt-in 设计（宿主策略、默认不启用）；(3) 按 PRD §8.5 做 V04-1..4 逐项验收映射表；(4) 独立 Checker（新上下文）复查。全部完成前 T301 不得 done。
 
 ## required_reads
 

@@ -536,3 +536,20 @@
 - limitations:本证据是脚本驱动的 MCP 客户端闭环,不是 LLM 宿主会话内的自主调用;V04-1 要求的"两个不同宿主(Claude Code + Codex)实测"仍未收口——当前会话加载的 server 进程是 Loop A 构建(仅 3 工具),review 工具需宿主重启后加载;Codex 上游代理 502。Stop hook opt-in 未实现。
 - review_mode:self-separated;checker:20260922-claude-v04。
 - supersedes:null。
+
+## E032 — T301d Claude Code 宿主内自主调用双轮 review 闭环(V04-1 单宿主收口)
+
+- kind:test;recorded_at:2026-09-23T11:20+08:00;checkpoint_revision:r25。
+- claim:用户重启 Claude Code 会话加载 8 工具版 dist/agent.js 后,宿主 LLM 会话内自主完成 PRD §8.5 完整用户流程:review_start(基线 ec46f53e… 与冻结 fixture 一致)→修改 OrderService 新增 auditAll 循环→review_finish(reviewId rev_8a5d684b…,modified 检出、new=1 锚定 auditAll、gate needs_human 非阻塞、debtDelta 0→56)→explain(前提/未知/学习卡,只读)→evidence(source-data 回源循环体 34-36 行)→再修改(saveAll 修复 + restockOne 自调用)→重新 start/finish(JPA_CALL_IN_LOOP 6→5 修复生效、TX_SELF_INVOCATION 5→6 新风险检出、debtDelta 56→56.46 对应新绑定)→review_read 旧审查(stale=true、gate 降级 incomplete、reason 明示"结论不代表当前代码")→跨会话重复 finish(不同 sessionId、同一目标快照 → 同一 reviewId reused=true,内容寻址幂等成立)。
+- task:T301(T301d);acceptance:V04-1(Claude Code 宿主"修改→分析→读取证据→再修改→重扫")、V04-3(报告标识/快照核对/过期/持久恢复,不依赖聊天记忆)、V04-2 部分(unknown 显式、不伪装通过)、V04-4 部分(gate report-only 全程 blocking=false)。
+- operator:20260922-claude-v04(宿主会话内 LLM 自主调用,用户在场并重启会话)。
+- subject_snapshot:dist/agent.js(2e1204a 后构建,与 E030/E031 同一代码);/tmp/xray-v04-host(36 文件工作副本);artifacts/evidence/E032/host-session-transcript.md(调用序列与关键返回摘要)。
+- environment:macOS arm64、Node v22.14.0、Claude Code 交互会话(.mcp.json stdio 加载)、默认 LocalStore(~/Library/Application Support/code-xray)。
+- invocation:宿主内依次调用 xray_review_start → (修改) → xray_review_finish → xray_explain → xray_evidence → (再修改) → xray_review_start/finish → xray_review_read → 跨会话 xray_review_finish。
+- expected:与 E031 脚本演示同语义的全部断言在宿主自主调用下成立。
+- actual:全部成立(详见 artifacts/evidence/E032/host-session-transcript.md 九步序列);无一处 partial/unknown 被包装为通过;gate 全程 report-only。
+- exit_code:not_applicable(宿主内工具调用)。
+- result:passed(Claude Code 单宿主 V04-1 闭环)。
+- limitations:V04-1 要求"两个不同宿主"——Codex CLI 仍被上游代理 502 阻塞,双宿主收口条件未达成;Stop hook 自动触发未实现(本轮为显式调用);转录为摘要级(完整返回在会话记录,关键 ID/数值已摘录)。
+- review_mode:self-separated;checker:20260922-claude-v04。
+- supersedes:null。
