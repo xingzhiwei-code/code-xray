@@ -41,6 +41,16 @@ CST 分析不做类型解析。同名同参数个数重载、Lambda/方法引用
 | 3 | 文件级限制（超大/二进制/编码/快照变化） |
 | 130 | 用户取消（Ctrl-C） |
 
+## Agent Surface（MCP，v0.4）
+
+- 接入：`npm run build:agent` 产出 `dist/agent.js`；Claude Code 用项目 `.mcp.json` 或 `claude mcp add`，Codex CLI 用 `codex mcp add`（均为本地 stdio，零网络）。
+- 工具：`xray_capabilities / xray_scan / xray_evidence / xray_review_start / xray_review_finish / xray_review_read / xray_explain / xray_summary`；全部返回 `{schemaVersion:'0.1',status:'ok'|'error',...}` envelope。
+- 修改后审查：修改前 `xray_review_start`（记录基线，含未提交内容），修改后 `xray_review_finish`（结构化审查 + gate）。reviewId 内容寻址、重复触发幂等（`reused:true`）；代码再变更后旧审查读取时 `stale:true` 且 gate 降级 `incomplete`。
+- gate 策略：默认 `report-only`（永不阻塞）；仅 `XRAY_AGENT_GATE=enforce` 时非 pass 关口携带 `blocking:true`。partial/failed/unknown 不会包装成 pass。
+- 出错语义:域错误在 envelope（`status:'error'` + code/exitCode，MCP `isError:true`）；协议错误走 JSON-RPC 错误码（-32700 坏 JSON、-32601 未知方法、-32602 未知工具/坏参数）。取消（notifications/cancelled）返回 CANCELLED（130 语义），绝不返回伪造 complete。单条消息上限 1MB。
+- 隐私:源码只经 `xray_evidence` 进入工具通道（source-data 包裹 + 逐行脱敏）；恶意源码文本不进入摘要/gate/建议（注入遏制测试锁定）。审查会话基线缓存含源码明文，存用户数据目录 `workspaces/<id>/review-sessions/`（0600/0700），随 `deleteData('reviews'|'all')` 清除。
+- 限制：宿主自动触发（Claude Code Stop/PostToolUse hook）为 opt-in 规划项，当前版本需 Agent 显式调用工具；Codex CLI 宿主完整闭环实测待其上游可用后补记；`xray_review_finish` 的 base 参数走 git 基线时会话基线缓存不参与对比。
+
 ## 已知限制
 
 - 仅 Java `.java` 顶层 class/interface；record/enum/嵌套/匿名类不做框架规则（相关调用不并入确定路径）。

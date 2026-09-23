@@ -109,6 +109,22 @@
 - 下一步：用户重装 VSIX，分别验证 Explorer 单选文件/文件夹、多选、active editor、uncommitted/no-scope；结果记 E025。
 - checkpoint completion：preparing（r18）。
 
+## L023 — T301d(第一轮) 双轮闭环演示 + Agent Surface 文档
+
+- checkpoint_revision：r24；checkpoint_status：completed。
+- 日期：2026-09-23；session：20260922-claude-v04。
+- 目标：在真实构建产物上演示 V04-1 双轮闭环语义并交付用户文档；探测双宿主实测可行性。
+- 起始快照：main@2e1204a（r23，工作树干净）。
+- 计划：写可重跑演示脚本（MCP NDJSON 客户端）覆盖 基线→修改→审查→证据→再修改→重扫 + 幂等 + 过期降级；README/SUPPORT 增补 Agent Surface 章节；探测 codex 上游。
+- 变更：scripts/demo-v04-double-loop.py（13 断言）；artifacts/evidence/E031/（transcript + checks）；README.md +AI Agent 接入章节（工具表/gate/幂等过期/隐私边界）；docs/SUPPORT.md +Agent Surface 章节（出错语义/隐私/限制）。
+- 验证（E031）：13/13 断言通过、exit 0；R1 检出 modified 文件 + new=1/continuing=4 + gate needs_human 非阻塞 + 新发现锚定 auditAll + evidence 回源；R2 新 reviewId + removed=5 + 旧审查 stale/incomplete；幂等 reused=true。
+- 检查（self-separated）：(1) 演示走真实 dist/agent.js 与真实 MCP 通道，非进程内 mock；(2) 断言与改动一一对应（新增循环→new finding；替换为 saveAll→removed 5）；(3) 文档描述与实现逐条核对（gate 默认/幂等/stale/删除路径/错误码）。
+- 探测结果：codex exec 仍 502（CC Switch 上游）；本 Claude Code 会话加载的 server 进程为 Loop A 构建（仅 3 工具），review 工具需宿主重启加载——宿主内自主调用验证顺延。
+- outcome：continue（T301d 部分收口：工具链双轮闭环 + 文档 done；双宿主 LLM 会话内实测 + hook opt-in + 独立 Checker 未完成，T301d 保持 in_progress）。
+- 反思：会话中途重建 dist/agent.js 不会更新已加载的宿主 server 进程——宿主实测必须在 server 重建后的新会话做，这个顺序约束要写进接力单。
+- 下一步：用户重启 Claude Code 会话（加载 8 工具版 server）后在宿主内跑一轮真实 review 闭环并记录；codex 上游恢复后同流程；然后 Stop hook opt-in 设计 + V04-1..4 验收映射 + 独立 Checker。
+- checkpoint completion：completed（r24，本记录与 E031/BACKLOG/CURRENT/HANDOFF 同轮落盘）。
+
 ## L022 — T301c 契约加固：取消/超时/消息上限/注入遏制/会话隐私（Loop C）
 
 - checkpoint_revision：r23；checkpoint_status：completed。

@@ -519,3 +519,20 @@
 - limitations：取消的"分析中途被打断"路径依赖进度钩子轮询，测试断言的是契约（要么 CANCELLED 要么真实 complete，绝不伪造）而非确定的打断时点；LLM 增强通道的注入测试不适用（Agent Surface 未接 provider）；Codex 宿主实测归 T301d。
 - review_mode：self-separated；checker：20260922-claude-v04。
 - supersedes：null。
+
+## E031 — T301d(部分) V04-1 双轮闭环演示:基线→修改→审查→证据→再修改→重扫
+
+- kind:test;recorded_at:2026-09-23T10:35+08:00;checkpoint_revision:r24。
+- claim:在真实构建产物 dist/agent.js 的 MCP NDJSON 通道上完成 PRD §8.5 用户流程双轮闭环(13/13 断言):R1 基线捕获(36 文件,snapshotId 与冻结 fixture 一致)→修改 OrderService 新增 auditAll 循环→review_finish 检出 modified 文件、new=1/continuing=4、gate=needs_human 且 blocking=false、suggestedChecks=5→新发现锚定 demo.orders.OrderService#auditAll、evidence 回源 OrderService.java:35 source-data→重复 finish 幂等 reused=true 同 reviewId;R2 再修改(saveAll 替换循环)→新 reviewId、removed=5/new=0(风险移除被检出)→旧审查 review_read 返回 stale=true + gate 降级 incomplete + stalePaths 指向被改文件;debt 摘要 modelVersion=debt-model-v1 复用共享引擎。
+- task:T301(T301d 部分);acceptance:V04-1(单宿主工具链双轮闭环语义)、V04-3(报告标识/基线目标快照/过期/持久恢复)。
+- operator:20260922-claude-v04。
+- subject_snapshot:scripts/demo-v04-double-loop.py(可重跑演示脚本);dist/agent.js(build-agent 产物);artifacts/evidence/E031/{checks.json,v04-double-loop-transcript.ndjson}(完整 NDJSON 转录与断言结果);fixtures/java-spring-jpa(只读源)/tmp 工作副本(已清理)。
+- environment:macOS arm64、Node v22.14.0、python3(仅测试驱动)。
+- invocation:`npm run build:agent && python3 scripts/demo-v04-double-loop.py`。
+- expected:13 项断言全过、exit 0;审查结论与改动一一对应;旧审查不冒充新改动。
+- actual:13/13 passed,exit 0;transcript 与 checks 已存 artifacts/evidence/E031/。
+- exit_code:0。
+- result:passed(工具链双轮闭环,经真实构建产物的 MCP 通道)。
+- limitations:本证据是脚本驱动的 MCP 客户端闭环,不是 LLM 宿主会话内的自主调用;V04-1 要求的"两个不同宿主(Claude Code + Codex)实测"仍未收口——当前会话加载的 server 进程是 Loop A 构建(仅 3 工具),review 工具需宿主重启后加载;Codex 上游代理 502。Stop hook opt-in 未实现。
+- review_mode:self-separated;checker:20260922-claude-v04。
+- supersedes:null。

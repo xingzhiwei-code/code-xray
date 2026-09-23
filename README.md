@@ -40,6 +40,36 @@ xray doctor                # 环境与本地数据状态
 
 在冻结评估集上（`evals/java/oracle.md`，30 案例）三条规则 precision/recall 均 100%，unknown 案例零泄漏（`evals/results/java-oracle-v1.md`）。该结果不外推到任意真实项目。
 
+## AI Agent 接入（v0.4）
+
+Code X-Ray 通过本地 MCP server（stdio，零网络、零新依赖）接入 AI Coding Agent，让每轮 AI 修改后自动获得可追溯的审查。
+
+```bash
+npm run build:agent        # 产出 dist/agent.js
+```
+
+**Claude Code**：项目根 `.mcp.json` 已配置；或 `claude mcp add code-xray -- node <绝对路径>/dist/agent.js`。
+**Codex CLI**：`codex mcp add code-xray -- node <绝对路径>/dist/agent.js`。
+
+八个工具（全部返回 `{schemaVersion,status,data|error}` envelope）：
+
+| 工具 | 用途 |
+|---|---|
+| `xray_capabilities` | 协议/引擎/规则版本、支持语言与静态分析边界 |
+| `xray_scan` | 分析工作区（可带 git `base` 对比），报告存本地可按 analysisId 追溯 |
+| `xray_evidence` | 按 evidenceId 回源读取源码片段（source-data 包裹，逐行脱敏） |
+| `xray_review_start` | 一轮修改**前**调用：记录改动前基线（含未提交内容） |
+| `xray_review_finish` | 修改**后**调用：生成结构化审查（变化摘要/新增持续移除风险/未知覆盖/建议验证/概念/债务变化/关口状态） |
+| `xray_review_read` | 按 reviewId 跨会话/跨宿主恢复审查记录；代码再变更后自动标记过期 |
+| `xray_explain` | 单条发现的前提/未知/下一步/学习卡状态（只读） |
+| `xray_summary` | learning / debt / profile 摘要（只读） |
+
+**审查关口（gate）**：默认 `report-only`——只报告结果，绝不阻塞 Agent 流程。仅当显式设置 `XRAY_AGENT_GATE=enforce` 时，`needs_human/incomplete/failed` 关口才携带 `blocking:true` 供宿主策略消费。partial/unknown 永远不会被包装成 pass。
+
+**幂等与过期**：reviewId 由目标快照内容寻址（workspace+snapshot+规则版本），重复触发返回同一记录（`reused:true`）；代码再变更后读取旧审查会得到 `stale:true` 且关口降级为 `incomplete`——旧结论不冒充新改动。
+
+**隐私边界**：被分析源码只经 `xray_evidence` 进入工具通道，固定包裹"数据而非指令"声明；恶意源码文本不会进入摘要、关口理由或建议（有注入遏制契约测试）。审查会话的基线缓存保存在用户数据目录（0600），`deleteData('reviews')` 可清除。Agent 不能替用户确认知识掌握——学习状态变更只能经 CLI/IDE 显式事件。
+
 ## 隐私
 
 - 默认零外发、零遥测、无账号、无模型密钥（集成测试断言网络全拒绝下运行）。

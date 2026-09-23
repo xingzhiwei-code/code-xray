@@ -1,0 +1,67 @@
+[
+ {
+  "name": "R1 baseline captured",
+  "passed": true,
+  "detail": "files=36 snapshot=ec46f53e1475"
+ },
+ {
+  "name": "R1 new reviewId",
+  "passed": true,
+  "detail": "rev_b04e3a19956f4548b0fc5f8fb95bc850"
+ },
+ {
+  "name": "R1 detects modified file",
+  "passed": true,
+  "detail": "['src/main/java/demo/orders/OrderService.java']"
+ },
+ {
+  "name": "R1 new findings > 0",
+  "passed": true,
+  "detail": "new=1 continuing=4"
+ },
+ {
+  "name": "R1 gate needs_human, non-blocking",
+  "passed": true,
+  "detail": "needs_human"
+ },
+ {
+  "name": "R1 suggested checks present",
+  "passed": true,
+  "detail": "checks=5"
+ },
+ {
+  "name": "R1 evidence is source-data at changed file",
+  "passed": true,
+  "detail": "src/main/java/demo/orders/OrderService.java:35 orderRepository.save(order);"
+ },
+ {
+  "name": "R1 new finding anchored in auditAll",
+  "passed": true,
+  "detail": "demo.orders.OrderService#auditAll(List<Order>)"
+ },
+ {
+  "name": "R1 re-finish idempotent",
+  "passed": true,
+  "detail": "reused=True"
+ },
+ {
+  "name": "R2 new reviewId differs",
+  "passed": true,
+  "detail": "rev_3db3816e5e1d54c3d7c07420fa0a7a6b"
+ },
+ {
+  "name": "R2 removal of loop risk detected",
+  "passed": true,
+  "detail": "removed=5 new=0"
+ },
+ {
+  "name": "R2 old review stale + incomplete",
+  "passed": true,
+  "detail": "stalePaths=['src/main/java/demo/orders/OrderService.java']"
+ },
+ {
+  "name": "debt summary reusable",
+  "passed": true,
+  "detail": "total=52.3"
+ }
+]
