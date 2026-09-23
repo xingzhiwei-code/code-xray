@@ -3,27 +3,27 @@
 | 字段 | 值 |
 |---|---|
 | state_schema_version | 1 |
-| state_revision | r22 |
+| state_revision | r23 |
 | checkpoint_status | complete |
-| updated_at | 2026-09-23T09:55+08:00（L021 T301b Review 会话收口） |
+| updated_at | 2026-09-23T10:10+08:00（L022 T301c 契约加固收口） |
 | project | Code X-Ray |
 | phase | v0.4 Agent Integration（v0.2/v0.3 遗留项按 D012 挂起） |
-| implementation_status | in_progress（T301a/T301b done；T301c ready） |
-| progress | v0.1 必需任务 10/10 done（T001—T010）；T011 done；T101/T201 in_progress 挂起；T301 in_progress（T301a/T301b done） |
+| implementation_status | in_progress（T301a/b/c done；T301d ready，待 Codex 网络） |
+| progress | v0.1 必需任务 10/10 done（T001—T010）；T011 done；T101/T201 in_progress 挂起；T301 in_progress（T301a/b/c done） |
 | active_task | T301（v0.4 Agent Integration，子任务 T301a） |
-| active_loop | L021（已收口）；下一 Loop 进入 T301c |
-| next_task | T301c 契约加固：取消/超时契约测试、注入 fixture（恶意源码文本不进指令通道）、消息上限、session 源码缓存隐私矩阵复测 |
+| active_loop | L022（已收口）；下一 Loop 进入 T301d |
+| next_task | T301d 双宿主验收：Claude Code 宿主内 review 双轮闭环；Codex 网络恢复后同流程；文档 + V04-1..4 验收映射 + 独立 Checker |
 | session_owner | 20260922-claude-v04 |
 | repo_path | /Users/01443732/Documents/Codex/2026-09-08/referenced-chatgpt-conversation-this-is-an/outputs/code-xray |
-| git_branch / head | main / edf61f3（r21）；r22（Loop B）改动待提交 |
-| worktree_state | r22 改动待提交；GitHub 凭据失效，推送仍阻塞 |
-| last_product_verification | E029（verify 0，105/105，14 文件；review 幂等/stale/gate 契约 + 二进制 smoke）；E027/E028（T301a） |
-| package_evidence | E005—E017 v0.1 产品证据链完整；E019—E026 V02/V03 进行中；E027—E029 T301a/b |
+| git_branch / head | main / c2eec3a（r22）；r23（Loop C）改动待提交 |
+| worktree_state | r23 改动待提交；GitHub 凭据失效，推送仍阻塞 |
+| last_product_verification | E030（verify 0，115/115，15 文件；取消/超时/上限/注入/隐私契约 + eval 100%）；E027—E029 |
+| package_evidence | E005—E017 v0.1 产品证据链完整；E019—E026 V02/V03 进行中；E027—E030 T301a/b/c |
 | blockers | Codex CLI 上游代理 502（第二宿主实测归 T301d）；JetBrains 壳环境阻塞（挂起）；GitHub 推送 token invalid |
 
 ## 唯一下一步
 
-**T301c 契约加固**：T301b 已收口（E029：review_start/finish/read + explain/summary 共 8 工具；reviewId 内容寻址幂等；读取时 stale 降级 incomplete；gate 默认 report-only、enforce 显式启用才 blocking；verify 0，105/105）。下一步：(1) notifications/cancelled 与 timeoutMs 的正式契约测试；(2) fixtures/injection-java 注入 fixture——含恶意指令注释的 Java 文件，断言恶意文本只出现在 evidence content，不出现在 gate/summary/suggestedChecks/changeSummary；(3) 消息上限（>1MB 拒绝）测试；(4) review session 基线源码缓存的隐私矩阵复测与 deleteData('reviews') 清除验证。完成后 T301d 双宿主验收（Codex 网络恢复后）。
+**T301d 双宿主验收**：T301c 已收口（E030：取消/超时/1MB 上限/注入遏制/session 隐私全部契约化，verify 115/115，冻结 oracle eval 100%）。下一步：(1) 在 Claude Code 宿主内实测完整双轮闭环——review_start→改代码→review_finish→读 evidence→再改→重新 start/finish，断言新 reviewId 与旧审查 stale+incomplete（V04-1 完整语义），transcript 存 artifacts/；(2) Codex CLI 上游代理恢复后重复同一流程（第二宿主）；(3) README/SUPPORT 增补 Agent Surface 章节（工具清单、gate 策略、隐私边界、hook opt-in）；(4) V04-1..4 逐项验收映射表 + 独立 Checker 复查。
 
 ## required_reads
 

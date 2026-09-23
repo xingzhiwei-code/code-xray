@@ -244,7 +244,11 @@ export class LocalStore {
   async deleteData(workspace: string, kind: DataKind): Promise<void> {
     if (!['reports', 'reviews', 'learning', 'cache', 'llm-cache', 'all'].includes(kind)) throw new LocalStoreError('STORAGE_BOUNDARY', '未知数据类别。');
     await this.locked(workspace, async directory => {
-      const selected = kind === 'all' ? ['reports', 'reviews', 'review-sessions', 'learning', 'cache', 'llm-cache'] : [kind];
+      // 'reviews' owns the pending-session baseline caches too: they are
+      // review data (and the only place baseline source content is retained).
+      const selected = kind === 'all' ? ['reports', 'reviews', 'review-sessions', 'learning', 'cache', 'llm-cache']
+        : kind === 'reviews' ? ['reviews', 'review-sessions']
+        : [kind];
       for (const name of selected) {
         const path = join(directory, name === 'learning' ? 'learning.json' : name);
         try { if ((await lstat(path)).isSymbolicLink()) throw new LocalStoreError('STORAGE_BOUNDARY', '删除目标为符号链接，已拒绝。'); }

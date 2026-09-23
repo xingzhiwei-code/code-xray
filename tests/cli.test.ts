@@ -73,9 +73,10 @@ describe('real CLI end-to-end through cliff dispatch', () => {
     try {
       const exit = await main([]);
       expect(exit).toBe(0);
-      // From the repo root the walk finds the fixture sources (36 files).
-      expect(std.stdout).toContain('36 个文件完成解析');
-      expect(std.stdout).toContain('27 项发现');
+      // From the repo root the walk finds both fixture trees:
+      // java-spring-jpa (36 files, frozen oracle) + injection-java (2 files, T301c).
+      expect(std.stdout).toContain('38 个文件完成解析');
+      expect(std.stdout).toContain('28 项发现');
     } finally {
       std.restore();
       rmSync(dataDir, { recursive: true, force: true });

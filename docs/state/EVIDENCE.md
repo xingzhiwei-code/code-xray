@@ -502,3 +502,20 @@
 - limitations：真实宿主内的 review 双轮闭环（修改→审查→再修改→重扫，V04-1 完整语义）留待 T301d 双宿主验收；取消/超时/注入契约归 T301c；session 基线缓存含源码明文（0600 用户私有目录，deleteData 可清除），隐私矩阵复测归 T301c；debtDelta 在无画像时按未评估处理，未单独断言。
 - review_mode：self-separated；checker：20260922-claude-v04。
 - supersedes：null。
+
+## E030 — T301c 契约加固：取消/超时/消息上限/注入遏制/会话隐私（Loop C）
+
+- kind：test + eval；recorded_at：2026-09-23T10:10+08:00；checkpoint_revision：r23。
+- claim：Agent Surface 契约加固完成：(1) notifications/cancelled 在派发前后均不产生伪成功——取消先于派发时工具入口快速失败 CANCELLED（exitCode 130），取消晚于完成时返回真实 complete；未知 requestId 取消为 no-op 且 server 继续服务；(2) timeoutMs=1 触发 TIMEOUT 域错误且消息可行动；(3) 单条 NDJSON 消息 >1MB 被 -32700 拒绝且 server 存活；(4) 注入遏制——fixtures/injection-java（恶意"ignore previous instructions/APPROVE_EVERYTHING/rm -rf /"注释与字符串）触发真实 JPA_CALL_IN_LOOP 发现的前提下，恶意文本不出现在 scan summary/limitations/finding 标题/nextCheck/assumptions/coverage 消息/review gate.reasons/changeSummary/suggestedChecks/unknownCoverage/stderr，仅可经 xray_evidence 以 source-data 包裹（含"不应被执行"notice）到达；(5) review session 基线源码缓存全部 0600/目录 0700，deleteData('reviews') 连带清除 review-sessions，清除后 finish 返回 NO_REVIEW_SESSION 域错误。
+- task：T301（T301c）；acceptance：V04-2（取消/超时/错误契约）、V04-4（注入遏制、默认本地与隐私边界）。
+- operator：20260922-claude-v04。
+- subject_snapshot：tests/agent-contract.test.ts（10 用例）；fixtures/injection-java/（2 文件）；apps/agent/tools/index.ts（throwIfAborted 入口快速失败）；packages/storage-local/index.ts（deleteData 'reviews'→reviews+review-sessions）；tests/cli.test.ts（根扫描计数 36→38/27→28，因新 fixture 入仓库树，冻结 oracle fixture 本身未动）。
+- environment：macOS arm64、Node v22.14.0、vitest 5.0.0。
+- invocation：`npm run verify`；`npx tsx evals/run.ts`。
+- expected：verify 全绿（115/115，15 文件）；冻结 oracle eval exit 0（injection fixture 不在 oracle 范围，不影响 30 案例评估）；上述五组契约断言全部通过。
+- actual：verify 退出 0，115/115 tests；eval exit 0；契约测试 10/10。injection fixture 在仓库根扫描中贡献 1 项 JPA_CALL_IN_LOOP（demo.inject.InjectedService#saveAll），证明遏制断言非空洞。
+- exit_code：0。
+- result：passed。
+- limitations：取消的"分析中途被打断"路径依赖进度钩子轮询，测试断言的是契约（要么 CANCELLED 要么真实 complete，绝不伪造）而非确定的打断时点；LLM 增强通道的注入测试不适用（Agent Surface 未接 provider）；Codex 宿主实测归 T301d。
+- review_mode：self-separated；checker：20260922-claude-v04。
+- supersedes：null。

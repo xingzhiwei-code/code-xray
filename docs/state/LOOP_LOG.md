@@ -109,6 +109,21 @@
 - 下一步：用户重装 VSIX，分别验证 Explorer 单选文件/文件夹、多选、active editor、uncommitted/no-scope；结果记 E025。
 - checkpoint completion：preparing（r18）。
 
+## L022 — T301c 契约加固：取消/超时/消息上限/注入遏制/会话隐私（Loop C）
+
+- checkpoint_revision：r23；checkpoint_status：completed。
+- 日期：2026-09-23；session：20260922-claude-v04。
+- 目标：把 V04-2（取消/超时/错误不伪装）与 V04-4（恶意源码不变成工具指令、隐私边界）从代码路径升级为受测契约。
+- 起始快照：main@c2eec3a（r22，工作树干净）。
+- 计划：工具入口加 throwIfAborted 快速失败；新建 fixtures/injection-java（恶意注释+字符串）；tests/agent-contract.test.ts 覆盖取消/未知取消/超时/1MB 上限/注入遏制（7 个指令邻近通道 + stderr）/session 缓存权限与 deleteData 清除。
+- 变更：apps/agent/tools/index.ts（throwIfAborted）；fixtures/injection-java/（2 文件）；tests/agent-contract.test.ts（10 用例）；packages/storage-local/index.ts（deleteData 'reviews' 连带 review-sessions）；tests/cli.test.ts 根扫描计数 36→38/27→28（新 fixture 入仓库树所致，冻结 oracle 未动，eval 仍 100%）。
+- 验证（E030）：npm run verify 退出 0（115/115，15 文件）；npx tsx evals/run.ts exit 0；injection fixture 触发真实 JPA_CALL_IN_LOOP（遏制断言非空洞）。
+- 检查（self-separated）：(1) 恶意文本枚举了 7 个指令邻近通道逐一断言不含 marker，唯一出口是 evidence 的 source-data 包裹；(2) 取消契约断言"要么 CANCELLED(130) 要么真实 complete"，不依赖竞态时点；(3) session 缓存 0600/0700 递归断言，deleteData 后 finish 明确 NO_REVIEW_SESSION 而非静默；(4) 1MB 拒绝后 server 继续服务（ping 验证）。
+- outcome：done（T301c 机器验证收口）。
+- 反思：把根扫描计数测试与新 fixture 耦合是既有测试的脆弱点——计数断言写在裸 xray 路径上，任何新 fixture 都会破坏它；已按事实更新并注明构成，未来可考虑把该测试指向固定 fixture 目录（未做，避免扩大本轮范围）。
+- 下一步：T301d 双宿主验收——Codex 上游代理恢复后实测"修改→审查→再修改→重扫"双轮闭环（V04-1 完整语义）；Claude Code 宿主内 review 闭环实测；README/SUPPORT 增补 Agent Surface 文档；Stop hook opt-in 说明；独立 Checker 复查 + V04-1..4 验收映射表。
+- checkpoint completion：completed（r23，本记录与 E030/BACKLOG/CURRENT/HANDOFF 同轮落盘）。
+
 ## L021 — T301b Review 会话：修改后审查、幂等、过期降级与 gate（Loop B）
 
 - checkpoint_revision：r22；checkpoint_status：completed。

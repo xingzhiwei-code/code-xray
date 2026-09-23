@@ -21,6 +21,11 @@ export interface ToolDefinition {
   handler: (args: Record<string, unknown>, signal?: AbortSignal) => Promise<unknown>;
 }
 
+/** A call cancelled before it started must fail as CANCELLED (130 semantics), never silently succeed. */
+function throwIfAborted(signal?: AbortSignal): void {
+  if (signal?.aborted) throw new XrayError('CANCELLED', '调用已被取消。', 130);
+}
+
 const scopeSchema = {
   type: 'object',
   properties: {
@@ -85,6 +90,7 @@ const scanTool: ToolDefinition = {
     additionalProperties: false,
   },
   handler: async (args, signal) => {
+    throwIfAborted(signal);
     if (typeof args.path !== 'string') throw new XrayError('INVALID_ARGUMENT', 'path 必须是字符串。', 2);
     const input: ScanInput = {
       path: args.path,
@@ -183,6 +189,7 @@ const reviewStartTool: ToolDefinition = {
     additionalProperties: false,
   },
   handler: async (args, signal) => {
+    throwIfAborted(signal);
     if (typeof args.path !== 'string') throw new XrayError('INVALID_ARGUMENT', 'path 必须是字符串。', 2);
     return startReview(args.path, signal);
   },
@@ -205,6 +212,7 @@ const reviewFinishTool: ToolDefinition = {
     additionalProperties: false,
   },
   handler: async (args, signal) => {
+    throwIfAborted(signal);
     if (typeof args.path !== 'string') throw new XrayError('INVALID_ARGUMENT', 'path 必须是字符串。', 2);
     if (typeof args.sessionId !== 'string' || !args.sessionId) throw new XrayError('INVALID_ARGUMENT', 'sessionId 必须是非空字符串。', 2);
     const result = await finishReview(args.path, args.sessionId, {
