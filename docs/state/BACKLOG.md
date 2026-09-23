@@ -1,6 +1,6 @@
 # Backlog：任务状态的唯一来源
 
-当前 revision：r21（r20 按 D012 启动 V04 并拆分 T301a—T301d；r21 T301a done——Claude Code 真实宿主闭环通过）。v0.1 必需任务 10/10 done；T011 done；T101 in_progress（VS Code 交互待重设计）；T201 in_progress（挂起：V03-2 评估债 + JetBrains 壳环境阻塞）；T301 in_progress（T301a done，T301b ready）。拆分任务须保留原 ID、依赖和 AC 追踪。
+当前 revision：r22（r21 T301a done；r22 T301b done——Review 会话/幂等/过期降级/gate 落地）。v0.1 必需任务 10/10 done；T011 done；T101 in_progress（VS Code 交互待重设计）；T201 in_progress（挂起：V03-2 评估债 + JetBrains 壳环境阻塞）；T301 in_progress（T301a/T301b done，T301c ready）。拆分任务须保留原 ID、依赖和 AC 追踪。
 
 状态与更新规则见 [HANDOFF_PROTOCOL](../HANDOFF_PROTOCOL.md)，验收原文见 [PRD](../PRD.md)。单个任务只负责其交付范围内的 AC 子项，并在 Evidence 写明覆盖边界；完整 AC 的跨任务汇总由 T010 验收。不得将下游能力作为上游任务的隐含完成条件。
 
@@ -102,7 +102,7 @@
 | ID | 交付 | 状态 | 验收映射 |
 |---|---|---|---|
 | T301a | MCP stdio server（手写 JSON-RPC 2.0 + NDJSON，零新依赖）+ capabilities/scan/evidence 三工具 + envelope + 构建/检查脚本 + 契约测试 | done（E027 机器验证 + E028 Claude Code 真实宿主闭环；Codex 实测归 T301d） | V04-1（单宿主部分）、V04-2 部分 |
-| T301b | Review 会话：review_start/finish、ReviewRecord 持久化、幂等/过期、explain/summary 工具、gate（默认 report-only） | planned | V04-1、V04-3 |
+| T301b | Review 会话：review_start/finish、ReviewRecord 持久化、幂等/过期、explain/summary 工具、gate（默认 report-only） | done（E029：9 契约用例 + 二进制 smoke；宿主内双轮闭环归 T301d） | V04-1、V04-3 |
 | T301c | 契约加固：取消/超时/partial/failed、注入 fixture 与测试、消息上限、stderr 无敏感 | planned | V04-2、V04-4 |
 | T301d | 双宿主验收：Claude Code + Codex CLI 实测完整闭环、hook opt-in、文档、独立检查 | planned | V04-1—V04-4 |
 
@@ -126,6 +126,7 @@
 - r14：用户报告“已经测试过了”，登记 E017；因缺少样本数、完成结果与是否到达证据查看，T010/AC12 保持 in_progress，不冒称通过。
 - r15：按用户要求提交本地 Git：bd26abe（Developer Profile 功能）+ 4b1fd41（状态回填）；`npm run verify` 通过。GitHub 凭据失效导致 push 失败，登记 E018，远端待重新认证后推送。
 - r16：用户确认“验证可以了，各个命令功能都正确”。E017 更新为 passed（单人验收），按 D010 将 T010 → done。v0.1 必需任务 10/10 done；V02（T101）解锁。远端推送仍因 GitHub 凭据失效阻塞。
+- r22：L021 完成 T301b——Review 会话闭环（review_start/finish/read + explain/summary 共 8 工具）、engine +analyzeWithBaseline（复用 buildDiff）、storage +reviews 命名空间与 session 缓存、ReviewRecord 内容寻址幂等、读取时 stale 降级 incomplete、gate 默认 report-only（enforce 显式启用才 blocking）；verify 0（105/105，14 文件，E029）。修复 readReview 未降级 stale gate 的真实缺陷。
 - r21：用户批准 Claude Code 加载 code-xray MCP server；宿主内 capabilities→scan→evidence 闭环实测通过（E028，snapshotId 与 E027 契约测试一致）；T301a → done，T301b → ready。本地提交 Loop A+宿主 smoke 全部改动。
 - r20：用户指示跳过 v0.3 剩余项直接启动 v0.4（D012）；Agent Surface 采用进程内 bridge 单 seam（D011）。T301 → in_progress 并拆分 T301a—T301d；L020 完成 T301a 代码与契约测试（E027）：apps/agent MCP stdio server（手写 JSON-RPC，零新依赖）+ capabilities/scan/evidence 三工具 + protocol Envelope/Gate 类型 + build/check 脚本入 verify 链；96/96 测试。宿主实测：Claude Code `.mcp.json` 已配置（server 健康检查列出，待用户批准）；Codex CLI 已全局注册 `code-xray`（enabled），但其 LLM 上游代理 502，完整闭环实测待网络恢复。
 
@@ -201,8 +202,8 @@
 ### T301 — v0.4 Agent Integration（in_progress）
 
 - owner：20260922-claude-v04；session：20260922-claude-v04；开始：2026-09-22。
-- 当前目标：T301b Review 会话（T301a 已收口：机器验证 E027 + Claude Code 宿主闭环 E028）。
+- 当前目标：T301c 契约加固（T301a/T301b 已收口：E027/E028/E029）。
 - 已完成（待宿主实测收口）：apps/agent/{index.ts,host/{jsonrpc,mcp,bridge}.ts,tools/index.ts}；protocol +Envelope/Gate；scripts/build-agent.mjs+check-agent.mjs 入 verify 链；tests/agent-mcp.test.ts 10 用例（握手、tools/list、scan 27 findings、evidence 回源、域错误 envelope、协议错误码、parse error、stderr 纯净、跨进程确定性）；.mcp.json（Claude Code）；codex mcp add 全局注册。
 - 阻塞：Claude Code headless（claude -p）未登录，交互批准 server 需用户执行；Codex CLI 上游代理 502（CC Switch 本地代理→127.0.0.1:15721 失败），LLM 闭环实测待网络恢复。
-- 下一步：T301b——protocol 加 ReviewRecord；storage-local 加 saveReview/loadReview/findReviewByTargetSnapshot；tools 加 xray_review_start/xray_review_finish/xray_explain/xray_summary；gate 默认 report-only；幂等/stale 测试。
-- decisions：D011、D012；evidence：E027、E028；最后 revision：r21。
+- 下一步：T301c——取消/超时正式契约测试、fixtures/injection-java 注入测试（恶意文本只出现在 evidence content）、消息上限、session 源码缓存隐私矩阵复测与 deleteData 清除验证。
+- decisions：D011、D012；evidence：E027、E028、E029；最后 revision：r22。

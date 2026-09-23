@@ -109,6 +109,21 @@
 - 下一步：用户重装 VSIX，分别验证 Explorer 单选文件/文件夹、多选、active editor、uncommitted/no-scope；结果记 E025。
 - checkpoint completion：preparing（r18）。
 
+## L021 — T301b Review 会话：修改后审查、幂等、过期降级与 gate（Loop B）
+
+- checkpoint_revision：r22；checkpoint_status：completed。
+- 日期：2026-09-23；session：20260922-claude-v04。
+- 目标：交付 v0.4 核心用户价值——Agent 一轮修改后自动得到结构化审查（PRD §8.5-3/4/5/7），审查记录稳定 ID、幂等、可跨宿主恢复、过期不冒充。
+- 起始快照：main@edf61f3（r21，工作树干净）。
+- 计划：protocol 加 ReviewRecord/ReviewSession 家族；engine 加 analyzeWithBaseline（复用私有 buildDiff，不复制 diff 逻辑）；storage 加 reviews 命名空间 + session 缓存；bridge 实现 startReview/finishReview/readReview/computeGate/staleness 降级；tools 加 5 个（review_start/review_finish/review_read/explain/summary）；测试抽共享 spawn helper。
+- 变更：如上（详见 E029 subject_snapshot）。关键语义：reviewId=sha256(workspaceId+targetSnapshotId+ruleSetVersion) 内容寻址→幂等；stale 在读取时计算并把 gate 降级 incomplete，不落盘；gate blocking 仅 XRAY_AGENT_GATE=enforce；session 基线含源码明文缓存（0600 私有目录，deleteData 可清）。
+- 验证（E029）：npm run verify 退出 0（105/105，14 文件）；agent-review 9 用例全过；dist/agent.js 二进制 smoke：修改→finish gate=needs_human、再 finish reused:true 同 reviewId。
+- 检查（self-separated）：(1) diff/规则/债务全部复用 Engine 与 learning 包，bridge 无计算逻辑复制（D001/D009/D011 边界保持）；(2) 测试抓到一个真实缺陷——review_read 未应用 stale 降级，已修复（withStaleness 统一入口）；(3) 幂等由内容寻址 reviewId + snapshot 索引保证，不依赖时间戳；(4) pass 仅在 complete+零新增/持续+零未知时出现，且 reasons 声明零发现不等于没有问题；(5) explain/summary 只读，不改学习状态。
+- outcome：done（T301b 机器验证收口；宿主内双轮 review 闭环归 T301d）。
+- 反思：把 staleness 做成读取时计算而非落盘字段是对的——落盘会引入"何时失效"的第二真相源；内容寻址 ID 让幂等免费获得。
+- 下一步：T301c 契约加固——notifications/cancelled 与 timeoutMs 的正式契约测试、fixtures/injection-java 注入 fixture（恶意注释只出现在 evidence content，不进 gate/summary/suggestedChecks）、消息上限、隐私矩阵复测（session 源码缓存的边界与 deleteData 清除）。预期 npm run verify 全绿。
+- checkpoint completion：completed（r22，本记录与 E029/BACKLOG/CURRENT/HANDOFF 同轮落盘）。
+
 ## L020 — T301a Agent Surface：MCP stdio server 最小端到端（Loop A）
 
 - checkpoint_revision：r21；checkpoint_status：completed。

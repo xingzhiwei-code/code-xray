@@ -485,3 +485,20 @@
 - limitations：未覆盖"修改→再扫"完整 V04-1 双轮流程（归 T301d）；Codex CLI 宿主仍被上游代理 502 阻塞；review/gate 工具未实现（T301b）。
 - review_mode：self-separated；checker：20260922-claude-v04。
 - supersedes：null。
+
+## E029 — T301b Review 会话：修改后审查、幂等、过期降级与 gate（Loop B）
+
+- kind：test + build；recorded_at：2026-09-23T09:55+08:00；checkpoint_revision：r22。
+- claim：Agent Surface 新增修改后审查闭环：xray_review_start 捕获改动前基线（磁盘现状含未提交内容，快照 manifest + 源码缓存入本地私有存储）；xray_review_finish 经 Engine 新 facade analyzeWithBaseline 复用同一 buildDiff 生成结构化审查（变化摘要/路径影响/新增持续移除风险/证据引用/未知覆盖/建议验证/概念/债务变化）；reviewId 内容寻址（workspaceId+targetSnapshotId+ruleSetVersion），同快照重复触发幂等复用（reused:true），新改动产生新 reviewId；xray_review_read 跨进程恢复记录，读取时按 stalePaths 重算过期并把 gate 降级为 incomplete（旧结论不冒充新改动，读取时计算不落盘）；gate 默认 report-only，XRAY_AGENT_GATE=enforce 时非 pass 才 blocking，complete+零发现才 pass 且声明"零发现不等于没有问题"；xray_explain/xray_summary 复用 learning/debtSummary/knowledgeGaps，Agent 不改学习状态。
+- task：T301（T301b）；acceptance：V04-1（审查输出结构）、V04-3（报告标识/快照核对/过期/跨进程恢复）、V04-2 部分（幂等/域错误）、V04-4 部分（gate 仅显式启用才阻塞）。
+- operator：20260922-claude-v04。
+- subject_snapshot：packages/protocol/index.ts（+ReviewRecord/ReviewSession/ReviewOutput/ReviewVersions/ReviewDebtDelta，AnalyzeRequest+onBaseline 内部钩子）；packages/engine/index.ts（+analyzeWithBaseline，复用私有 buildDiff）；packages/storage-local/index.ts（+saveReview/loadReview/findReviewByTargetSnapshot/saveSession/loadSession，DataKind+'reviews'，deleteData 覆盖 reviews/review-sessions）；apps/agent/host/bridge.ts（startReview/finishReview/readReview/computeGate/explainFinding/summarize/staleness 降级）；apps/agent/tools/index.ts（+5 工具，共 8）；apps/agent/host/mcp.ts（instructions 更新）；tests/agent-helpers.ts（共享 spawn 客户端）；tests/agent-review.test.ts（9 用例）；tests/agent-mcp.test.ts（改用 helper）。
+- environment：macOS arm64、Node v22.14.0、TypeScript 7.0.2、vitest 5.0.0、esbuild 0.28.2。
+- invocation：`npm run verify`；`npm run build:agent` + 真实 dist/agent.js NDJSON smoke（start→改文件→finish→再 finish）。
+- expected：verify 全绿（105/105，14 文件）；review 测试覆盖：基线捕获（fileCount/ snapshotId）、修改后 finish 返回结构化 record（added 含新文件、newFindingIds>0、gate=needs_human、blocking=false、debtDelta.modelVersion=debt-model-v1）、幂等（两次 finish 同 reviewId + reused:true）、新改动新 reviewId、review_read 恢复 + touch 后 stale:true + gate 降级 incomplete 且 reason 含"过期"、NO_REVIEW_SESSION/NO_REVIEW 为域错误 envelope、explain/summary 复用共享引擎、enforce 下 needs_human blocking=true、干净工作区 pass 且声明零发现不等于没有问题、跨进程（两个 server 实例共享 dataDir）恢复同一记录；二进制 smoke 同语义。
+- actual：verify 退出 0，105/105 tests；agent-review 9/9、agent-mcp 10/10；二进制 smoke：修改→finish gate=needs_human（added=[Batch.java]）、再 finish reused:true 同 reviewId，与测试一致。修复一个真实缺陷：readReview/finish 复用路径最初未应用 stale 降级（测试抓到），改为读取时 withStaleness 统一降级。
+- exit_code：0。
+- result：passed（机器验证 + 构建产物 smoke）。
+- limitations：真实宿主内的 review 双轮闭环（修改→审查→再修改→重扫，V04-1 完整语义）留待 T301d 双宿主验收；取消/超时/注入契约归 T301c；session 基线缓存含源码明文（0600 用户私有目录，deleteData 可清除），隐私矩阵复测归 T301c；debtDelta 在无画像时按未评估处理，未单独断言。
+- review_mode：self-separated；checker：20260922-claude-v04。
+- supersedes：null。

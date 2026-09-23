@@ -5,85 +5,9 @@
  * as product envelopes; protocol failures must stay JSON-RPC errors;
  * partial/failed/unknown must never be dressed up as success (V04-2).
  */
-import { spawn, type ChildProcessWithoutNullStreams } from 'node:child_process';
-import { mkdtempSync, rmSync } from 'node:fs';
-import { tmpdir } from 'node:os';
-import { join, resolve } from 'node:path';
-import { StringDecoder } from 'node:string_decoder';
+import { resolve } from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-
-const ENTRY = resolve('apps/agent/index.ts');
-const FIXTURE = resolve('fixtures/java-spring-jpa');
-
-interface RpcResponse { jsonrpc: '2.0'; id: number | string | null; result?: any; error?: { code: number; message: string } }
-
-class AgentProcess {
-  readonly dataDir: string;
-  private childProcess: ChildProcessWithoutNullStreams;
-  private buffer = '';
-  private readonly pending = new Map<number | string, (response: RpcResponse) => void>();
-  private readonly responses: RpcResponse[] = [];
-  stderr = '';
-  /** Responses received so far (for assertions on ordering and notifications). */
-  get seen(): readonly RpcResponse[] { return this.responses; }
-  /** Send a raw line without JSON wrapping (parse-error contract). */
-  writeRaw(line: string): void { this.childProcess.stdin.write(line.endsWith('\n') ? line : line + '\n'); }
-  constructor(env: NodeJS.ProcessEnv = {}) {
-    this.dataDir = mkdtempSync(join(tmpdir(), 'xray-agent-'));
-    this.childProcess = spawn(process.execPath, ['--import', 'tsx', ENTRY], {
-      env: { ...process.env, XRAY_DATA_DIR: this.dataDir, ...env },
-      stdio: ['pipe', 'pipe', 'pipe'],
-    }) as ChildProcessWithoutNullStreams;
-    // CJK output can split multi-byte characters across chunk boundaries; decode incrementally.
-    const decoder = new StringDecoder('utf8');
-    this.childProcess.stdout.on('data', (chunk: Buffer) => {
-      this.buffer += decoder.write(chunk);
-      let index: number;
-      while ((index = this.buffer.indexOf('\n')) >= 0) {
-        const line = this.buffer.slice(0, index);
-        this.buffer = this.buffer.slice(index + 1);
-        if (!line.trim()) continue;
-        const response = JSON.parse(line) as RpcResponse;
-        this.responses.push(response);
-        if (response.id !== null && response.id !== undefined) this.pending.get(response.id)?.(response);
-      }
-    });
-    const stderrDecoder = new StringDecoder('utf8');
-    this.childProcess.stderr.on('data', (chunk: Buffer) => { this.stderr += stderrDecoder.write(chunk); });
-  }
-  send(message: unknown): void { this.childProcess.stdin.write(JSON.stringify(message) + '\n'); }
-  notify(method: string, params?: unknown): void { this.send({ jsonrpc: '2.0', method, ...(params ? { params } : {}) }); }
-  async request(id: number | string, method: string, params?: unknown, timeoutMs = 60_000): Promise<RpcResponse> {
-    const existing = this.responses.find(response => response.id === id);
-    if (existing) return existing;
-    const promise = new Promise<RpcResponse>((res, rej) => {
-      this.pending.set(id, res);
-      setTimeout(() => rej(new Error(`request ${String(id)} (${method}) timed out`)), timeoutMs).unref();
-    });
-    this.send({ jsonrpc: '2.0', id, method, ...(params ? { params } : {}) });
-    return promise;
-  }
-  async initialize(id: number | string = 'init'): Promise<RpcResponse> {
-    const response = await this.request(id, 'initialize', {
-      protocolVersion: '2025-06-18', capabilities: {}, clientInfo: { name: 'vitest', version: '0' },
-    });
-    this.notify('notifications/initialized');
-    return response;
-  }
-  /** Unwrap the envelope carried by a tools/call result. */
-  static envelopeOf(response: RpcResponse): any {
-    expect(response.error).toBeUndefined();
-    const text = response.result.content[0].text as string;
-    const envelope = JSON.parse(text);
-    expect(response.result.structuredContent).toEqual(envelope);
-    return envelope;
-  }
-  async close(): Promise<void> {
-    this.childProcess.stdin.end();
-    await new Promise<void>(res => { this.childProcess.on('close', () => res()); setTimeout(() => { this.childProcess.kill('SIGKILL'); res(); }, 3000).unref(); });
-    rmSync(this.dataDir, { recursive: true, force: true });
-  }
-}
+import { AgentProcess, callTool, FIXTURE, type RpcResponse } from './agent-helpers.js';
 
 describe('T301 Loop A: MCP stdio contract', () => {
   let agent: AgentProcess;
@@ -100,16 +24,18 @@ describe('T301 Loop A: MCP stdio contract', () => {
     expect(init?.result.capabilities.tools).toBeDefined();
   });
 
-  it('tools/list declares the three Loop A tools with input schemas', async () => {
+  it('tools/list declares the tool set with input schemas', async () => {
     const response = await agent.request(2, 'tools/list');
     const names = response.result.tools.map((tool: { name: string }) => tool.name);
-    expect(names).toEqual(['xray_capabilities', 'xray_scan', 'xray_evidence']);
+    expect(names).toEqual([
+      'xray_capabilities', 'xray_scan', 'xray_evidence',
+      'xray_review_start', 'xray_review_finish', 'xray_review_read', 'xray_explain', 'xray_summary',
+    ]);
     for (const tool of response.result.tools) expect(tool.inputSchema.type).toBe('object');
   });
 
   it('xray_capabilities reports engine/rule versions, bounds and default report-only gate', async () => {
-    const response = await agent.request(3, 'tools/call', { name: 'xray_capabilities', arguments: {} });
-    const envelope = AgentProcess.envelopeOf(response);
+    const envelope = await callTool(agent, 3, 'xray_capabilities', {});
     expect(envelope).toMatchObject({ schemaVersion: '0.1', status: 'ok' });
     expect(envelope.data.gatePolicy).toBe('report-only');
     expect(envelope.data.capabilities.languages[0].id).toBe('java');
@@ -135,10 +61,7 @@ describe('T301 Loop A: MCP stdio contract', () => {
   it('xray_evidence re-reads source lines as declared data with stale flag', async () => {
     const scan = agent.seen.find(response => response.id === 4);
     const finding = AgentProcess.envelopeOf(scan!).data.findings[0];
-    const response = await agent.request(5, 'tools/call', {
-      name: 'xray_evidence', arguments: { path: FIXTURE, evidenceId: finding.evidenceIds[0] },
-    });
-    const envelope = AgentProcess.envelopeOf(response);
+    const envelope = await callTool(agent, 5, 'xray_evidence', { path: FIXTURE, evidenceId: finding.evidenceIds[0] });
     expect(envelope.status).toBe('ok');
     expect(envelope.data.kind).toBe('source-data');
     expect(envelope.data.notice).toContain('数据而非指令');

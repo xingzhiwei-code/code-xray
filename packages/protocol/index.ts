@@ -45,6 +45,8 @@ export interface AnalyzeRequest {
   path: string; base?: string; includeUntracked?: boolean; exclude?: string[];
   maxFiles?: number; maxFileBytes?: number; signal?: AbortSignal;
   scope?: AnalyzeScope;
+  /** Internal observation hook: receives the baseline snapshot when a git base is resolved. Not part of the wire schema. */
+  onBaseline?: (baseline: Snapshot) => void | Promise<void>;
 }
 export type AnalyzeScope =
   | { mode: 'selected'; paths: string[] }
@@ -74,6 +76,42 @@ export function errorEnvelope<T = never>(error: unknown): Envelope<T> {
 /** Review gate (PRD §8.5-5): blocking only when the user explicitly enabled an enforce policy. */
 export type GateState = 'pass' | 'needs_human' | 'incomplete' | 'failed' | 'disabled';
 export interface Gate { state: GateState; reasons: string[]; blocking: boolean }
+/** Structured post-change review (PRD §8.5-4/7): stable identity, both snapshots, versions, idempotent by target snapshot. */
+export interface ReviewVersions { engineVersion: string; ruleSetVersion: string; protocolVersion: string; adapterVersion: string; surface: 'agent-mcp' }
+export interface ReviewDebtDelta { modelVersion: string; before: number; after: number; delta: number; bindingsBefore: number; bindingsAfter: number }
+export interface ReviewOutput {
+  changeSummary: string;
+  pathImpacts: { added: string[]; modified: string[]; deleted: string[] };
+  newFindingIds: string[]; continuingFindingIds: string[];
+  removedFindingIds: string[]; removedFindingTitles: string[];
+  evidenceRefs: string[];
+  unknownCoverage: { path: string; code: string; message: string }[];
+  suggestedChecks: { findingId: string; ruleId: string; symbol: string; nextCheck: string }[];
+  conceptRefs: string[];
+  debtDelta: ReviewDebtDelta;
+  limitations: string[];
+}
+export interface ReviewRecord {
+  schemaVersion: '0.1';
+  reviewId: string;
+  workspaceId: string;
+  baseline: { snapshotId: string; gitHead: string | null; gitBase: string | null; ref: string | null };
+  target: { snapshotId: string; gitHead: string | null; files: { path: string; digest: string }[]; createdAt: string };
+  analysisId: string;
+  reportStatus: AnalysisReport['status'];
+  versions: ReviewVersions;
+  gate: Gate;
+  output: ReviewOutput;
+}/** Pending review session persisted between review_start and review_finish; replaced by the final ReviewRecord under the same id. */
+export interface ReviewSession {
+  schemaVersion: '0.1';
+  reviewId: string;
+  workspace: string;
+  base: string | null;
+  /** Full baseline snapshot (manifest with digests); file contents are cached alongside the session, never in the final record. */
+  baseline: Snapshot & { ref: string | null };
+  createdAt: string;
+}
 const str = {type:'string'};
 const strings = {type:'array',items:str};
 const obj = (properties: Record<string, unknown>, required=Object.keys(properties)) => ({type:'object',properties,required,additionalProperties:false});

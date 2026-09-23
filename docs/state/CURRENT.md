@@ -3,27 +3,27 @@
 | 字段 | 值 |
 |---|---|
 | state_schema_version | 1 |
-| state_revision | r21 |
+| state_revision | r22 |
 | checkpoint_status | complete |
-| updated_at | 2026-09-22T17:10+08:00（T301a 收口：Claude Code 宿主闭环 E028） |
+| updated_at | 2026-09-23T09:55+08:00（L021 T301b Review 会话收口） |
 | project | Code X-Ray |
 | phase | v0.4 Agent Integration（v0.2/v0.3 遗留项按 D012 挂起） |
-| implementation_status | in_progress（T301a done；T301b ready） |
-| progress | v0.1 必需任务 10/10 done（T001—T010）；T011 done；T101/T201 in_progress 挂起；T301 in_progress（T301a done） |
+| implementation_status | in_progress（T301a/T301b done；T301c ready） |
+| progress | v0.1 必需任务 10/10 done（T001—T010）；T011 done；T101/T201 in_progress 挂起；T301 in_progress（T301a/T301b done） |
 | active_task | T301（v0.4 Agent Integration，子任务 T301a） |
-| active_loop | L020（已收口）；下一 Loop 进入 T301b |
-| next_task | T301b Review 会话：ReviewRecord 类型 + saveReview/loadReview/findReviewByTargetSnapshot + xray_review_start/finish/explain/summary 工具 + gate（默认 report-only）+ 幂等/stale 测试 |
+| active_loop | L021（已收口）；下一 Loop 进入 T301c |
+| next_task | T301c 契约加固：取消/超时契约测试、注入 fixture（恶意源码文本不进指令通道）、消息上限、session 源码缓存隐私矩阵复测 |
 | session_owner | 20260922-claude-v04 |
 | repo_path | /Users/01443732/Documents/Codex/2026-09-08/referenced-chatgpt-conversation-this-is-an/outputs/code-xray |
-| git_branch / head | main / r21 提交（Loop A + 宿主 smoke）|
-| worktree_state | r21 已本地提交（用户授权）；GitHub 凭据失效，推送仍阻塞 |
-| last_product_verification | E027（verify 0，96/96）+ E028（Claude Code 真实宿主 capabilities→scan→evidence 闭环，snapshotId 与契约测试一致） |
-| package_evidence | E005—E017 v0.1 产品证据链完整；E019—E026 V02/V03 进行中；E027/E028 T301a |
+| git_branch / head | main / edf61f3（r21）；r22（Loop B）改动待提交 |
+| worktree_state | r22 改动待提交；GitHub 凭据失效，推送仍阻塞 |
+| last_product_verification | E029（verify 0，105/105，14 文件；review 幂等/stale/gate 契约 + 二进制 smoke）；E027/E028（T301a） |
+| package_evidence | E005—E017 v0.1 产品证据链完整；E019—E026 V02/V03 进行中；E027—E029 T301a/b |
 | blockers | Codex CLI 上游代理 502（第二宿主实测归 T301d）；JetBrains 壳环境阻塞（挂起）；GitHub 推送 token invalid |
 
 ## 唯一下一步
 
-**T301b Review 会话**：T301a 已收口（E027 机器验证 + E028 Claude Code 真实宿主闭环，用户批准并实测）。下一步在 protocol 增加 ReviewRecord 类型；storage-local 增加 saveReview/loadReview/findReviewByTargetSnapshot（reviews/<digest>.json + index.json，复用 atomicWrite/locked/redactReport）；tools 增加 xray_review_start/xray_review_finish/xray_explain/xray_summary；gate 默认 report-only；测试覆盖幂等（同 targetSnapshotId → 同 reviewId + reused:true）与过期（stalePaths → stale + gate incomplete）。完成后进入 T301c 契约加固（取消/超时/注入 fixture）。
+**T301c 契约加固**：T301b 已收口（E029：review_start/finish/read + explain/summary 共 8 工具；reviewId 内容寻址幂等；读取时 stale 降级 incomplete；gate 默认 report-only、enforce 显式启用才 blocking；verify 0，105/105）。下一步：(1) notifications/cancelled 与 timeoutMs 的正式契约测试；(2) fixtures/injection-java 注入 fixture——含恶意指令注释的 Java 文件，断言恶意文本只出现在 evidence content，不出现在 gate/summary/suggestedChecks/changeSummary；(3) 消息上限（>1MB 拒绝）测试；(4) review session 基线源码缓存的隐私矩阵复测与 deleteData('reviews') 清除验证。完成后 T301d 双宿主验收（Codex 网络恢复后）。
 
 ## required_reads
 
@@ -37,7 +37,8 @@
 - v0.1 CLI 闭环完整可用（E005—E017）；VS Code 基础闭环已实现、真实宿主验证被沙箱阻塞（E019/E025）；V03 三类深化规则已实现但 V03-2 独立评估未做（E026），按 D012 挂起。
 - Agent Surface（T301a done，E027/E028）：MCP 2025-06-18（回退 2024-11-05）stdio server；三工具全部返回 envelope{schemaVersion,status,data|error}；域失败 isError=true、协议失败 JSON-RPC 错误码（未知工具 -32602、未知方法 -32601、坏 JSON -32700）；evidence 回源带 source-data notice、逐行 hasSecret 脱敏、工作区边界与 200 行上限；gatePolicy 默认 report-only（XRAY_AGENT_GATE=enforce 才可能阻塞——gate 实体在 T301b 落地）。
 - 双进程同快照 scan 结果除 analysisId/savedTo 外深度相等；冻结 fixture 27 findings 断言已入契约测试；E028 宿主内 scan 的 snapshotId 与契约测试值一致（ec46f53e…5317）。
-- 取消（notifications/cancelled→AbortController）代码路径已实现，但取消/超时/注入的正式契约测试归 T301c；review 会话与 ReviewRecord 持久化归 T301b；Codex 完整闭环与 V04-1 验收归 T301d。
+- Review 会话（T301b done，E029）：8 工具（capabilities/scan/evidence/review_start/review_finish/review_read/explain/summary）；reviewId 内容寻址（workspaceId+targetSnapshotId+ruleSetVersion），幂等复用 reused:true；stale 读取时计算并降级 gate=incomplete（不落盘）；engine 新增 analyzeWithBaseline 复用同一 buildDiff；session 基线含源码缓存（0600 私有目录，deleteData 'reviews'/'all' 可清）。
+- 取消（notifications/cancelled→AbortController）与 timeoutMs 代码路径已实现，正式契约测试与注入 fixture 归 T301c；Codex 完整闭环与 V04-1 双轮验收归 T301d。
 - 宿主接入现状：Claude Code 已由用户批准并在宿主内完成三工具闭环实测（E028）；Codex CLI 已全局注册（enabled），LLM 闭环被上游代理 502 阻塞，归 T301d。
 - 默认离线、零新依赖在手写 MCP 实现下继续成立；stderr 无源码内容已有测试断言。
 

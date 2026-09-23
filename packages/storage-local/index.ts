@@ -9,7 +9,7 @@ export class LocalStoreError extends Error {
     super(message); this.name = 'LocalStoreError';
   }
 }
-export type DataKind = 'reports' | 'learning' | 'cache' | 'llm-cache' | 'all';
+export type DataKind = 'reports' | 'reviews' | 'learning' | 'cache' | 'llm-cache' | 'all';
 const digest = (value: string) => createHash('sha256').update(value).digest('hex');
 const absent = (error: unknown) => (error as NodeJS.ErrnoException).code === 'ENOENT';
 const clone = <T>(value: T): T => JSON.parse(JSON.stringify(value)) as T;
@@ -144,6 +144,52 @@ export class LocalStore {
     if (typeof selected !== 'string') throw new LocalStoreError('STORAGE_CORRUPT', '报告索引损坏，未重置。');
     return this.read<T>(join(reports, `${digest(selected)}.json`));
   }
+  /**
+   * Review records: one file per review id plus an index mapping target
+   * snapshot ids to review ids, so a re-trigger on an unchanged snapshot can
+   * reuse the previous record (idempotency) and any host can re-read it.
+   */
+  async saveReview(workspace: string, review: { reviewId: string; target: { snapshotId: string } }): Promise<void> {
+    if (!review?.reviewId) throw new Error('审查 ID 不能为空。');
+    await this.locked(workspace, async directory => {
+      const reviews = join(directory, 'reviews');
+      await this.ensureDir(reviews, directory);
+      await this.atomicWrite(directory, join(reviews, `${digest(review.reviewId)}.json`), redactReport(review));
+      const index = (await this.read<Record<string, string>>(join(reviews, 'index.json'))) ?? {};
+      index[review.target.snapshotId] = review.reviewId;
+      await this.atomicWrite(directory, join(reviews, 'index.json'), index);
+    });
+  }
+  async loadReview<T = unknown>(workspace: string, reviewId: string): Promise<T | undefined> {
+    const directory = await this.directory(workspace);
+    const reviews = join(directory, 'reviews');
+    await this.ensureDir(reviews, directory);
+    return this.read<T>(join(reviews, `${digest(reviewId)}.json`));
+  }
+  async findReviewByTargetSnapshot(workspace: string, targetSnapshotId: string): Promise<string | undefined> {
+    const directory = await this.directory(workspace);
+    const reviews = join(directory, 'reviews');
+    await this.ensureDir(reviews, directory);
+    const index = (await this.read<Record<string, string>>(join(reviews, 'index.json'))) ?? {};
+    return index[targetSnapshotId];
+  }
+  /** Pending review sessions and baseline content caches live outside the review index until finish. */
+  async saveSession<T>(workspace: string, sessionId: string, payload: T): Promise<void> {
+    await this.locked(workspace, async directory => {
+      const sessions = join(directory, 'review-sessions');
+      await this.ensureDir(sessions, directory);
+      // Raw atomic write WITHOUT redactReport: the baseline cache intentionally
+      // retains source content (user-private 0600 storage) so review_finish can
+      // diff against the exact pre-change state, including uncommitted content.
+      await this.atomicWrite(directory, join(sessions, `${digest(sessionId)}.json`), payload);
+    });
+  }
+  async loadSession<T>(workspace: string, sessionId: string): Promise<T | undefined> {
+    const directory = await this.directory(workspace);
+    const sessions = join(directory, 'review-sessions');
+    await this.ensureDir(sessions, directory);
+    return this.read<T>(join(sessions, `${digest(sessionId)}.json`));
+  }
   async readState<T>(workspace: string, initial: T): Promise<T> {
     return (await this.read<T>(join(await this.directory(workspace), 'learning.json'))) ?? clone(initial);
   }
@@ -196,9 +242,9 @@ export class LocalStore {
     });
   }
   async deleteData(workspace: string, kind: DataKind): Promise<void> {
-    if (!['reports', 'learning', 'cache', 'llm-cache', 'all'].includes(kind)) throw new LocalStoreError('STORAGE_BOUNDARY', '未知数据类别。');
+    if (!['reports', 'reviews', 'learning', 'cache', 'llm-cache', 'all'].includes(kind)) throw new LocalStoreError('STORAGE_BOUNDARY', '未知数据类别。');
     await this.locked(workspace, async directory => {
-      const selected = kind === 'all' ? ['reports', 'learning', 'cache', 'llm-cache'] : [kind];
+      const selected = kind === 'all' ? ['reports', 'reviews', 'review-sessions', 'learning', 'cache', 'llm-cache'] : [kind];
       for (const name of selected) {
         const path = join(directory, name === 'learning' ? 'learning.json' : name);
         try { if ((await lstat(path)).isSymbolicLink()) throw new LocalStoreError('STORAGE_BOUNDARY', '删除目标为符号链接，已拒绝。'); }
