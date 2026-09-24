@@ -1,0 +1,258 @@
+{
+  "_note": "Review Insight Layer v0.2 计划 Phase 1 基线捕获：v0.1 review_finish 真实输出（易变标识符已替换为占位符）。问题特征：同 concept 10 findings → 10 条近似 suggestedChecks；债务按 binding 线性累计（12 × 2.0 = 24.0）。",
+  "_capturedFrom": "scripts/capture-insight-baseline.ts (v0.1 pipeline)",
+  "_volatileFieldsReplaced": [
+    "workspaceId",
+    "analysisId",
+    "reviewId",
+    "target.createdAt"
+  ],
+  "reused": false,
+  "stale": false,
+  "record": {
+    "schemaVersion": "0.1",
+    "reviewId": "<reviewId>",
+    "workspaceId": "<workspaceId>",
+    "baseline": {
+      "snapshotId": "70c8121ac19c6a9de7a75b33f25ddfe90a74384d52189099fa3a3a01047c39a2",
+      "gitHead": null,
+      "gitBase": null,
+      "ref": null
+    },
+    "target": {
+      "snapshotId": "6e60711cba1158fad3180496136ddd42636c2153ef3266c14d8ab2cdceb7c075",
+      "gitHead": null,
+      "files": [
+        {
+          "path": "BatchService.java",
+          "digest": "7c23053935e40678cd3a4295aa14a068a9cc31e970956679c6adbbe58be9a1f9"
+        },
+        {
+          "path": "Demo.java",
+          "digest": "b15c3a6d34e522540d5e398685c6aeff763d4d96b2fa0534fd56cbb148966b70"
+        },
+        {
+          "path": "DemoRepository.java",
+          "digest": "48b6ae7fa68e9d8344e43e7df7f5293a5e0ae657b42ae895088025fb0c21994a"
+        },
+        {
+          "path": "TxService.java",
+          "digest": "bb9f9782696d96818b6c19b1d6930a2c64018311a4ca558d9af51e39fd9ed9f9"
+        }
+      ],
+      "createdAt": "<createdAt>"
+    },
+    "analysisId": "<analysisId>",
+    "reportStatus": "complete",
+    "versions": {
+      "engineVersion": "0.1.0",
+      "ruleSetVersion": "1.0.0",
+      "protocolVersion": "0.1",
+      "adapterVersion": "0.1.0",
+      "surface": "agent-mcp"
+    },
+    "gate": {
+      "state": "needs_human",
+      "reasons": [
+        "12 项新增、0 项持续风险需要人工检查（含证据与验证建议）。",
+        "10 项未知/未解析覆盖，已在 unknownCoverage 列出；未知不等于无风险。"
+      ],
+      "blocking": false
+    },
+    "output": {
+      "changeSummary": "相对基线：新增 2 个文件、修改 0 个、删除 0 个；新增风险 12 项、持续 0 项、移除 0 项。4 个文件完成解析，12 项发现（JPA_CALL_IN_LOOP 10、TRANSACTION_BOUNDARY 1、TX_SELF_INVOCATION 1），0 个解析失败。",
+      "pathImpacts": {
+        "added": [
+          "BatchService.java",
+          "TxService.java"
+        ],
+        "modified": [],
+        "deleted": []
+      },
+      "newFindingIds": [
+        "finding_41872dc35f0252c2f0c1",
+        "finding_4a8c5c04321a04f3b79b",
+        "finding_53e3292285e7479725e1",
+        "finding_5888e1001e1681319262",
+        "finding_67c201ebc1268b89d518",
+        "finding_875439338b5beb526e63",
+        "finding_939bdf39e5c09dfec91c",
+        "finding_bfca5636a3e1513858f0",
+        "finding_cde657a2823371e6433b",
+        "finding_d4fca68e674fd17e882d",
+        "finding_db4e785d1d2737949293",
+        "finding_fbec3901d320952bf913"
+      ],
+      "continuingFindingIds": [],
+      "removedFindingIds": [],
+      "removedFindingTitles": [],
+      "evidenceRefs": [
+        "ev_cee9834241c6d5f89a48",
+        "ev_fc51717eb8471d3fb38d",
+        "ev_f68f7654583b49cb7832",
+        "ev_3d5db553a92d3d0f0d71",
+        "ev_d4d4304d7f42f2c808e1",
+        "ev_4fa9cefa2934bfe8c62d",
+        "ev_6ad94ad6b102d503bd2d",
+        "ev_45c76611e33aa327524a",
+        "ev_5d303bb40c1e024b63a5",
+        "ev_bf42b423c9b8017864be",
+        "ev_b564f4eaf89f3233f346",
+        "ev_268b27efbae689c0c5c6",
+        "ev_0437846599a77a568d22",
+        "ev_1b597b3959174bcc640d",
+        "ev_e4a918553264d282cdd5",
+        "ev_355f6ef015937844df00",
+        "ev_fc8fff9ed8963ad7b2c5",
+        "ev_fdf0b008c78ed62ab520",
+        "ev_12f54b36892fc710d420",
+        "ev_e9efb8056047b4ab5eb2",
+        "ev_9f355793b252ae668ab4",
+        "ev_1b99c32284874fbccd73",
+        "ev_dd179a115553189c60f4",
+        "ev_3d79bc76223d57b70fb9",
+        "ev_e10c2826051f137af702"
+      ],
+      "unknownCoverage": [
+        {
+          "path": "BatchService.java",
+          "code": "JAVA_CALL_UNRESOLVED",
+          "message": "外部、生成或复杂接收者的运行目标未解析。"
+        },
+        {
+          "path": "BatchService.java",
+          "code": "JAVA_CALL_UNRESOLVED",
+          "message": "外部、生成或复杂接收者的运行目标未解析。"
+        },
+        {
+          "path": "BatchService.java",
+          "code": "JAVA_CALL_UNRESOLVED",
+          "message": "外部、生成或复杂接收者的运行目标未解析。"
+        },
+        {
+          "path": "BatchService.java",
+          "code": "JAVA_CALL_UNRESOLVED",
+          "message": "外部、生成或复杂接收者的运行目标未解析。"
+        },
+        {
+          "path": "BatchService.java",
+          "code": "JAVA_CALL_UNRESOLVED",
+          "message": "外部、生成或复杂接收者的运行目标未解析。"
+        },
+        {
+          "path": "BatchService.java",
+          "code": "JAVA_CALL_UNRESOLVED",
+          "message": "外部、生成或复杂接收者的运行目标未解析。"
+        },
+        {
+          "path": "BatchService.java",
+          "code": "JAVA_CALL_UNRESOLVED",
+          "message": "外部、生成或复杂接收者的运行目标未解析。"
+        },
+        {
+          "path": "BatchService.java",
+          "code": "JAVA_CALL_UNRESOLVED",
+          "message": "外部、生成或复杂接收者的运行目标未解析。"
+        },
+        {
+          "path": "BatchService.java",
+          "code": "JAVA_CALL_UNRESOLVED",
+          "message": "外部、生成或复杂接收者的运行目标未解析。"
+        },
+        {
+          "path": "BatchService.java",
+          "code": "JAVA_CALL_UNRESOLVED",
+          "message": "外部、生成或复杂接收者的运行目标未解析。"
+        }
+      ],
+      "suggestedChecks": [
+        {
+          "findingId": "finding_41872dc35f0252c2f0c1",
+          "ruleId": "JPA_CALL_IN_LOOP",
+          "symbol": "demo.BatchService#process5(java.util.List<Demo>)",
+          "nextCheck": "用多条输入记录真实 SQL 次数与响应时间；比较批量查询、缓存或 join/fetch 方案。"
+        },
+        {
+          "findingId": "finding_4a8c5c04321a04f3b79b",
+          "ruleId": "JPA_CALL_IN_LOOP",
+          "symbol": "demo.BatchService#process4(java.util.List<Demo>)",
+          "nextCheck": "用多条输入记录真实 SQL 次数与响应时间；比较批量查询、缓存或 join/fetch 方案。"
+        },
+        {
+          "findingId": "finding_53e3292285e7479725e1",
+          "ruleId": "JPA_CALL_IN_LOOP",
+          "symbol": "demo.BatchService#process6(java.util.List<Demo>)",
+          "nextCheck": "用多条输入记录真实 SQL 次数与响应时间；比较批量查询、缓存或 join/fetch 方案。"
+        },
+        {
+          "findingId": "finding_67c201ebc1268b89d518",
+          "ruleId": "JPA_CALL_IN_LOOP",
+          "symbol": "demo.BatchService#process7(java.util.List<Demo>)",
+          "nextCheck": "用多条输入记录真实 SQL 次数与响应时间；比较批量查询、缓存或 join/fetch 方案。"
+        },
+        {
+          "findingId": "finding_875439338b5beb526e63",
+          "ruleId": "JPA_CALL_IN_LOOP",
+          "symbol": "demo.BatchService#process3(java.util.List<Demo>)",
+          "nextCheck": "用多条输入记录真实 SQL 次数与响应时间；比较批量查询、缓存或 join/fetch 方案。"
+        },
+        {
+          "findingId": "finding_bfca5636a3e1513858f0",
+          "ruleId": "JPA_CALL_IN_LOOP",
+          "symbol": "demo.BatchService#process9(java.util.List<Demo>)",
+          "nextCheck": "用多条输入记录真实 SQL 次数与响应时间；比较批量查询、缓存或 join/fetch 方案。"
+        },
+        {
+          "findingId": "finding_cde657a2823371e6433b",
+          "ruleId": "JPA_CALL_IN_LOOP",
+          "symbol": "demo.BatchService#process8(java.util.List<Demo>)",
+          "nextCheck": "用多条输入记录真实 SQL 次数与响应时间；比较批量查询、缓存或 join/fetch 方案。"
+        },
+        {
+          "findingId": "finding_d4fca68e674fd17e882d",
+          "ruleId": "JPA_CALL_IN_LOOP",
+          "symbol": "demo.BatchService#process1(java.util.List<Demo>)",
+          "nextCheck": "用多条输入记录真实 SQL 次数与响应时间；比较批量查询、缓存或 join/fetch 方案。"
+        },
+        {
+          "findingId": "finding_db4e785d1d2737949293",
+          "ruleId": "JPA_CALL_IN_LOOP",
+          "symbol": "demo.BatchService#process2(java.util.List<Demo>)",
+          "nextCheck": "用多条输入记录真实 SQL 次数与响应时间；比较批量查询、缓存或 join/fetch 方案。"
+        },
+        {
+          "findingId": "finding_fbec3901d320952bf913",
+          "ruleId": "JPA_CALL_IN_LOOP",
+          "symbol": "demo.BatchService#process10(java.util.List<Demo>)",
+          "nextCheck": "用多条输入记录真实 SQL 次数与响应时间；比较批量查询、缓存或 join/fetch 方案。"
+        },
+        {
+          "findingId": "finding_5888e1001e1681319262",
+          "ruleId": "TRANSACTION_BOUNDARY",
+          "symbol": "demo.TxService#save(String)",
+          "nextCheck": "从另一个 Bean 调用该方法并断言回滚行为；同时测试同类 this 调用路径。"
+        },
+        {
+          "findingId": "finding_939bdf39e5c09dfec91c",
+          "ruleId": "TX_SELF_INVOCATION",
+          "symbol": "demo.TxService#submit(String)",
+          "nextCheck": "通过真实 Bean 的外部入口测试回滚/传播行为；检查自调用是否绕过所需代理。"
+        }
+      ],
+      "conceptRefs": [
+        "jpa.query-amplification",
+        "spring.transaction-boundary",
+        "spring.transaction-proxy"
+      ],
+      "debtDelta": {
+        "modelVersion": "debt-model-v1",
+        "before": 0,
+        "after": 24,
+        "delta": 24,
+        "bindingsBefore": 0,
+        "bindingsAfter": 12
+      },
+      "limitations": []
+    }
+  }
+}
