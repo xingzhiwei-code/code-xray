@@ -50,6 +50,30 @@ export interface LearningState {
   learningVersion: 1; bindings: Record<string, LearningBinding>; events: EventRecord[];
   corrections: Record<string, ConceptId>;
 }
+/**
+ * Concept-level aggregation of learning bindings (Review Insight Layer v0.2, plan §7).
+ * Four-layer responsibility split:
+ *   Concept  = the knowledge the user needs to understand (this record's granularity);
+ *   Binding  = one concrete code association of that concept (kept per conceptId+codeRef, never merged away);
+ *   Finding  = one analyzer-detected rule instance;
+ *   Evidence = the traceable fact behind a finding.
+ * A concept appearing at 10 code positions is ONE ConceptKnowledgeState with 10 bindings —
+ * not 10 independent knowledge gaps.
+ */
+export interface ConceptKnowledgeState {
+  conceptId: ConceptId;
+  /** Aggregated status per CONCEPT_STATUS_PRECEDENCE; 'ignored' only when every binding is ignored. */
+  status: LearningStatus;
+  /** All binding ids of this concept (including ignored), sorted for determinism. */
+  bindingIds: string[];
+  activeBindingCount: number;
+  verifiedBindingCount: number;
+  staleBindingCount: number;
+  unassessedBindingCount: number;
+  ignoredBindingCount: number;
+  /** Current code occurrences of the concept = non-ignored bindings (each anchors one codeRef). */
+  occurrenceCount: number;
+}
 export interface LearningCard {
   conceptId: ConceptId; contentVersion: string; title: string;
   codeRef: string; evidenceIds: string[]; findingId?: string; historicalSnapshot: boolean;

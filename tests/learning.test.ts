@@ -6,7 +6,7 @@ import { analyze } from '../packages/engine/index.js';
 import type { AnalysisReport, Finding } from '../packages/protocol/index.js';
 import { LocalStore } from '../packages/storage-local/index.js';
 import {
-  applyEvent, debtSummary, emptyLearningState, learningCard, syncBindings,
+  applyEvent, conceptKnowledgeStates, debtSummary, emptyLearningState, learningCard, learningStatusFor, syncBindings,
   type LearningBinding, type LearningState,
 } from '../packages/learning/engine.js';
 
@@ -221,5 +221,76 @@ describe('T008 AC06: cognitive debt model transparency', () => {
     const item = summary.items.find(i => i.bindingId === binding.id)!;
     expect(item.priority).toBe(0);
     expect(item.statusLabel).toBe('已验证理解');
+  });
+});
+
+// ---------- Review Insight Layer v0.2 (T302) Phase 2: concept-level knowledge state ----------
+
+function makeBinding(overrides: Partial<LearningBinding> & { id: string; conceptId: LearningBinding['conceptId']; status: LearningBinding['status'] }): LearningBinding {
+  return {
+    codeRef: `Symbol.${overrides.id}`, codeFingerprint: `fp-${overrides.id}`, evidenceIds: [`ev-${overrides.id}`],
+    impact: 'medium', association: 'direct', active: overrides.status !== 'ignored', views: 0,
+    contentVersion: 'learning-v1', createdAt: AT, updatedAt: AT, verifications: [],
+    ...overrides,
+  };
+}
+
+function stateWith(...bindings: LearningBinding[]): LearningState {
+  return { learningVersion: 1, bindings: Object.fromEntries(bindings.map(b => [b.id, b])), events: [], corrections: {} };
+}
+
+describe('T302 Phase 2: concept-level knowledge state (plan §7/§8.1)', () => {
+  it('Case 12: aggregates conflicting binding statuses by explicit precedence, never by array order', () => {
+    const verified = makeBinding({ id: 'lb-a', conceptId: 'spring.transaction-proxy', status: 'verified' });
+    const stale = makeBinding({ id: 'lb-b', conceptId: 'spring.transaction-proxy', status: 'stale' });
+    const unassessed = makeBinding({ id: 'lb-c', conceptId: 'spring.transaction-proxy', status: 'unassessed' });
+    // Both insertion orders must produce the identical aggregate.
+    for (const state of [stateWith(verified, stale, unassessed), stateWith(unassessed, verified, stale), stateWith(stale, unassessed, verified)]) {
+      const [concept] = conceptKnowledgeStates(state);
+      // stale outranks verified: changed code needs re-confirmation of applicability;
+      // the verified mastery itself stays visible through verifiedBindingCount.
+      expect(concept.status).toBe('stale');
+      expect(concept.verifiedBindingCount).toBe(1);
+      expect(concept.staleBindingCount).toBe(1);
+      expect(concept.unassessedBindingCount).toBe(1);
+      expect(concept.occurrenceCount).toBe(3);
+      expect(concept.bindingIds).toEqual(['lb-a', 'lb-b', 'lb-c']);
+    }
+  });
+
+  it('Case 3 support: a new unassessed binding never downgrades a verified concept to unassessed', () => {
+    const verified = makeBinding({ id: 'lb-old', conceptId: 'jpa.query-amplification', status: 'verified' });
+    const fresh = makeBinding({ id: 'lb-new', conceptId: 'jpa.query-amplification', status: 'unassessed' });
+    const [concept] = conceptKnowledgeStates(stateWith(fresh, verified));
+    expect(concept.status).toBe('verified');
+    expect(concept.occurrenceCount).toBe(2);
+    // learningStatusFor (used by knowledge gaps) agrees with the concept aggregate.
+    expect(learningStatusFor(stateWith(fresh, verified), 'jpa.query-amplification')).toBe('verified');
+  });
+
+  it('ignored bindings are excluded; an all-ignored concept reports ignored', () => {
+    const ignored = makeBinding({ id: 'lb-i1', conceptId: 'jpa.entity-boundary', status: 'ignored' });
+    const ignored2 = makeBinding({ id: 'lb-i2', conceptId: 'jpa.entity-boundary', status: 'ignored' });
+    const [allIgnored] = conceptKnowledgeStates(stateWith(ignored, ignored2));
+    expect(allIgnored.status).toBe('ignored');
+    expect(allIgnored.occurrenceCount).toBe(0);
+    expect(allIgnored.ignoredBindingCount).toBe(2);
+
+    const mixed = makeBinding({ id: 'lb-m1', conceptId: 'jpa.entity-boundary', status: 'ignored' });
+    const learning = makeBinding({ id: 'lb-m2', conceptId: 'jpa.entity-boundary', status: 'learning' });
+    const [concept] = conceptKnowledgeStates(stateWith(mixed, learning));
+    expect(concept.status).toBe('learning');
+    expect(concept.occurrenceCount).toBe(1);
+  });
+
+  it('is deterministic: concepts sorted by id, bindings kept per position (never merged away)', () => {
+    const b1 = makeBinding({ id: 'lb-1', conceptId: 'spring.transaction-proxy', status: 'unassessed' });
+    const b2 = makeBinding({ id: 'lb-2', conceptId: 'jpa.query-amplification', status: 'learning' });
+    const b3 = makeBinding({ id: 'lb-3', conceptId: 'jpa.query-amplification', status: 'unassessed' });
+    const states = conceptKnowledgeStates(stateWith(b1, b2, b3));
+    expect(states.map(s => s.conceptId)).toEqual(['jpa.query-amplification', 'spring.transaction-proxy']);
+    // One concept, two code positions → ONE concept state with TWO bindings (plan §2.1).
+    expect(states[0].bindingIds).toEqual(['lb-2', 'lb-3']);
+    expect(states[0].occurrenceCount).toBe(2);
   });
 });

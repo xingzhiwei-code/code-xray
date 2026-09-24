@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto';
 import type { AnalysisReport, Finding } from '../protocol/index.js';
 import {
   LEARNING_CONTENT_VERSION, STATUS_LABELS,
-  type ConceptId, type DebtSummary, type LearningBinding, type LearningCard,
+  type ConceptId, type ConceptKnowledgeState, type DebtSummary, type LearningBinding, type LearningCard,
   type LearningEvent, type LearningState, type LearningStatus, type Verification,
 } from './types.js';
 export { LEARNING_CONTENT_VERSION, STATUS_LABELS } from './types.js';
@@ -329,6 +329,57 @@ export function debtSummary(state: LearningState): DebtSummary {
 export function learningStatusFor(state: LearningState, conceptId: ConceptId): Exclude<LearningStatus, 'ignored'> {
   const bindings = Object.values(state.bindings).filter(binding => binding.conceptId === conceptId && binding.status !== 'ignored');
   if (!bindings.length) return 'unassessed';
-  const ranking: Exclude<LearningStatus, 'ignored'>[] = ['stale', 'verified', 'self-reported', 'learning', 'to-learn', 'unassessed'];
-  return ranking.find(status => bindings.some(binding => binding.status === status)) ?? 'unassessed';
+  return CONCEPT_STATUS_PRECEDENCE.find(status => bindings.some(binding => binding.status === status)) ?? 'unassessed';
+}
+
+/**
+ * Explicit precedence for aggregating multiple binding statuses into ONE
+ * concept-level status (plan §8.1, Case 12). Never depends on binding/array
+ * order — the highest-precedence status present wins:
+ *
+ *   stale > verified > self-reported > learning > to-learn > unassessed
+ *
+ * Rationale:
+ * - `stale` outranks `verified`: when code at ANY occurrence changed, the
+ *   applicability of the user's understanding needs re-confirmation there;
+ *   surfacing that is honest, and the underlying verified mastery stays
+ *   visible via verifiedBindingCount (understanding and occurrence-
+ *   applicability are different dimensions, both reported).
+ * - `verified`/`self-reported` outrank `unassessed`/`to-learn`/`learning`:
+ *   a NEW binding (fresh code position, always created `unassessed`) must
+ *   never downgrade a concept the user already knows to "unassessed"
+ *   (plan Case 3: verified concept re-appearing at a new position stays known).
+ * - `ignored` bindings are excluded from aggregation (explicit user decision);
+ *   a concept whose bindings are ALL ignored reports status 'ignored'.
+ */
+export const CONCEPT_STATUS_PRECEDENCE: Exclude<LearningStatus, 'ignored'>[] =
+  ['stale', 'verified', 'self-reported', 'learning', 'to-learn', 'unassessed'];
+
+/** Deterministic concept-level aggregation of the learning state (plan §7). Sorted by conceptId. */
+export function conceptKnowledgeStates(state: LearningState): ConceptKnowledgeState[] {
+  const byConcept = new Map<ConceptId, LearningBinding[]>();
+  for (const binding of Object.values(state.bindings)) {
+    const list = byConcept.get(binding.conceptId);
+    if (list) list.push(binding); else byConcept.set(binding.conceptId, [binding]);
+  }
+  return [...byConcept.entries()]
+    .sort((a, b) => a[0].localeCompare(b[0], 'en'))
+    .map(([conceptId, bindings]) => {
+      const counted = bindings.filter(binding => binding.status !== 'ignored');
+      const status: LearningStatus = counted.length === 0
+        ? 'ignored'
+        : CONCEPT_STATUS_PRECEDENCE.find(candidate => counted.some(binding => binding.status === candidate)) ?? 'unassessed';
+      const count = (predicate: (binding: LearningBinding) => boolean) => bindings.filter(predicate).length;
+      return {
+        conceptId,
+        status,
+        bindingIds: bindings.map(binding => binding.id).sort((a, b) => a.localeCompare(b, 'en')),
+        activeBindingCount: count(binding => binding.status !== 'ignored'),
+        verifiedBindingCount: count(binding => binding.status === 'verified'),
+        staleBindingCount: count(binding => binding.status === 'stale'),
+        unassessedBindingCount: count(binding => binding.status === 'unassessed'),
+        ignoredBindingCount: count(binding => binding.status === 'ignored'),
+        occurrenceCount: count(binding => binding.status !== 'ignored'),
+      };
+    });
 }
