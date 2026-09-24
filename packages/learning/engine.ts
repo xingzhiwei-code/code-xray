@@ -286,6 +286,35 @@ export function conceptIds(): ConceptId[] {
   return Object.keys(CARDS) as ConceptId[];
 }
 
+export interface ConceptContent {
+  conceptId: ConceptId;
+  contentVersion: string;
+  title: string;
+  what: string;
+  whyHere: string;
+  hiddenMechanisms: string;
+  whatIfRemoved: string;
+  sources: { title: string; url: string }[];
+}
+
+/**
+ * Public concept metadata (Review Insight Layer v0.2 plan §9). Insight and
+ * presentation layers must consume this accessor instead of the private card
+ * constants. The verification question/answer are deliberately NOT exposed —
+ * leaking the answer would undermine learning verification. Unknown concept
+ * ids return null so callers can degrade honestly instead of crashing.
+ */
+export function getConceptContent(conceptId: string): ConceptContent | null {
+  const content = CARDS[conceptId as ConceptId];
+  if (!content) return null;
+  return {
+    conceptId: conceptId as ConceptId, contentVersion: LEARNING_CONTENT_VERSION,
+    title: content.title, what: content.what, whyHere: content.whyHere,
+    hiddenMechanisms: content.hiddenMechanisms, whatIfRemoved: content.whatIfRemoved,
+    sources: content.sources,
+  };
+}
+
 /**
  * Cognitive debt: a personal, transparent heuristic. Factors, weights and
  * every exclusion are visible; unknown and unassessed are counted, never

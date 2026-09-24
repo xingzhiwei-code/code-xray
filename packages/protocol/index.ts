@@ -76,6 +76,45 @@ export function errorEnvelope<T = never>(error: unknown): Envelope<T> {
 /** Review gate (PRD §8.5-5): blocking only when the user explicitly enabled an enforce policy. */
 export type GateState = 'pass' | 'needs_human' | 'incomplete' | 'failed' | 'disabled';
 export interface Gate { state: GateState; reasons: string[]; blocking: boolean }
+/**
+ * Concept-level review insight (Review Insight Layer v0.2, plan §4). One
+ * insight per concept per review — N findings of the same concept never
+ * produce N top-level items. Every insight drills down to findingIds /
+ * evidenceIds, so aggregation adds structure without dropping facts.
+ */
+export type InsightChangeType = 'new' | 'continuing' | 'resolved';
+export type InsightImportance = 'critical' | 'high' | 'medium' | 'low';
+/** Concept knowledge relative to the user: mapped from concept-level learning state (plan §8). */
+export type InsightKnowledgeStatus = 'new-to-user' | 'unassessed' | 'learning' | 'known' | 'stale';
+export interface ReviewInsight {
+  /** Deterministic: derived from reviewId + conceptId + changeType (plan §4.1); never random. */
+  id: string;
+  conceptId: string;
+  title: string;
+  changeType: InsightChangeType;
+  importance: InsightImportance;
+  knowledgeStatus: InsightKnowledgeStatus;
+  /** Deterministic text from concept metadata + finding/diff facts; no runtime claims the analyzer did not prove. */
+  summary: string;
+  whyItMatters: string;
+  nextAction: string;
+  severity: Severity;
+  occurrenceCount: number;
+  newOccurrenceCount: number;
+  continuingOccurrenceCount: number;
+  resolvedOccurrenceCount: number;
+  findingIds: string[];
+  evidenceIds: string[];
+  symbols: string[];
+  primaryFindingId?: string;
+  primaryEvidenceId?: string;
+  /**
+   * Which snapshot the findingIds/evidenceIds belong to (plan §6): active
+   * insights cite the TARGET report; resolved insights cite the BASELINE
+   * (their findings no longer exist in the target snapshot).
+   */
+  evidenceScope: 'target' | 'baseline';
+}
 /** Structured post-change review (PRD §8.5-4/7): stable identity, both snapshots, versions, idempotent by target snapshot. */
 export interface ReviewVersions { engineVersion: string; ruleSetVersion: string; protocolVersion: string; adapterVersion: string; surface: 'agent-mcp' }
 export interface ReviewDebtDelta { modelVersion: string; before: number; after: number; delta: number; bindingsBefore: number; bindingsAfter: number }
