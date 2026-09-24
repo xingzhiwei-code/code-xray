@@ -84,7 +84,7 @@ describe('T301b: review session lifecycle', () => {
     expect(finish.data.reused).toBe(false);
     expect(finish.data.stale).toBe(false);
     const record = finish.data.record;
-    expect(record.schemaVersion).toBe('0.1');
+    expect(record.schemaVersion).toBe('0.2');
     expect(record.reviewId).toMatch(/^rev_[0-9a-f]{32}$/);
     expect(record.baseline.snapshotId).toBe(start.data.baselineSnapshotId);
     expect(record.target.snapshotId).not.toBe(record.baseline.snapshotId);
@@ -93,7 +93,21 @@ describe('T301b: review session lifecycle', () => {
     // The added file is visible in path impacts; the new loop finding drives the gate.
     expect(record.output.pathImpacts.added).toContain('DemoBatch.java');
     expect(record.output.newFindingIds.length).toBeGreaterThan(0);
-    expect(record.output.suggestedChecks.length).toBeGreaterThan(0);
+    // v0.2 insight layer: concept-level aggregation with full drill-down.
+    expect(record.output.insights.length).toBeGreaterThan(0);
+    const loopInsight = record.output.insights.find((i: any) => i.conceptId === 'jpa.query-amplification');
+    expect(loopInsight).toBeDefined();
+    expect(loopInsight.changeType).toBe('new');
+    expect(loopInsight.findingIds).toContain(record.output.newFindingIds[0]);
+    expect(record.output.overview.newInsightCount).toBe(record.output.insights.filter((i: any) => i.changeType === 'new').length);
+    expect(record.output.overview.newFindingCount).toBe(record.output.newFindingIds.length);
+    expect(record.output.overview.filesChanged).toBe(1);
+    expect(record.output.coverageSummary.status).toBe(record.reportStatus);
+    expect(Array.isArray(record.output.resolvedInsights)).toBe(true);
+    // v0.2: ONE primary suggested check per insight (not per finding), linked via insightId.
+    expect(record.output.suggestedChecks.length).toBe(record.output.insights.length);
+    for (const check of record.output.suggestedChecks)
+      expect(record.output.insights.some((i: any) => i.id === check.insightId)).toBe(true);
     expect(record.output.debtDelta.modelVersion).toBe('debt-model-v1');
     expect(record.gate.state).toBe('needs_human');
     expect(record.gate.blocking).toBe(false); // report-only default
