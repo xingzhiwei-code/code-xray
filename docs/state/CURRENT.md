@@ -15,7 +15,7 @@
 | next_task | 无必需项。可选（按价值排序）：① CLI/VSCode review 视图（复用 packages/insights/presentation.ts 的 renderReviewPresentation）；② V03-2 评估债回补（D012 挂起项）；③ T101 交互重设计（需用户需求输入）。审计触发项：D014 revisit_when 满足时补跑 Codex 完整九步 |
 | session_owner | 20260925-claude-t301d |
 | repo_path | /Users/01443732/Documents/Codex/2026-09-08/referenced-chatgpt-conversation-this-is-an/outputs/code-xray |
-| git_branch / head | main / r28（185246d 之上：docs/state+evidence r28 收口提交）；GitHub 推送仍阻塞（token invalid） |
+| git_branch / head | main / r28（185246d→84f8819 收口提交→本修正）；GitHub 推送仍阻塞（token invalid） |
 | worktree_state | r28 全部改动已提交；无未跟踪遗留 |
 | last_product_verification | E035（Codex CLI 宿主内 LLM 自主 MCP 调用六步双轮闭环：基线 ec46f53e… 跨宿主逐字符一致、finding_d133fd90… 与 E032 同 ID、gate report-only、旧审查 stale+incomplete）；E034（T302：verify 0，158/158（20 文件），oracle/bench 通过，checks 12→3、debt 24.0→7.0）；E033（hook opt-in + 独立 Checker）；E032（Claude 宿主闭环） |
 | package_evidence | E005—E017 v0.1 产品证据链完整；E019—E026 V02/V03；E027—E033 T301a/b/c/d + V04 映射；E034 T302；E035 Codex 宿主收口 |

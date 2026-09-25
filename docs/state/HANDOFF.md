@@ -16,7 +16,7 @@ next_task: 无必需项。可选（按价值排序）：① CLI/VSCode review �
 
 - 本轮交付（E035/D014，L027）：artifacts/evidence/E035/codex-host-session-transcript.md；EVIDENCE E035；DECISIONS D014；V04_ACCEPTANCE（V04-1 passed + 汇总 + T301 结论 done）；BACKLOG（T301/T301d done + r27/r28 历史行 + T301 扩展字段）；SUPPORT/README（Codex 实测状态 + exec 审批参数注意）；LOOP_LOG L027。
 - 未交付（非阻塞可选项）：CLI/VSCode review 视图（渲染器 packages/insights/presentation.ts 已备好复用）；V03-2 评估债（D012 挂起）；T101 交互重设计（需用户需求）；hook 宿主 settings.json 端到端触发（opt-in，用户启用时验证）。
-- 工作树：r27 已提交（a1df029→…→7a65cf0→docs/state r27→185246d checker 补记）；r28 为本轮状态/证据/文档提交。GitHub 推送仍因 token invalid 阻塞。
+- 工作树：r27 已提交（a1df029→…→7a65cf0→docs/state r27→185246d checker 补记）；r28 = 84f8819（本轮状态/证据/文档收口提交）。GitHub 推送仍因 token invalid 阻塞。
 - 最近有效产品测试：E034（2026-09-25，verify 0/158-158 + oracle + bench + before/after 实证）；E035（2026-09-25，Codex 宿主实测，非自动化测试）；E033（hook+Checker）；E032（Claude 宿主闭环）。
 
 ## 第一条可执行动作
