@@ -1694,65 +1694,232 @@ LLM 将来只能建立在这套结构化事实层之上。
 ## 27.1 状态
 
 ``` text
-Status: NOT STARTED
-Started At:
-Completed At:
-Implementer:
-Branch / Commit:
+Status: COMPLETE（Phase 1—9 全部完成）
+Started At: 2026-09-25
+Completed At: 2026-09-25
+Implementer: Claude Code（session 20260925-claude-t302）
+Branch / Commit: main；a1df029（计划+Phase1 基线）→ 77c4701（Phase2）→ 31f76a0（Phase3）→ 630f57d（Phase4+5）→ 43771bb（Phase6）→ 3ff36ee（Phase7）→ 7a65cf0（验收/前后证据）→ 本次文档与状态回写提交
 ```
 
 ## 27.2 实际修改文件
 
 ``` text
-TODO
+新增：
+  docs/plans/CODE_XRAY_REVIEW_INSIGHT_LAYER_V0.2_PLAN.md   # 本文件（纳入版本控制）
+  packages/insights/types.ts                               # 聚合服务输入/输出契约
+  packages/insights/engine.ts                              # Insight Aggregator（纯确定性）
+  packages/insights/review.ts                              # buildReviewRecord + computeGate（自 bridge 迁入的领域装配）
+  packages/insights/presentation.ts                        # renderReviewPresentation（统一渲染器）
+  scripts/capture-insight-baseline.ts                      # 基线/after 捕获脚本（可复现）
+  tests/fixtures/review-insight-v0.1-before.json           # v0.1 基线证据（Phase 1，改造前捕获）
+  tests/fixtures/review-insight-v0.2-after.json            # 同场景 v0.2 after 证据
+  tests/insight-baseline.test.ts                           # 旧问题固化 + before/after 对比断言
+  tests/insights.test.ts                                   # 聚合器单测（Case 1/2/3/5/7/11/12 + importance/primary）
+  tests/review-presentation.test.ts                        # presentation + Case 6/8 + v0.1 版本化渲染
+  tests/review-acceptance.test.ts                          # §23 验收端到端（真实 MCP 管线）
+修改：
+  packages/protocol/index.ts      # ReviewInsight/ReviewOverview/ReviewCoverageSummary；ReviewOutput v0.2；
+                                  # ReviewRecord 0.2 + ReviewRecordV01 + StoredReviewRecord；REVIEW_SCHEMA_VERSION；
+                                  # reviewRecordSchema(ajv) + assertReviewRecord；ReviewDebtDelta +conceptsBefore/After
+  packages/learning/types.ts      # ConceptKnowledgeState；DebtSummary v2（ConceptDebtItem + BindingDebtItem）
+  packages/learning/engine.ts     # CONCEPT_STATUS_PRECEDENCE（显式常量+注释）；conceptKnowledgeStates()；
+                                  # getConceptContent()（公开概念元数据，不含 question/answer）；
+                                  # debtSummary() 升级为 debt-model-v2；EXPOSURE_K/MAX_EXPOSURE_BONUS/exposureFactor()
+  apps/agent/host/bridge.ts       # buildReviewRecord/computeGate 迁出至 packages/insights；finishReview 传入
+                                  # learningStateBefore/After 与 gateBlocking；read/finish 返回 presentation；
+                                  # StoredReviewRecord 版本化读取
+  apps/agent/tools/index.ts       # review_finish/review_read 工具描述更新（insights/presentation/版本化读取）
+  apps/cli/index.ts               # xray debt 概念级渲染 + 暴露因子/样本；sortedBindings 走 bindingItems（概念优先序）
+  tests/agent-review.test.ts      # schema 0.2、insights/overview/coverageSummary、suggestedChecks=insight 数、
+                                  # debt-model-v2、presentation、Case 9/10/13 断言
+  tests/agent-contract.test.ts    # 注入遏制扩展至 insights/resolvedInsights/overview/coverageSummary/presentation 通道
+  tests/learning.test.ts          # Phase 2 概念状态测试（Case 3/12）+ 债务 v2 重写（Case 4、全 ignored 排除、verified=0）
+  tests/developer-profile.test.ts # items→bindingItems 钻取适配
+  docs/ARCHITECTURE.md            # §3 +packages/insights；§4 +Review Insight Layer 层级与约束
+  README.md / docs/SUPPORT.md     # review 0.2 输出面与 debt v2 描述
+  docs/state/DECISIONS.md         # D013（Insight Layer + schema 0.2 + Debt v2 决策全记录）
+  docs/state/BACKLOG.md           # T302 登记与完成
+  docs/state/{CURRENT,HANDOFF,EVIDENCE,LOOP_LOG}.md  # r27 状态、E034、L026
 ```
 
 ## 27.3 最终架构决策
 
 ``` text
-TODO
+1. 四层职责（§2.1/§7）落地：Concept=ConceptKnowledgeState（learning 包，状态聚合 precedence 显式常量化：
+   stale > verified > self-reported > learning > to-learn > unassessed，与数组顺序无关）；Binding 保留
+   conceptId+codeRef 粒度永不合并；Finding/Evidence 事实层未动（§17 遵守：buildDiff/finding identity 零改动）。
+2. 聚合在共享领域包 packages/insights（纯函数、无 I/O/时钟/随机/LLM）；bridge 仅编排与策略注入
+   （gateBlocking）；MCP tools 层零领域逻辑（D009/D011 边界不变）。
+3. importance 透明加分制：score = severity(high3/medium2/low1) + changeType(new2/continuing1/resolved0)
+   + knowledgeStatus(new-to-user2/unassessed1/stale1/learning0/known0)；阈值 critical≥7、high≥5、medium≥3。
+   CRITICAL 只能由 high severity 触达（与 §15 示例"新增+medium+未评估=HIGH"一致）。权重/阈值导出且有单测。
+4. 排序（§6.1）：changeType → importance → severity → knowledgeStatus → occurrenceCount desc → conceptId（稳定 tie break）。
+5. Insight ID = ins_ + sha256(reviewId|conceptId|ruleSetVersion)[:32]；reviewId 本身内容寻址
+   （workspaceId+targetSnapshotId+ruleSetVersion）→ 同一 review 重读 identity 零漂移（§4.1）。
+6. resolved Insight 的 findingIds/evidenceIds 显式 evidenceScope='baseline'（§6）；活跃 Insight 强制 'target'
+   （assertReviewRecord 校验）。
+7. presentation 是 record 的纯函数渲染（读取时生成、不落盘、不是事实来源，§21-12）；v0.1 旧记录渲染为
+   明确标记的 legacy 版式，绝不回填未计算过的 Insight（§18 选项三：版本化读取）。
+8. gate：状态机语义零变化（partial/unknown/failed ≠ pass；blocking 仅 enforce）；headline reason 升级为
+   概念措辞并保留 finding 计数为 detail（§16）。
+9. 记录装配经 assertReviewRecord（ajv 结构 + 钻取完整性 + overview 一致性 + evidenceScope 语义）后才落盘。
 ```
 
 ## 27.4 与原计划的差异
 
 ``` text
-TODO
+1. 计划 §5 建议 packages/insights/{engine,types}.ts——实际另增 review.ts（记录装配+gate）与 presentation.ts；
+   ReviewInsight 等 wire 类型定义在 packages/protocol（协议是 wire 契约的既有归属），insights/types.ts 只放
+   聚合服务 I/O 契约。类型定义与聚合器同在 Phase 3 落地（阶段是工作顺序，不是提交切分）。
+2. buildReviewInsights 签名未接收 developerProfile：knowledgeStatus 完全由 learning state + 本轮历史决定；
+   profile 仅服务 knowledgeGaps（xray_summary kind=profile），避免画像影响 review 确定性结论。计划签名是
+   "类似"示例，属允许调整范围。
+3. getConceptContent 对未知 conceptId 返回 null 并诚实降级（title=conceptId、"内容库未覆盖"文案），不抛错——
+   与 knowledgeGaps 的 throw 不同，理由：review 是全量装配路径，未来新规则缺卡不应炸掉整个审查。
+4. occurrenceCount = 变更范围内 new+continuing occurrence 数；未触达变更文件的同概念 finding 不进入 review
+   diff（§17 保持既有事实语义），e2e 测试显式断言该诚实边界（untouched 文件的 finding 不在 insight 中）。
+5. importance 的 continuing 权重取 1（计划未给数值），阈值经校准使 §15 示例成立；全部常量化+单测。
+6. Debt v2 参数定为 EXPOSURE_K=0.15、MAX_EXPOSURE_BONUS=0.5：曲线 1→1.00、2→1.15、5→1.35、10→1.50、
+   20→1.50（封顶），与 §14 示例数值吻合。
+7. §8.1 "concept knowledge 与 occurrence applicability 分开表达"通过 ConceptKnowledgeState 的
+   verifiedBindingCount/staleBindingCount 计数实现（stale 优先 surfacing 复核需求，verified 掌握度仍可见），
+   未拆成两个独立状态字段。
+8. PRD 未修改：§8.5-4 验收要素（变化摘要/路径影响/新增持续移除/证据/未知覆盖/建议验证/概念/债务变化）
+   在 v0.2 全部保留（legacy 字段 + 概念级结构化增强），属信息架构增强而非验收变化，记录于 D013。
+9. Phase 9 命令与计划一致：npm run verify + npx tsx evals/run.ts + npx tsx evals/bench.ts。
 ```
 
 ## 27.5 Protocol 变化
 
 ``` text
-TODO
+Review schema 0.1 → 0.2（REVIEW_SCHEMA_VERSION='0.2'；AnalysisReport schema 0.1 未动）：
+新增：
+  ReviewInsight { id, conceptId, title, changeType(new|continuing|resolved), importance(critical|high|medium|low),
+    knowledgeStatus(new-to-user|unassessed|learning|known|stale), summary, whyItMatters, nextAction, severity,
+    occurrenceCount, newOccurrenceCount, continuingOccurrenceCount, resolvedOccurrenceCount,
+    findingIds, evidenceIds, symbols, primaryFindingId?, primaryEvidenceId?, evidenceScope(target|baseline) }
+  ReviewOverview { filesChanged, newInsightCount, continuingInsightCount, resolvedInsightCount,
+    newFindingCount, continuingFindingCount, resolvedFindingCount }
+  ReviewCoverageSummary { status, unknownCount, reasons: Diagnostic[] }
+  ReviewOutput v0.2 = { overview, insights, resolvedInsights, coverageSummary } + 全部 v0.1 legacy 字段
+    （deprecated 标注，migration period 共存）；debtDelta 增 conceptsBefore/conceptsAfter。
+语义升级（随 schema 版本显式进行，非偷改）：
+  suggestedChecks：v0.1 每 Finding 一条 → v0.2 每 Insight 一条主检查（增 insightId 关联；nextCheck 仍为
+  Analyzer 原文，Raw Finding.nextCheck 在 report 中继续保留）。
+校验：
+  reviewRecordSchema（ajv 2020-12）+ assertReviewRecord：结构 + 语义不变量（findingIds 非空、occurrenceCount
+  一致、primaryFindingId ∈ findingIds、活跃 Insight 引用必须在 diff 内、resolved 必须 evidenceScope=baseline
+  且引用 removed 集合、overview 与列表一致、suggestedChecks 必须挂活跃 Insight）。
+兼容（§18 选项三：版本化读取）：
+  ReviewRecordV01 类型保留；StoredReviewRecord = 0.1 | 0.2 联合；review_read/reused 路径原样返回旧记录，
+  presentation 标记"schema 0.1 · 旧版记录"；不迁移、不回填、不损坏既有本地数据。
 ```
 
 ## 27.6 Cognitive Debt v2 最终公式
 
 ``` text
-TODO
+modelVersion = debt-model-v2（概念级）
+conceptDebt = impact × gap × evidenceStrength × exposureFactor
+  impact           = 概念内活跃绑定的最高 severity（high=3 / medium=2 / low=1）
+  gap              = GAP[概念级聚合状态]（unassessed 1.0、to-learn 0.8、learning 0.6、self-reported 0.4、
+                     stale 0.9、verified 0、ignored 0；precedence 见 27.3-1）
+  evidenceStrength = 概念内最强关联（direct=1.0 / inferred=0.7 / unknown=0.4）
+  exposureFactor   = 1 + min(MAX_EXPOSURE_BONUS, log2(max(1,occurrences)) × EXPOSURE_K)
+                     EXPOSURE_K = 0.15，MAX_EXPOSURE_BONUS = 0.5（具名导出常量，随报告输出 formula+samples）
+                     样本：1→1.00、2→1.15、5→1.35、10→1.50、20→1.50（封顶）
+排除与钻取：全 ignored 概念 priority=null + exclusionReason；binding 明细保留为 bindingItems（v1 形状，
+  单绑定线性参考值，不计入 total）；total = Σ 概念 priority（2 位舍入）。
+效果实证（同场景 before/after）：12 绑定 v1 total=24.0（线性 12×2.0）→ v2 total=7.0
+  （jpa 概念 2×1×1×1.5=3.0 + 两个 tx 概念各 2.0）。10 处同概念 = 3.0，绝非 20.0（Case 4）。
+迁移：学习状态存储格式未变（无数据迁移）；debt 为即时计算，review before/after 恒同模型版本（Case 13）；
+  存量 review 记录中的 v1 数值按 0.1 版本化读取原样保留，跨模型版本数值不可直接比较（modelVersion 可辨）。
 ```
 
 ## 27.7 测试结果
 
 ``` text
-TODO
+Phase 1 基线（改造前捕获，永久固化）：
+  tests/fixtures/review-insight-v0.1-before.json + tests/insight-baseline.test.ts（P1—P4 旧问题断言，5 用例）
+新增测试（33 用例）：
+  tests/insights.test.ts（14）：Case 1/2/3/5/7/11/12、primary finding、importance 打分、new-to-user 证据门槛、
+    无 diff 不归因、去重排序、未知概念诚实降级、insight id 确定性
+  tests/review-presentation.test.ts（9）：Case 6（continuing 折叠为一行摘要+钻取保留）、Case 8（partial/unknown
+    聚合后 gate ≠ pass、blocking 仅 enforce）、升级展示（high/stale）、首屏纪律（无 assumptions/uncertainties/
+    raw finding id）、渲染确定性、v0.1 legacy 版本化渲染
+  tests/review-acceptance.test.ts（1，e2e 真实 MCP 管线）：§23 验收形状——5 raw findings → 1 actionable insight
+    （1 new + 2 continuing 聚合）+ 2 resolved insights（baseline scope）+ untouched 文件 finding 诚实排除 +
+    1 条主检查 + Case 9 幂等（reused、presentation 逐字节相同）+ debt v2 concepts 0→1
+  tests/insight-baseline.test.ts 追加 after 对比（4）：同场景 12 findings → 3 insights/3 checks/debt 7.0/概念化 gate 措辞
+更新测试：
+  tests/learning.test.ts（15）：Phase 2 概念状态（Case 3/12，含顺序无关性）+ 债务 v2 重写（Case 4 非线性与
+    封顶、全 ignored 排除、verified=0 仍列出、常量透明）
+  tests/agent-review.test.ts：schema 0.2、insights/overview/coverageSummary/suggestedChecks=insights 数、
+    debt-model-v2 + conceptsAfter、presentation（finish 与 read 逐字节一致）、Case 9/10 保持
+  tests/agent-contract.test.ts：注入遏制扩展到 insights/resolvedInsights/overview/coverageSummary/presentation
+  tests/developer-profile.test.ts：bindingItems 钻取适配
+最终结果（Phase 9，2026-09-25）：
+  npm run verify → exit 0（check:cli/check:vscode/check:agent 三路 tsc + vitest 158/158（20 文件）+
+    build + build:vscode + build:agent 全部成功）
+  npx tsx evals/run.ts → 冻结 oracle 通过（precision/recall 达标，unknown 零泄漏——analyzer 未动，无退化）
+  npx tsx evals/bench.ts → cold 0.90s（≤10s）、hot 0.84s（≤3s）、peak 335.5 MiB（≤512 MiB），AC12 通过
 ```
 
 ## 27.8 Before / After
 
 ``` text
-TODO
+同一场景（Phase 1 基线工作区：同 concept 10 个 JPA_CALL_IN_LOOP + 1 TX_SELF_INVOCATION + 1 TRANSACTION_BOUNDARY；
+两份 fixture 均为真实管线捕获，仅易变标识符替换为占位符）：
+
+Before（tests/fixtures/review-insight-v0.1-before.json，v0.1）：
+  12 findings → suggestedChecks 12 条（其中 10 条 nextCheck 文本完全相同）
+  conceptRefs 只是 id 列表；无 overview/insights/coverageSummary/presentation
+  debt：debt-model-v1，12 绑定线性 = 24.0
+  gate reason："12 项新增、0 项持续风险需要人工检查（含证据与验证建议）。"
+
+After（tests/fixtures/review-insight-v0.2-after.json，v0.2）：
+  同 12 findings（事实零变化，newFindingIds 逐项相等）→ 3 个 Insight：
+    jpa.query-amplification：occurrenceCount=10、1 条 nextAction（"优先检查 BatchService.processN…其余 9 个
+    位置经 findingIds/evidenceIds 钻取"）、importance HIGH、knowledgeStatus new-to-user
+  suggestedChecks 3 条（每 Insight 一条主检查，insightId 关联）
+  debt：debt-model-v2 = 7.0（jpa 概念 3.0（暴露 1.5 封顶）+ tx 两概念各 2.0）；conceptsAfter=3
+  gate reason："本轮产生 3 个新的风险概念（12 个具体代码位置）…"
+  + overview / coverageSummary / presentation 首屏（"新增 3 个风险概念…"、①②③ 分节、钻取提示）
+
+端到端验收（tests/review-acceptance.test.ts，§23 目标形状）：
+  5 raw findings → 1 new actionable insight（聚合 1 new + 2 continuing）+ 2 resolved insights +
+  untouched 文件 finding 排除 + 幂等重放 presentation 逐字节一致。
+重复信息削减：用户首屏从 12 条近似检查 → 3 个概念级行动项（-75%）；同概念 10 处从 10 条重复 → 1 条主行动。
 ```
 
 ## 27.9 已知限制
 
 ``` text
-TODO
+1. Insight 覆盖范围 = diff 事实层（仅触达变更文件的 finding 参与 new/continuing 分类，§17 保持不动）；
+   未触碰文件中的同概念存量风险不进入本轮 review 首屏（诚实边界，有 e2e 断言）。
+2. resolved Insight 的证据属于基线快照：xray_evidence 按目标报告回源，无法读取已消失 finding 的源码摘录；
+   presentation 与 nextAction 已显式提示。
+3. occurrence 增加型升级（§12）未实现推断：continuing Insight 按定义无新增 occurrence，当前 diff 事实
+   不足以可靠判断"存量概念 occurrence 变多"，按计划要求不自行推断。
+4. exposure 的 occurrence 代理 = 非 ignored 绑定数（含 stale）；finding 已消失的位置在用户处理
+   （复核/ignore/delete）前仍计入暴露——保守且透明，但可能高估已修复代码的暴露。
+5. analyzer 当前所有规则 severity=medium，importance 的区分度主要来自 changeType/knowledgeStatus；
+   规则 severity 精细化后无需改动 insight 层。
+6. CLI/VSCode 尚无 review 视图；presentation 渲染器已在共享包中备好复用（本轮仅 MCP finish/read 输出）。
+7. v0.1 存量 review 记录永久可读但无 insights（版本化读取）；同一快照的旧记录幂等复用时返回 0.1 原样。
+8. knowledgeStatus 依赖本机 learning state；清空学习数据后 new-to-user 判定退化为"本轮事实"。
 ```
 
 ## 27.10 下一阶段
 
 ``` text
-TODO
+1. T301d 收口（独立于本轮）：Codex 上游恢复后双宿主实测 → V04-1 passed。
+2. LLM 增强只能建立在 Insight 结构化事实层之上（§25）：为 insight 生成类比/解释增强时，输入用
+   ReviewInsight + concept metadata，输出标注非确定性，不改变 facts/gate。
+3. CLI/VSCode review 视图：复用 renderReviewPresentation（xray review <path> / VSCode 面板），
+   同时评估 CLI 侧 gate policy 语义。
+4. severity 精细化（规则级 high/low 校准）→ importance/排序自动受益；配合 V03-2 独立评估债一起做。
+5. 观察 debt v2 实际使用反馈后再调 EXPOSURE_K/MAX_EXPOSURE_BONUS（改动需带测试与记录，D013 revisit_when）。
+6. 若未来第二宿主进程需要共享 review 装配，packages/insights 已可按 D011 路径拆 engine-host。
 ```
 
 ------------------------------------------------------------------------
@@ -1761,25 +1928,25 @@ TODO
 
 只有同时满足以下条件，本任务才算完成：
 
--   [ ] 本计划文件已保存进 code-xray 项目并纳入版本控制；
--   [ ] 已有 failing/baseline fixture 证明旧版重复问题；
--   [ ] Concept-level Knowledge State 已实现；
--   [ ] ReviewInsight domain model 已实现；
--   [ ] Insight Aggregator 已实现且不位于 MCP adapter；
--   [ ] 同 concept 多 Finding 能聚合为一个 Insight；
--   [ ] new / continuing / resolved 有明确语义；
--   [ ] verified concept 在新位置出现不会被错误包装成"第一次不会"；
--   [ ] suggested checks 已提升为 Insight-level next action；
--   [ ] Cognitive Debt v2 已切换为 concept-level + 非线性 exposure；
--   [ ] Debt before / after 使用同一 modelVersion；
--   [ ] Review protocol migration / compatibility 策略已实现；
--   [ ] unknown / partial 不会被聚合逻辑错误转为 pass；
--   [ ] review idempotency 保持；
--   [ ] stale review behavior 保持；
--   [ ] deterministic ordering 有测试；
--   [ ] human-friendly review presentation 已实现；
--   [ ] Raw Finding / Evidence 仍可完整 drill-down；
--   [ ] 现有 verify / eval / bench 通过；
--   [ ] README / ARCHITECTURE / PRD / protocol docs 已按实际需要更新；
--   [ ] 本文"实施记录"已由 Claude Code 回写；
--   [ ] 提供真实 before / after 结果，证明重复信息显著减少。
+-   [x] 本计划文件已保存进 code-xray 项目并纳入版本控制；（docs/plans/…，commit a1df029）
+-   [x] 已有 failing/baseline fixture 证明旧版重复问题；（tests/fixtures/review-insight-v0.1-before.json + tests/insight-baseline.test.ts P1—P4）
+-   [x] Concept-level Knowledge State 已实现；（packages/learning conceptKnowledgeStates + ConceptKnowledgeState）
+-   [x] ReviewInsight domain model 已实现；（packages/protocol ReviewInsight + packages/insights）
+-   [x] Insight Aggregator 已实现且不位于 MCP adapter；（packages/insights/engine.ts；tools/bridge 零聚合逻辑）
+-   [x] 同 concept 多 Finding 能聚合为一个 Insight；（Case 1 单测 + e2e + after fixture：10 occurrences/1 insight）
+-   [x] new / continuing / resolved 有明确语义；（changeType + evidenceScope=baseline 显式标注 + assertReviewRecord 强制）
+-   [x] verified concept 在新位置出现不会被错误包装成"第一次不会"；（Case 3：knowledgeStatus=known，测试通过）
+-   [x] suggested checks 已提升为 Insight-level next action；（每 Insight 一条主检查 + nextAction；12→3 实证）
+-   [x] Cognitive Debt v2 已切换为 concept-level + 非线性 exposure；（debt-model-v2；Case 4：10 处 = 3.0 ≠ 20.0）
+-   [x] Debt before / after 使用同一 modelVersion；（Case 13：单一函数即时计算 + agent-review 断言 v2）
+-   [x] Review protocol migration / compatibility 策略已实现；（schema 0.2 + StoredReviewRecord 版本化读取 + legacy presentation 标记；无静默损坏）
+-   [x] unknown / partial 不会被聚合逻辑错误转为 pass；（Case 8 三用例：partial→incomplete、unknown→needs_human、blocking 仅 enforce）
+-   [x] review idempotency 保持；（Case 9：reused=true、reviewId/presentation 逐字节一致）
+-   [x] stale review behavior 保持；（Case 10：stale=true、gate 降级 incomplete，原测试未改动仍通过）
+-   [x] deterministic ordering 有测试；（Case 11：输入乱序 3 次运行 JSON 全等 + presentation 双渲染全等）
+-   [x] human-friendly review presentation 已实现；（packages/insights/presentation.ts；finish/read 均返回；首屏纪律有测试）
+-   [x] Raw Finding / Evidence 仍可完整 drill-down；（findingIds/evidenceIds/symbols 全保留 + legacy 字段 + xray_explain/xray_evidence 未动）
+-   [x] 现有 verify / eval / bench 通过；（verify exit 0，158/158；oracle 通过；bench cold 0.90s/hot 0.84s/peak 335.5MiB）
+-   [x] README / ARCHITECTURE / PRD / protocol docs 已按实际需要更新；（README/ARCHITECTURE/SUPPORT/工具描述/D013 已更新；PRD 无需改动的理由见 27.4-8）
+-   [x] 本文"实施记录"已由 Claude Code 回写；（本章 27.1—27.10）
+-   [x] 提供真实 before / after 结果，证明重复信息显著减少。（27.8：同场景 12 checks→3、debt 24.0→7.0、首屏重复 -75%）

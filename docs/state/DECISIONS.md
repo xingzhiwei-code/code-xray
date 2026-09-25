@@ -122,3 +122,20 @@
 - evidence:E027;affects:T201、T301、V03-2、V04-1..4。
 - supersedes:null。
 - revisit_when:JetBrains 环境解除(JDK17+Gradle+网络)或用户要求回补 V03-2 时。
+
+## D013 — Review Insight Layer v0.2：概念聚合、Review schema 0.2 与 Cognitive Debt v2
+
+- 状态:accepted;日期:2026-09-25;提出者:用户提供的实施计划（docs/plans/CODE_XRAY_REVIEW_INSIGHT_LAYER_V0.2_PLAN.md）+ 20260925-claude-t302 执行;checkpoint_revision:r27。
+- context:v0.1 review 输出接近 Finding dump——同一知识概念在多个 symbol 上重复出现时，suggestedChecks 按 Finding 平铺（基线实证：12 findings → 12 条 checks，其中 10 条文本完全相同），认知债务按 binding 线性累计（同概念 10 处 = 10 倍债务），new/continuing 权重无差别，MCP 消费者被迫自行重建用户语义。
+- options:(a) 保持 Finding→UI 直接映射，仅调文案——不解决粒度混杂;(b) 在 MCP adapter 内做聚合——违反 Surface 边界（D009/D011），拒绝;(c) 新增共享领域包 packages/insights，在 Finding 之上构建 Concept/Insight 层，Review schema 升 0.2，债务升 v2——采纳。
+- decision:
+  1. 四层职责固化：Concept=用户需要理解的知识（ConceptKnowledgeState，状态聚合有显式 precedence：stale > verified > self-reported > learning > to-learn > unassessed，与数组顺序无关）;Binding=概念在代码中的一次关联（保留不合并）;Finding=规则实例;Evidence=事实证据。
+  2. buildReviewInsights 纯确定性聚合（无 LLM、无时钟、无随机）：同 concept N findings → 1 Insight（findingIds/evidenceIds/symbols 全保留可钻取）;changeType new>continuing>resolved 由 diff 事实决定，resolved 证据显式 evidenceScope='baseline';knowledgeStatus 映射 verified/self-reported→known、learning/to-learn→learning、stale→stale、new-to-user 仅在"此前无绑定+本轮新增"时使用，证据不足一律 unassessed;importance=透明加分制（severity 3/2/1 + changeType new2/cont1 + knowledge gap 2/1/0，阈值 critical≥7/high≥5/medium≥3），CRITICAL 只能由 high severity 触达;排序 changeType→importance→severity→knowledge→occurrence→conceptId。
+  3. ReviewRecord schema 0.1→0.2：新增 overview/insights/resolvedInsights/coverageSummary 为主要消费面;v0.1 字段保留为 deprecated 钻取明细;suggestedChecks 语义升级为每 Insight 一条主检查（insightId 关联）;ajv reviewRecordSchema + assertReviewRecord 覆盖结构与钻取完整性;存量 0.1 记录版本化读取（原样返回+presentation 标记旧版），不迁移、不回填未计算过的 Insight。
+  4. Cognitive Debt v2（debt-model-v2）：conceptDebt = impact(概念内最高 severity) × gap(概念级状态) × evidenceStrength(最强关联) × exposureFactor;exposureFactor = 1 + min(0.5, log2(occurrences) × 0.15)（1→1.00、2→1.15、5→1.35、≥10→1.50 封顶）;常量具名导出、随每份债务报告透明输出并有单测;binding 明细保留为 bindingItems 钻取;同一审查 before/after 恒用同一模型版本;学习状态存储格式不变，无数据迁移。
+  5. 审查记录装配（buildReviewRecord/computeGate）从 apps/agent/host/bridge.ts 迁入 packages/insights/review.ts;bridge 只传策略（gateBlocking）与编排;presentation 为纯函数渲染器（packages/insights/presentation.ts），CLI/VSCode 未来可直接复用。
+- reason:计划的硬约束全部满足——不接 LLM、不删 Evidence/Finding、unknown 不变 pass、gate 语义不变（partial/unknown/failed ≠ pass，blocking 仍仅 enforce）、幂等/stale 行为不变、聚合不进 adapter、presentation 不是事实来源;before/after 实证（同场景 12 findings）：checks 12→3、债务 24.0→7.0、gate reason 概念化。
+- consequences:agent-review/learning/developer-profile 契约测试按 0.2/v2 更新;v0.1 review 记录永久可版本化读取但无 insights;debt v2 总数值普遍低于 v1（同一状态），跨模型版本的历史数值不可直接比较（记录内 modelVersion 可辨）;importance/exposure 常量若调整需带测试与记录。
+- evidence:E034;affects:T302、T301（review 工具输出）、AC05/AC06（债务展示）、V04-2/3/4（工具契约）。
+- supersedes:null。
+- revisit_when:接入 LLM 增强表述时（只能建立在本结构化事实层之上）;或第二个 Surface（CLI/VSCode）需要 review 视图时复用 presentation。

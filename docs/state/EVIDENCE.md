@@ -570,3 +570,20 @@
 - limitations:hook 在真实宿主 settings.json 的端到端触发未配置实测(opt-in 交付边界,用户启用时验证);Codex 第二宿主实测仍搁置(V04-1 open);demo 脚本重跑会覆写 E031 产物——已在 HANDOFF 记录该副作用,验收以已提交快照为准。
 - review_mode:independent(全新上下文 Checker);checker:general-purpose agent a6d4c51477b6d8c58。
 - supersedes:null。
+
+## E034 — T302 Review Insight Layer v0.2：概念聚合 + Review schema 0.2 + Cognitive Debt v2
+
+- kind:test;recorded_at:2026-09-25T18:00+08:00;checkpoint_revision:r27。
+- claim:按 docs/plans/CODE_XRAY_REVIEW_INSIGHT_LAYER_V0.2_PLAN.md Phase 1—9 完整执行并回写实施记录/DoD。(1) Phase 1 先在改造前固化 v0.1 旧问题基线（tests/fixtures/review-insight-v0.1-before.json：12 findings→12 条 suggestedChecks（其中 10 条 nextCheck 文本全同）+ debt-model-v1 线性 24.0；tests/insight-baseline.test.ts P1—P4 断言）。(2) 新增共享领域包 packages/insights：buildReviewInsights（同 concept N findings→1 Insight，findingIds/evidenceIds/symbols 全保留）、buildReviewRecord/computeGate 自 bridge 迁入（adapter 零聚合）、renderReviewPresentation（纯函数确定性渲染）；learning 新增 ConceptKnowledgeState + CONCEPT_STATUS_PRECEDENCE（显式顺序无关聚合，Case 3/12）+ getConceptContent（公开概念元数据，不含 question/answer）。(3) Review schema 0.1→0.2：overview/insights/resolvedInsights/coverageSummary 为主要消费面，v0.1 字段 deprecated 保留，suggestedChecks 升级为每 Insight 一条主检查（insightId 关联），resolved 证据显式 evidenceScope='baseline'，ajv reviewRecordSchema + assertReviewRecord（结构+钻取完整性+overview 一致性），存量 0.1 记录版本化读取原样返回不回填。(4) Cognitive Debt v2：conceptDebt = impact×gap×evidenceStrength×exposureFactor，exposureFactor=1+min(0.5, log2(n)×0.15)（1→1.00/2→1.15/5→1.35/≥10→1.50 封顶，常量具名导出并随报告透明输出）；同概念 10 处=3.0 而非 20.0（Case 4）；同一 review before/after 恒同模型（Case 13）；学习状态存储格式不变、无数据迁移；binding 明细保留 bindingItems 钻取。(5) gate 语义零变化（partial/unknown/failed≠pass、blocking 仅 enforce、幂等/stale 保持），headline 概念化并保留 finding 计数 detail（Case 8/9/10 测试）。(6) 注入遏制契约扩展到 insights/resolvedInsights/overview/coverageSummary/presentation 通道。
+- 验证：npm run verify exit 0（check:cli/vscode/agent 三路 tsc + vitest 158/158（20 文件）+ build + build:vscode + build:agent）；npx tsx evals/run.ts 冻结 oracle 通过（analyzer 零改动、precision/recall 无退化、unknown 零泄漏）；npx tsx evals/bench.ts cold 0.90s（≤10s）/hot 0.84s（≤3s）/peak 335.5MiB（≤512MiB）AC12 通过。同场景 before/after 实证（tests/fixtures/review-insight-v0.2-after.json）：事实零变化（newFindingIds 与 v0.1 逐项相等）、suggestedChecks 12→3、债务 24.0→7.0、gate 措辞概念化（"3 个新的风险概念（12 个具体代码位置）"）；§23 验收 e2e（真实 MCP 管线，tests/review-acceptance.test.ts）：5 raw findings→1 actionable insight（1 new+2 continuing 聚合）+2 resolved insights（baseline scope）+untouched 文件 finding 诚实排除+1 条主检查+幂等重放 presentation 逐字节一致。
+- task:T302;acceptance:计划 §28 DoD 22/22 勾选（含证据指针）；AC05/AC06 债务透明性增强；V04-2/3/4 工具契约保持（agent-review/contract 全绿）。
+- operator:20260925-claude-t302。
+- subject_snapshot:main 提交链 a1df029→77c4701→31f76a0→630f57d→43771bb→3ff36ee→7a65cf0→(docs/state r27 提交)；tests/fixtures/review-insight-v0.{1-before,2-after}.json。
+- environment:macOS arm64、Node v22.14.0、vitest 5.0.0、默认离线。
+- invocation:npm run verify; npx tsx evals/run.ts; npx tsx evals/bench.ts; npx tsx scripts/capture-insight-baseline.ts [out]。
+- expected:计划 §19 Case 1—13 全部有测试且通过；verify/eval/bench 全绿；before/after 证明重复信息显著减少。
+- actual:与预期一致；新增 33 用例 + 更新既有断言，158/158 零失败；DoD 22/22。
+- exit_code:0。
+- result:passed。
+- limitations:Insight 仅覆盖触达变更文件的 finding（§17 事实层保持不动）；resolved 证据属基线快照、xray_evidence 无法按目标报告回源；occurrence-increase 型升级不做推断（当前 diff 事实不足）；analyzer severity 全 medium 使 importance 区分度受限；CLI/VSCode review 视图未做（渲染器已备好复用）；Codex 宿主实测仍属 T301d 搁置项，与本条无关。
+- review_mode:self;checker:20260925-claude-t302;supersedes:null。

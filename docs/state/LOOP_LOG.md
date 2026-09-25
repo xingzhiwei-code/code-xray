@@ -396,3 +396,16 @@
 - 下一步：T001 仓库基线，产品实现 Loop 仍从 L001 开始。
 - 写入尝试：一次批量编辑在读取脚本文本时因编码错误退出，未改动文件；随后用文件补丁完成同步，没有产品行为受影响。
 - checkpoint completion：completed；r1 的文档/编号/任务依赖/状态/归档检查通过，更新本记录后重建文件摘要和 ZIP。产品进度不变。
+
+## L026 — T302 Review Insight Layer v0.2（信息架构重构，计划驱动）
+
+- checkpoint_revision：r27；checkpoint_status：completed。
+- 日期：2026-09-25；session/owner：20260925-claude-t302。
+- 目标：严格执行用户提供的实施计划（docs/plans/CODE_XRAY_REVIEW_INSIGHT_LAYER_V0.2_PLAN.md）Phase 1—9：在 Finding 之上建立概念级 Insight 聚合层、Review schema 0.2、Cognitive Debt v2 与确定性 presentation；完成后回写实施记录与 DoD，文档入版本控制。
+- 变更：新增 packages/insights（types/engine/review/presentation）与计划文件、基线/after fixtures、4 个测试文件（33 新用例）；protocol +ReviewInsight 家族/reviewRecordSchema/assertReviewRecord/StoredReviewRecord；learning +ConceptKnowledgeState/CONCEPT_STATUS_PRECEDENCE/getConceptContent/debt-model-v2（EXPOSURE_K=0.15、MAX_EXPOSURE_BONUS=0.5）；bridge 装配迁出、finish/read 返回 presentation；tools 描述更新；CLI debt 概念级渲染 + learn 排序走 bindingItems；agent-review/agent-contract/learning/developer-profile 测试更新；ARCHITECTURE/README/SUPPORT/DECISIONS(D013)/BACKLOG(T302) 同步。
+- 验证：E034（verify exit 0、158/158（20 文件）、oracle 通过、bench AC12 达标；before/after 同场景 checks 12→3、debt 24.0→7.0、事实零变化；e2e 验收 §23 形状 + 幂等 presentation 逐字节一致）。
+- 反思：先固化 v0.1 基线再动代码，使"重复信息显著减少"可对比可审计；importance 阈值经 §15 示例实证校准一次（new+medium+unassessed 必须 HIGH 而非 CRITICAL）后固化为导出常量+测试；presentation 不落盘、读取时纯函数渲染，避免成为第二事实来源。
+- 任务状态：T302 done（DoD 22/22）；T301d Codex 实测仍按用户指示搁置（不受本轮影响）；T101/T201 维持挂起。
+- outcome：done。
+- 下一步（可选）：独立 Checker（全新上下文）复查 T302 变更集；CLI/VSCode review 视图复用 renderReviewPresentation；LLM 增强仅允许建立在 Insight 结构化层之上（D013 revisit_when）。
+- checkpoint completion：completed（r27 由本轮提交链承载）。

@@ -58,6 +58,7 @@ packages/
   workspace-local/        # safe snapshot、Git adapter、路径与隐私规则
   analyzer-java-client/   # Java sidecar 的端口实现
   storage-local/          # 缓存、个人状态、迁移与恢复
+  insights/               # Review Insight Layer：概念聚合、审查记录装配、gate 与确定性 presentation（T302/v0.2）
   explanation-providers/ # 可选 provider 实现；SDK 仅限这里
 analyzers/
   java/                   # JVM worker / AST 与 Java-framework extraction
@@ -77,6 +78,8 @@ docs/                     # 本包中的规格、固定入口与接力状态
 5. **Explain**：先用确定性模板说明代码机制、风险条件和下一步验证；可选 LLM 仅增强表述与类比。
 6. **Learn**：按 finding / concept 映射学习卡、用户自报掌握情况与可复核的小练习。使用代码上下文解释，不泛化成课程长文。
 7. **Persist / Present**：本地保存结果、版本与 provenance；CLI/编辑器根据同一结果渐进展开。
+
+**Review Insight Layer（v0.2，T302）**：在事实链 `Analyzer → Evidence → Finding → Diff` 之上，`packages/insights` 提供确定性领域服务 `Finding + Diff + Knowledge State → Concept Aggregation → Change Attribution → Priority → ReviewInsight → Presentation`，对应信息层级 Level 0 Evidence / Level 1 Finding / Level 2 Concept / Level 3 Insight / Level 4 Presentation。约束：Insight 只聚合已被证明的确定性数据，全部可钻取回 findingIds/evidenceIds；resolved Insight 的证据显式标注属于基线快照（`evidenceScope:'baseline'`）；presentation 是纯函数渲染，不是新事实来源；聚合与 gate 规则不得进入 MCP/CLI 适配层。设计依据见 [docs/plans/CODE_XRAY_REVIEW_INSIGHT_LAYER_V0.2_PLAN.md](plans/CODE_XRAY_REVIEW_INSIGHT_LAYER_V0.2_PLAN.md)。
 
 分析结果应包含 `complete | partial | cancelled | failed`。`complete` 仅表示在报告的输入与支持范围内完成了分析；不得解释为程序运行正确或不存在缺陷。`partial` 必须列出缺失内容以及哪些结论受影响。
 

@@ -1,6 +1,6 @@
 # Rule eval — frozen oracle v1 (evals/java/oracle.md)
 
-- 运行：2026-09-23T02:03:54.013Z；analyzer java-cst@0.1.0（parser 3.0.1）
+- 运行：2026-09-25T09:47:24.841Z；analyzer java-cst@0.1.0（parser 3.0.1）
 - 输入：36 个 fixture 文件（含 demo/orders 5 文件与 support 1 文件，不参与计分）
 - 计分规则（AC03）：precision/recall 仅在已知标签（每规则 4 正 + 4 负）上计算；unknown 单列，不计入分母。
 

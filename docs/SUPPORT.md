@@ -45,7 +45,7 @@ CST 分析不做类型解析。同名同参数个数重载、Lambda/方法引用
 
 - 接入：`npm run build:agent` 产出 `dist/agent.js`；Claude Code 用项目 `.mcp.json` 或 `claude mcp add`，Codex CLI 用 `codex mcp add`（均为本地 stdio，零网络）。
 - 工具：`xray_capabilities / xray_scan / xray_evidence / xray_review_start / xray_review_finish / xray_review_read / xray_explain / xray_summary`；全部返回 `{schemaVersion:'0.1',status:'ok'|'error',...}` envelope。
-- 修改后审查：修改前 `xray_review_start`（记录基线，含未提交内容），修改后 `xray_review_finish`（结构化审查 + gate）。reviewId 内容寻址、重复触发幂等（`reused:true`）；代码再变更后旧审查读取时 `stale:true` 且 gate 降级 `incomplete`。
+- 修改后审查：修改前 `xray_review_start`（记录基线，含未提交内容），修改后 `xray_review_finish`（结构化审查 + gate）。reviewId 内容寻址、重复触发幂等（`reused:true`）；代码再变更后旧审查读取时 `stale:true` 且 gate 降级 `incomplete`。Review schema 0.2（T302）：`output.overview/insights/resolvedInsights/coverageSummary` 为主要消费面（概念级聚合、每 Insight 一个主行动建议、findingIds/evidenceIds 钻取），v0.1 字段保留为 deprecated 明细；结果附确定性 `presentation` 首屏文本；存量 0.1 记录版本化读取、原样返回并明确标记，不做静默迁移。债务为 `debt-model-v2`（概念级 + 非线性暴露），同一审查 before/after 恒用同一模型版本。
 - gate 策略：默认 `report-only`（永不阻塞）；仅 `XRAY_AGENT_GATE=enforce` 时非 pass 关口携带 `blocking:true`。partial/failed/unknown 不会包装成 pass。
 - 出错语义:域错误在 envelope（`status:'error'` + code/exitCode，MCP `isError:true`）；协议错误走 JSON-RPC 错误码（-32700 坏 JSON、-32601 未知方法、-32602 未知工具/坏参数）。取消（notifications/cancelled）返回 CANCELLED（130 语义），绝不返回伪造 complete。单条消息上限 1MB。
 - 隐私:源码只经 `xray_evidence` 进入工具通道（source-data 包裹 + 逐行脱敏）；恶意源码文本不进入摘要/gate/建议（注入遏制测试锁定）。审查会话基线缓存含源码明文，存用户数据目录 `workspaces/<id>/review-sessions/`（0600/0700），随 `deleteData('reviews'|'all')` 清除。

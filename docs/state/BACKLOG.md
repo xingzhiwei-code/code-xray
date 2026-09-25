@@ -1,6 +1,6 @@
 # Backlog：任务状态的唯一来源
 
-当前 revision：r26（r25 Claude 宿主闭环 E032；r26 hook opt-in + V04 验收映射 + 独立 Checker E033——T301d 仅剩 Codex 实测，用户指示搁置）。v0.1 必需任务 10/10 done；T011 done；T101 in_progress（VS Code 交互待重设计）；T201 in_progress（挂起：V03-2 评估债 + JetBrains 壳环境阻塞）；T301 in_progress（T301a/b/c done；T301d 仅剩 Codex 第二宿主实测（V04-1 唯一缺口，搁置中）——hook/验收映射/独立 Checker 已 done）。拆分任务须保留原 ID、依赖和 AC 追踪。
+当前 revision：r27（T302 Review Insight Layer v0.2 done，E034；r26 hook opt-in + V04 验收映射 + 独立 Checker E033——T301d 仅剩 Codex 实测，用户指示搁置）。v0.1 必需任务 10/10 done；T011 done；T101 in_progress（VS Code 交互待重设计）；T201 in_progress（挂起：V03-2 评估债 + JetBrains 壳环境阻塞）；T301 in_progress（T301a/b/c done；T301d 仅剩 Codex 第二宿主实测（V04-1 唯一缺口，搁置中））；T302 done。拆分任务须保留原 ID、依赖和 AC 追踪。
 
 状态与更新规则见 [HANDOFF_PROTOCOL](../HANDOFF_PROTOCOL.md)，验收原文见 [PRD](../PRD.md)。单个任务只负责其交付范围内的 AC 子项，并在 Evidence 写明覆盖边界；完整 AC 的跨任务汇总由 T010 验收。不得将下游能力作为上游任务的隐含完成条件。
 
@@ -96,6 +96,7 @@
 | T101 | v0.2 VS Code：侧栏、Hover/CodeLens、选中解释、Diff 审查与完整学习/债务闭环 | in_progress | T010 | PRD 第 8.3 节 V02-1—V02-4；继承 v0.1，同快照/能力结果一致，真实编辑器生命周期验收 |
 | T201 | v0.3 JetBrains：完整 IDE 闭环、PSI 事实补充及 Bean/事务/JPA 三类深化 | in_progress（按 D012 挂起：V03-2 评估债保留；JetBrains 壳环境阻塞） | T101 | PRD 第 8.4 节 V03-1—V03-4；三类深化有正反未知案例；增强事实注明来源，规则留在 Engine |
 | T301 | v0.4 Agent：两宿主接入、修改后审查、证据读取、可配置关口与报告恢复 | in_progress（按 D012 提前于 T201 完成启动；拆分为 T301a—T301d） | Engine/Protocol（v0.1 已冻结）；对 T201 的顺序依赖经 D012 授权豁免 | PRD 第 8.5 节 V04-1—V04-4；实测基线→改动→审查→修正→再验，未知/失败不伪装通过 |
+| T302 | Review Insight Layer v0.2：概念级 Insight 聚合、Review schema 0.2、Cognitive Debt v2、确定性 presentation（用户提供计划驱动） | done（E034：verify 0/158-158、oracle/bench 通过、before/after 实证 checks 12→3、debt 24.0→7.0；计划 DoD 22/22） | T301b（Review 会话）；计划文件 docs/plans/CODE_XRAY_REVIEW_INSIGHT_LAYER_V0.2_PLAN.md | 计划 §19 Case 1—13 全部有测试；§28 DoD 全勾；不接 LLM、不新增 Java Rule、gate/幂等/stale/注入遏制/离线保证零回归 |
 
 ### T301 子任务拆分（Loop A—D，2026-09-22）
 
@@ -211,3 +212,13 @@
 - 阻塞：Codex CLI 上游代理 502（CC Switch 本地代理→127.0.0.1:15721 失败）——V04-1 双宿主收口唯一缺口，用户 2026-09-23 指示搁置；Claude 宿主侧已收口（E032，8 工具会话实测）；探测命令与流程已写入 HANDOFF。
 - 下一步：用户重启 Claude Code 会话后宿主内跑真实 review 闭环并记录；Codex 恢复后同流程；Stop hook opt-in 设计；V04-1..4 映射 + 独立 Checker（新上下文）。
 - decisions：D011、D012；evidence：E027—E033；最后 revision：r26。
+
+### T302 — Review Insight Layer v0.2（done）
+
+- owner/session：20260925-claude-t302；开始/完成：2026-09-25。
+- 输入：用户提供的实施计划（docs/plans/CODE_XRAY_REVIEW_INSIGHT_LAYER_V0.2_PLAN.md，已入版本控制）；严格按 Phase 1—9 顺序执行，Phase 1 基线先行固化。
+- 交付：packages/insights（Insight Aggregator / ReviewRecord 装配 + gate / presentation 渲染，全部纯确定性）；learning 概念级知识状态（显式 precedence）与 Cognitive Debt v2（概念级 + 非线性暴露，常量透明）；protocol Review schema 0.2（overview/insights/resolvedInsights/coverageSummary + ajv 校验 + 0.1 版本化读取）；bridge/tools/CLI 相应适配；33 个新测试用例 + 既有断言更新；基线/after fixture 对比证据；ARCHITECTURE/README/SUPPORT/D013 文档。
+- 验证：E034（verify exit 0、158/158（20 文件）、冻结 oracle 通过、bench AC12 达标、§23 端到端验收、before/after 重复信息 -75%）。
+- 边界保持：不接 LLM、不新增 Java Rule、Evidence/Finding 未删减、unknown 不变 pass、gate 默认 report-only、幂等/stale/注入遏制/离线/隐私零回归；MCP adapter 零领域聚合。
+- decisions：D013；evidence：E034；最后 revision：r27。
+- 遗留（非阻塞，记录于计划 §27.9/§27.10）：CLI/VSCode review 视图、occurrence-increase 升级推断（事实不足不做）、severity 精细化、独立 Checker 复查（可选）。

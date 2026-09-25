@@ -21,7 +21,7 @@ xray scan <路径> --base HEAD   # 对照 Git 基线的变更摘要（新增/持
 xray scan <路径> --format json # 结构化完整报告（stdout 纯净 JSON，stderr 分离）
 xray explain [编号]        # 单条发现的完整上下文：证据/前提/未知/下一步
 xray learn [编号] [子命令] # 学习卡与知识状态（status/answer/ignore/restore/rebind/delete）
-xray debt                  # 透明的认知债务模型（因子/权重/去重全部可见）
+xray debt                  # 透明的认知债务模型 v2（概念级聚合 + 非线性暴露；因子/权重/公式全部可见）
 xray profile [show|init|update] # 本机开发者画像（角色/语言/框架/工程能力）
 xray doctor                # 环境与本地数据状态
 ```
@@ -59,7 +59,7 @@ npm run build:agent        # 产出 dist/agent.js
 | `xray_scan` | 分析工作区（可带 git `base` 对比），报告存本地可按 analysisId 追溯 |
 | `xray_evidence` | 按 evidenceId 回源读取源码片段（source-data 包裹，逐行脱敏） |
 | `xray_review_start` | 一轮修改**前**调用：记录改动前基线（含未提交内容） |
-| `xray_review_finish` | 修改**后**调用：生成结构化审查（变化摘要/新增持续移除风险/未知覆盖/建议验证/概念/债务变化/关口状态） |
+| `xray_review_finish` | 修改**后**调用：生成结构化审查（schema 0.2：概念级 insights/overview/coverageSummary + 人类可读 presentation + 债务变化/关口状态；旧 0.1 记录版本化读取） |
 | `xray_review_read` | 按 reviewId 跨会话/跨宿主恢复审查记录；代码再变更后自动标记过期 |
 | `xray_explain` | 单条发现的前提/未知/下一步/学习卡状态（只读） |
 | `xray_summary` | learning / debt / profile 摘要（只读） |
