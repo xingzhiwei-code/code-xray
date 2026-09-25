@@ -586,4 +586,5 @@
 - exit_code:0。
 - result:passed。
 - limitations:Insight 仅覆盖触达变更文件的 finding（§17 事实层保持不动）；resolved 证据属基线快照、xray_evidence 无法按目标报告回源；occurrence-increase 型升级不做推断（当前 diff 事实不足）；analyzer severity 全 medium 使 importance 区分度受限；CLI/VSCode review 视图未做（渲染器已备好复用）；Codex 宿主实测仍属 T301d 搁置项，与本条无关。
-- review_mode:self;checker:20260925-claude-t302;supersedes:null。
+- review_mode:self → independent（补记）;checker:独立 Checker agent（全新上下文，aeb1d212b47641936）;supersedes:null。
+- checker_addendum（2026-09-25）：独立 Checker 复查结论**通过**——§21 十二条禁止项全部遵守（analyzer diff 为空、insights 无 LLM/随机/时钟/网络、adapter 零聚合、unknown≠pass、presentation 不落盘）；DoD 抽查 9 项均有代码/测试证据；before/after fixture 真实性核对通过（newFindingIds 12 项逐项相等、checks 12→3、debt 24→7）；6 个目标测试文件独立实测 59/59 通过；§27 实施记录抽查 5 条与实现一致。低级别备注 2 条：①全量 verify/bench 未由 Checker 复跑——已在其复查后独立重跑确认（npm run verify exit 0、158/158（20 文件）、oracle 通过，本次补记时实测）；②exposure 的 occurrence 代理含 stale 绑定——计划 §27.9-4 已诚实披露，非缺陷。零中/高级别发现。

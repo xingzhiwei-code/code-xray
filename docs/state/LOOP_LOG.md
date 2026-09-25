@@ -407,5 +407,6 @@
 - 反思：先固化 v0.1 基线再动代码，使"重复信息显著减少"可对比可审计；importance 阈值经 §15 示例实证校准一次（new+medium+unassessed 必须 HIGH 而非 CRITICAL）后固化为导出常量+测试；presentation 不落盘、读取时纯函数渲染，避免成为第二事实来源。
 - 任务状态：T302 done（DoD 22/22）；T301d Codex 实测仍按用户指示搁置（不受本轮影响）；T101/T201 维持挂起。
 - outcome：done。
-- 下一步（可选）：独立 Checker（全新上下文）复查 T302 变更集；CLI/VSCode review 视图复用 renderReviewPresentation；LLM 增强仅允许建立在 Insight 结构化层之上（D013 revisit_when）。
+- 独立 Checker（补记）：全新上下文 Checker 复查 T302 变更集，结论**通过**（§21 禁止项全守、DoD 抽查 9 项有据、before/after 证据真实、59/59 目标用例独立实测、§27 记录与实现一致；零中/高发现，2 条低级别备注已处置：全量 verify 重跑确认 exit 0/158-158/oracle 通过，stale 暴露代理为已披露限制）。详见 E034 checker_addendum。
+- 下一步（可选）：CLI/VSCode review 视图复用 renderReviewPresentation；LLM 增强仅允许建立在 Insight 结构化层之上（D013 revisit_when）。
 - checkpoint completion：completed（r27 由本轮提交链承载）。

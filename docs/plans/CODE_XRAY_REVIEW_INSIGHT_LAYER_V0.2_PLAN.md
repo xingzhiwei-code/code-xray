@@ -1862,6 +1862,10 @@ Phase 1 基线（改造前捕获，永久固化）：
     build + build:vscode + build:agent 全部成功）
   npx tsx evals/run.ts → 冻结 oracle 通过（precision/recall 达标，unknown 零泄漏——analyzer 未动，无退化）
   npx tsx evals/bench.ts → cold 0.90s（≤10s）、hot 0.84s（≤3s）、peak 335.5 MiB（≤512 MiB），AC12 通过
+独立 Checker（全新上下文 agent，项目惯例参照 E033）复查结论：**通过**——§21 十二条禁止项全部遵守；
+  DoD 抽查 9 项均有代码/测试证据；before/after fixture 真实性核对通过；6 个目标测试文件独立实测 59/59；
+  §27 实施记录抽查 5 条与实现一致；零中/高级别发现。低级别备注 2 条均已处置：全量 verify 于复查后重跑
+  确认（exit 0、158/158、oracle 通过）；stale 暴露代理为 §27.9-4 已披露限制。详见 docs/state/EVIDENCE.md E034。
 ```
 
 ## 27.8 Before / After
