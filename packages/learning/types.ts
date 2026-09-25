@@ -81,12 +81,51 @@ export interface LearningCard {
   question: { id: string; prompt: string; options: { id: string; text: string }[]; answerId: string; rationale: string };
   sources: { title: string; url: string }[];
 }
+/**
+ * Cognitive Debt v2 (Review Insight Layer plan §14): concept-level, non-linear.
+ * "用户不会一个 Concept ≠ 代码出现 N 次就不会 N 次" — occurrences modulate
+ * exposure, they never multiply the knowledge gap linearly.
+ */
+export interface ConceptDebtItem {
+  conceptId: ConceptId;
+  /** Aggregated concept status (CONCEPT_STATUS_PRECEDENCE); 'ignored' when every binding is ignored. */
+  status: LearningStatus;
+  statusLabel: string;
+  /** Active (non-ignored) code occurrences of this concept. */
+  occurrenceCount: number;
+  impact: number;
+  gap: number | null;
+  evidenceStrength: number | null;
+  exposureFactor: number | null;
+  /** conceptDebt = impact × gap × evidenceStrength × exposureFactor; null when excluded. */
+  priority: number | null;
+  impactSource: string;
+  gapSource: string;
+  evidenceSource: string;
+  exposureSource: string;
+  /** Binding-level drill-down (bindings are never merged away). */
+  bindingIds: string[];
+  exclusionReason?: string;
+}
+/** v1-shaped per-binding row, retained as drill-down detail; NOT summed into the total. */
+export interface BindingDebtItem {
+  bindingId: string; conceptId: ConceptId; codeRef: string; status: LearningStatus; statusLabel: string;
+  /** Linear single-binding reference value (impact × gap × evidenceStrength), drill-down only. */
+  priority: number | null;
+  impact: number; gap: number | null; evidenceStrength: number | null;
+  impactSource: string; evidenceSource: string; exclusionReason?: string;
+}
 export interface DebtSummary {
-  modelVersion: 'debt-model-v1'; formula: string; meaning: string;
-  scope: string; deduplication: string; total: number; calculatedCount: number;
+  modelVersion: 'debt-model-v2';
+  formula: string; meaning: string;
+  scope: string; deduplication: string;
+  /** Non-linear exposure constants — fully transparent, no hidden magic numbers (plan §14). */
+  exposure: { k: number; maxBonus: number; formula: string; samples: { occurrences: number; factor: number }[] };
+  total: number; calculatedCount: number;
   unknownCount: number; unassessedCount: number; staleCount: number; ignoredCount: number; inactiveCount: number;
   factors: { impact: Record<string, number>; gap: Record<string, number>; evidenceStrength: Record<string, number> };
-  items: { bindingId: string; conceptId: ConceptId; codeRef: string; status: LearningStatus; statusLabel: string;
-    priority: number | null; impact: number; gap: number | null; evidenceStrength: number | null;
-    impactSource: string; evidenceSource: string; exclusionReason?: string }[];
+  /** Concept-level items (the debt's primary granularity), sorted by priority desc. */
+  items: ConceptDebtItem[];
+  /** Binding-level drill-down rows, sorted by (concept priority, binding reference value, bindingId). */
+  bindingItems: BindingDebtItem[];
 }

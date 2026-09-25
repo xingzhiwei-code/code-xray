@@ -308,8 +308,11 @@ function learningCardFor(report: AnalysisReport, finding: AnalysisReport['findin
 }
 
 function sortedBindings(state: LearningState): LearningBinding[] {
+  // v2: bindings are ordered by their concept's debt priority first (worst
+  // concept up top), then by the binding's own reference value — drill-down
+  // order, never a merge: every binding stays individually addressable.
   const summary = debtSummary(state);
-  return summary.items
+  return summary.bindingItems
     .map(item => state.bindings[item.bindingId])
     .filter((b): b is LearningBinding => Boolean(b));
 }
@@ -402,20 +405,26 @@ async function runDebt(): Promise<void> {
   const profile = await store.readProfile(emptyDeveloperProfile());
   const profileConfigured = Object.keys(profile.skills).length > 0;
   const lines = [
-    `认知债务（${summary.modelVersion}，个人启发式，不是能力评分）`,
-    `总债务：${summary.total}（${summary.calculatedCount} 条计入；未评估 ${summary.unassessedCount}、待复核 ${summary.staleCount}、未知关联 ${summary.unknownCount}、已忽略 ${summary.ignoredCount}）`,
+    `认知债务（${summary.modelVersion}，按知识概念聚合；个人启发式，不是能力评分）`,
+    `总债务：${summary.total}（${summary.calculatedCount} 个概念计入；绑定级未评估 ${summary.unassessedCount}、待复核 ${summary.staleCount}、未知关联 ${summary.unknownCount}、已忽略 ${summary.ignoredCount}）`,
     `公式：${summary.formula}`,
+    `暴露：${summary.exposure.formula}（样本 ${summary.exposure.samples.map(s => `${s.occurrences}→${s.factor.toFixed(2)}`).join('，')}）`,
     `含义：${summary.meaning}`,
     `范围：${summary.scope}`,
     `去重：${summary.deduplication}`,
     `开发者画像：${profileConfigured ? `${DEVELOPER_PROFILE_VERSION}（本机全局，影响个人建议排序，不改变代码发现）` : '未评估——xray profile init 后可结合画像计算个人知识缺口'}`,
     '',
-    '明细（按优先级降序）：',
+    '概念明细（按优先级降序）：',
   ];
   for (const item of summary.items)
-    lines.push(wrapLine(`  ${item.priority === null ? '—' : item.priority.toFixed(2).padStart(5)} [${item.statusLabel}] ${item.conceptId} — ${item.codeRef}` +
-      (item.priority === null ? `（${item.exclusionReason}）` : ` = ${item.impact}×${item.gap}×${item.evidenceStrength}`), width).join('\n'));
+    lines.push(wrapLine(`  ${item.priority === null ? '—' : item.priority.toFixed(2).padStart(5)} [${item.statusLabel}] ${item.conceptId} — ${item.occurrenceCount} 处代码位置` +
+      (item.priority === null ? `（${item.exclusionReason}）` : ` = ${item.impact}×${item.gap}×${item.evidenceStrength}×${item.exposureFactor}`), width).join('\n'));
   if (!summary.items.length) lines.push('  （暂无绑定；先运行 xray scan）');
+  if (summary.bindingItems.length) {
+    lines.push('绑定钻取（按概念优先级排序；单绑定参考值不计入总债务）：');
+    for (const item of summary.bindingItems)
+      lines.push(wrapLine(`  · [${item.statusLabel}] ${item.conceptId} — ${item.codeRef}（参考 ${item.priority === null ? '—' : item.priority.toFixed(2)}${item.exclusionReason ? `，${item.exclusionReason}` : ''}）`, width).join('\n'));
+  }
   process.stdout.write(lines.join('\n') + '\n');
 }
 

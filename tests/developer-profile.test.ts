@@ -82,7 +82,7 @@ describe('Developer Profile v1', () => {
     expect(verifiedSpring.learningStatus).toBe('verified');
     expect(verifiedSpring.priority).toBe(0);
     // The debt model itself remains project learning evidence, profile only personalizes suggestions.
-    expect(debtSummary(learning).items.find(item => item.bindingId === binding.id)!.priority).toBe(0);
+    expect(debtSummary(learning).bindingItems.find(item => item.bindingId === binding.id)!.priority).toBe(0);
   });
 
   it('keeps a missing profile visible as unassessed rather than zero mastery', async () => {

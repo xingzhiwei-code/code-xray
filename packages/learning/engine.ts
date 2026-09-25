@@ -2,8 +2,8 @@ import { createHash } from 'node:crypto';
 import type { AnalysisReport, Finding } from '../protocol/index.js';
 import {
   LEARNING_CONTENT_VERSION, STATUS_LABELS,
-  type ConceptId, type ConceptKnowledgeState, type DebtSummary, type LearningBinding, type LearningCard,
-  type LearningEvent, type LearningState, type LearningStatus, type Verification,
+  type BindingDebtItem, type ConceptDebtItem, type ConceptId, type ConceptKnowledgeState, type DebtSummary,
+  type LearningBinding, type LearningCard, type LearningEvent, type LearningState, type LearningStatus, type Verification,
 } from './types.js';
 export { LEARNING_CONTENT_VERSION, STATUS_LABELS } from './types.js';
 export type * from './types.js';
@@ -316,13 +316,34 @@ export function getConceptContent(conceptId: string): ConceptContent | null {
 }
 
 /**
- * Cognitive debt: a personal, transparent heuristic. Factors, weights and
+ * Cognitive debt v2 (Review Insight Layer plan §14): a personal, transparent
+ * heuristic aggregated per CONCEPT. Factors, weights, exposure constants and
  * every exclusion are visible; unknown and unassessed are counted, never
  * silently treated as zero mastery or hidden from the total.
+ *
+ * v1 → v2: debt no longer accumulates linearly per binding. "用户不会一个
+ * Concept ≠ 代码出现 N 次就不会 N 次" — occurrences enter through a
+ * non-linear, capped exposure factor; bindings remain as drill-down rows.
  */
+export const DEBT_MODEL_VERSION = 'debt-model-v2';
+/** Exposure growth per doubling of active occurrences (plan §14: 1→1.00, 2→~1.15, 5→~1.35). */
+export const EXPOSURE_K = 0.15;
+/** Hard cap on the exposure bonus: 20 occurrences never mean 20× the knowledge gap. */
+export const MAX_EXPOSURE_BONUS = 0.5;
+
+/** exposureFactor(n) = 1 + min(MAX_EXPOSURE_BONUS, log2(max(1,n)) × EXPOSURE_K). Deterministic, rounded to 2 decimals. */
+export function exposureFactor(occurrences: number): number {
+  const n = Math.max(1, occurrences);
+  return Number((1 + Math.min(MAX_EXPOSURE_BONUS, Math.log2(n) * EXPOSURE_K)).toFixed(2));
+}
+
 export function debtSummary(state: LearningState): DebtSummary {
   const bindings = Object.values(state.bindings);
-  const items = bindings.map(binding => {
+  const round2 = (value: number) => Number(value.toFixed(2));
+  const sortedIds = (group: LearningBinding[]) => group.map(b => b.id).sort((a, b) => a.localeCompare(b, 'en'));
+
+  // Binding-level drill-down rows (v1-shaped); reference values only, never summed into the total.
+  const bindingRows: BindingDebtItem[] = bindings.map(binding => {
     const excluded = binding.status === 'ignored';
     const impact = IMPACT[binding.impact];
     const gap = GAP[binding.status];
@@ -330,21 +351,71 @@ export function debtSummary(state: LearningState): DebtSummary {
     return {
       bindingId: binding.id, conceptId: binding.conceptId, codeRef: binding.codeRef,
       status: binding.status, statusLabel: STATUS_LABELS[binding.status],
-      priority: excluded ? null : Number((impact * gap * evidenceStrength).toFixed(2)),
+      priority: excluded ? null : round2(impact * gap * evidenceStrength),
       impact, gap: excluded ? null : gap, evidenceStrength: excluded ? null : evidenceStrength,
       impactSource: `finding severity: ${binding.impact}`, evidenceSource: `association: ${binding.association}`,
       ...(excluded ? { exclusionReason: `ignored（${binding.ignoreReason ?? 'user-choice'}）` } : {}),
     };
-  }).sort((a, b) => (b.priority ?? -1) - (a.priority ?? -1) || a.bindingId.localeCompare(b.bindingId, 'en'));
-  const active = items.filter(item => item.priority !== null);
+  });
+
+  const byConcept = new Map<ConceptId, LearningBinding[]>();
+  for (const binding of bindings) {
+    const group = byConcept.get(binding.conceptId);
+    if (group) group.push(binding); else byConcept.set(binding.conceptId, [binding]);
+  }
+
+  const items: ConceptDebtItem[] = [...byConcept.entries()].map(([conceptId, group]) => {
+    const active = group.filter(b => b.status !== 'ignored');
+    if (active.length === 0) {
+      const first = [...group].sort((a, b) => a.id.localeCompare(b.id, 'en'))[0];
+      return {
+        conceptId, status: 'ignored' as LearningStatus, statusLabel: STATUS_LABELS.ignored,
+        occurrenceCount: 0, impact: 0, gap: null, evidenceStrength: null, exposureFactor: null, priority: null,
+        impactSource: '—', gapSource: '—', evidenceSource: '—', exposureSource: '—',
+        bindingIds: sortedIds(group),
+        exclusionReason: `ignored（${first?.ignoreReason ?? 'user-choice'}）`,
+      };
+    }
+    const status: LearningStatus = CONCEPT_STATUS_PRECEDENCE.find(s => active.some(b => b.status === s)) ?? 'unassessed';
+    const impact = Math.max(...active.map(b => IMPACT[b.impact]));
+    const impactFrom = active.find(b => IMPACT[b.impact] === impact)!;
+    const gap = GAP[status];
+    const evidenceStrength = Math.max(...active.map(b => EVIDENCE_STRENGTH[b.association]));
+    const evidenceFrom = active.find(b => EVIDENCE_STRENGTH[b.association] === evidenceStrength)!;
+    const exposure = exposureFactor(active.length);
+    return {
+      conceptId, status, statusLabel: STATUS_LABELS[status],
+      occurrenceCount: active.length,
+      impact, gap, evidenceStrength, exposureFactor: exposure,
+      priority: round2(impact * gap * evidenceStrength * exposure),
+      impactSource: `max finding severity over ${active.length} active bindings: ${impactFrom.impact}`,
+      gapSource: `concept status: ${status}（precedence: ${CONCEPT_STATUS_PRECEDENCE.join(' > ')}）`,
+      evidenceSource: `strongest association: ${evidenceFrom.association}`,
+      exposureSource: `1 + min(${MAX_EXPOSURE_BONUS}, log2(${active.length}) × ${EXPOSURE_K}) = ${exposure.toFixed(2)}`,
+      bindingIds: sortedIds(group),
+    };
+  }).sort((a, b) => (b.priority ?? -1) - (a.priority ?? -1) || a.conceptId.localeCompare(b.conceptId, 'en'));
+
+  const conceptPriority = new Map(items.map(item => [item.conceptId, item.priority ?? -1]));
+  const bindingItems = bindingRows.sort((a, b) =>
+    (conceptPriority.get(b.conceptId) ?? -1) - (conceptPriority.get(a.conceptId) ?? -1)
+    || (b.priority ?? -1) - (a.priority ?? -1)
+    || a.bindingId.localeCompare(b.bindingId, 'en'));
+
+  const counted = items.filter(item => item.priority !== null);
   return {
-    modelVersion: 'debt-model-v1',
-    formula: 'priority = impact(severity) × gap(学习状态) × evidenceStrength(关联方式)；high=3/medium=2/low=1；unassessed 1.0、to-learn 0.8、learning 0.6、self-reported 0.4、stale 0.9、verified/ignored 0；direct 1.0、inferred 0.7、unknown 0.4',
-    meaning: '数值是"尚未验证的理解对应的条件性风险敞口"启发式，不是能力评分，也不是缺陷数量。',
+    modelVersion: DEBT_MODEL_VERSION as 'debt-model-v2',
+    formula: 'conceptDebt = impact(概念内最高 severity) × gap(概念级学习状态) × evidenceStrength(最强关联) × exposureFactor(非线性暴露)；high=3/medium=2/low=1；unassessed 1.0、to-learn 0.8、learning 0.6、self-reported 0.4、stale 0.9、verified/ignored 0；direct 1.0、inferred 0.7、unknown 0.4',
+    meaning: '数值是按知识概念聚合的"尚未验证理解对应的条件性风险敞口"启发式，不是能力评分，也不是缺陷数量；代码出现次数只经非线性暴露因子调节，不等于"出现几次就不会几次"。',
     scope: '按工作区本地计算，仅覆盖扫描发现并映射到学习绑定的概念。',
-    deduplication: '同一 conceptId + 代码符号只保留一条绑定；代码变化转为 stale 而非新建。',
-    total: Number(active.reduce((sum, item) => sum + (item.priority ?? 0), 0).toFixed(2)),
-    calculatedCount: active.length,
+    deduplication: '同一 conceptId + 代码符号只保留一条绑定；债务按 conceptId 聚合为概念级条目，绑定明细保留在 bindingItems 供钻取（永不合并丢失）。',
+    exposure: {
+      k: EXPOSURE_K, maxBonus: MAX_EXPOSURE_BONUS,
+      formula: `exposureFactor = 1 + min(${MAX_EXPOSURE_BONUS}, log2(occurrences) × ${EXPOSURE_K})`,
+      samples: [1, 2, 5, 10, 20].map(occurrences => ({ occurrences, factor: exposureFactor(occurrences) })),
+    },
+    total: round2(counted.reduce((sum, item) => sum + (item.priority ?? 0), 0)),
+    calculatedCount: counted.length,
     unknownCount: bindings.filter(b => b.association === 'unknown').length,
     unassessedCount: bindings.filter(b => b.status === 'unassessed').length,
     staleCount: bindings.filter(b => b.status === 'stale').length,
@@ -352,6 +423,7 @@ export function debtSummary(state: LearningState): DebtSummary {
     inactiveCount: bindings.filter(b => !b.active).length,
     factors: { impact: { high: 3, medium: 2, low: 1 }, gap: GAP, evidenceStrength: { direct: 1.0, inferred: 0.7, unknown: 0.4 } },
     items,
+    bindingItems,
   };
 }
 

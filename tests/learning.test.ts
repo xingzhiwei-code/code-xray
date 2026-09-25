@@ -6,7 +6,8 @@ import { analyze } from '../packages/engine/index.js';
 import type { AnalysisReport, Finding } from '../packages/protocol/index.js';
 import { LocalStore } from '../packages/storage-local/index.js';
 import {
-  applyEvent, conceptKnowledgeStates, debtSummary, emptyLearningState, learningCard, learningStatusFor, syncBindings,
+  applyEvent, conceptKnowledgeStates, debtSummary, emptyLearningState, EXPOSURE_K, exposureFactor, learningCard,
+  learningStatusFor, MAX_EXPOSURE_BONUS, syncBindings,
   type LearningBinding, type LearningState,
 } from '../packages/learning/engine.js';
 
@@ -183,8 +184,8 @@ describe('T008 AC09: local persistence lifecycle', () => {
   });
 });
 
-describe('T008 AC06: cognitive debt model transparency', () => {
-  it('computes hand-checkable priorities and never hides unknown or unassessed', async () => {
+describe('T008 AC06 + T302 Phase 6: cognitive debt v2 (concept-level, non-linear)', () => {
+  it('computes hand-checkable concept priorities and never hides unknown or unassessed', async () => {
     const report = await fixtureReport();
     let state = syncBindings(emptyLearningState(), report).state;
     const tx = firstBindingFor(state, 'spring.transaction-proxy');
@@ -192,23 +193,67 @@ describe('T008 AC06: cognitive debt model transparency', () => {
     state = applyEvent(state, { type: 'set-status', bindingId: jpa.id, status: 'learning' }, AT).state;
     state = applyEvent(state, { type: 'ignore', bindingId: firstBindingFor(state, 'jpa.entity-boundary').id, reason: 'not-relevant' }, AT).state;
     const summary = debtSummary(state);
-    // Hand check: medium impact(2) × unassessed gap(1.0) × direct(1.0) = 2.0
-    const txItem = summary.items.find(i => i.bindingId === tx.id)!;
-    expect(txItem.priority).toBe(2.0);
-    // learning gap 0.6 → 2 × 0.6 × 1.0 = 1.2
-    const jpaItem = summary.items.find(i => i.bindingId === jpa.id)!;
-    expect(jpaItem.priority).toBe(1.2);
-    // ignored: excluded from total, priority null with a visible reason
-    const ignoredItem = summary.items.find(i => i.priority === null)!;
-    expect(ignoredItem.exclusionReason).toContain('ignored');
+    expect(summary.modelVersion).toBe('debt-model-v2');
+    // Hand check: tx concept all-unassessed → impact medium(2) × gap(1.0) × direct(1.0) × exposure(occurrences)
+    const txItem = summary.items.find(i => i.conceptId === 'spring.transaction-proxy')!;
+    expect(txItem.status).toBe('unassessed');
+    expect(txItem.priority).toBe(Number((2 * 1.0 * 1.0 * exposureFactor(txItem.occurrenceCount)).toFixed(2)));
+    // jpa concept: one binding set to learning → concept status 'learning' by precedence → gap 0.6
+    const jpaItem = summary.items.find(i => i.conceptId === 'jpa.query-amplification')!;
+    expect(jpaItem.status).toBe('learning');
+    expect(jpaItem.gap).toBe(0.6);
+    expect(jpaItem.priority).toBe(Number((2 * 0.6 * 1.0 * exposureFactor(jpaItem.occurrenceCount)).toFixed(2)));
+    // ignored binding: visible in counts, excluded from concept occurrences, never silently dropped
+    const entityItem = summary.items.find(i => i.conceptId === 'jpa.entity-boundary')!;
+    expect(summary.ignoredCount).toBe(1);
+    expect(entityItem.bindingIds.length - entityItem.occurrenceCount).toBe(1);
     // counts are visible, not folded into zero
     expect(summary.unassessedCount).toBeGreaterThan(0);
-    expect(summary.ignoredCount).toBe(1);
-    expect(summary.calculatedCount).toBe(summary.items.length - 1);
+    expect(summary.calculatedCount).toBe(summary.items.filter(i => i.priority !== null).length);
     const expectedTotal = Number(summary.items.filter(i => i.priority !== null).reduce((sum, i) => sum + (i.priority ?? 0), 0).toFixed(2));
     expect(summary.total).toBe(expectedTotal);
     expect(summary.formula).toContain('impact');
     expect(summary.meaning).toContain('不是能力评分');
+    // exposure constants and samples are published — no hidden magic numbers (plan §14)
+    expect(summary.exposure.k).toBe(EXPOSURE_K);
+    expect(summary.exposure.maxBonus).toBe(MAX_EXPOSURE_BONUS);
+    expect(summary.exposure.samples[0]).toEqual({ occurrences: 1, factor: 1 });
+    // binding-level drill-down rows are preserved (never merged away)
+    expect(summary.bindingItems.find(b => b.bindingId === tx.id)).toBeDefined();
+  });
+
+  it('Case 4: one concept ×10 occurrences is NOT 10× single-occurrence debt; exposure formula and cap verified', () => {
+    const bindings = Array.from({ length: 10 }, (_, i) => makeBinding({ id: `lb-${i}`, conceptId: 'jpa.query-amplification', status: 'unassessed' }));
+    const summary = debtSummary(stateWith(...bindings));
+    const [item] = summary.items;
+    expect(summary.items).toHaveLength(1);
+    expect(item.occurrenceCount).toBe(10);
+    // Single-binding linear reference (the old v1 unit): medium(2) × unassessed(1.0) × direct(1.0) = 2.0
+    expect(summary.bindingItems[0]!.priority).toBe(2.0);
+    // v2: 2 × 1.0 × 1.0 × exposure(10)=1.5 → 3.0 — decidedly not 20.
+    expect(exposureFactor(10)).toBe(1.5);
+    expect(item.exposureFactor).toBe(1.5);
+    expect(item.priority).toBe(3.0);
+    expect(summary.total).toBe(3.0);
+    expect(summary.total).toBeLessThan(10 * 2.0);
+    // Plan §14 sample curve: 1→1.00, 2→~1.15, 5→~1.35, 20→capped.
+    expect(exposureFactor(1)).toBe(1);
+    expect(exposureFactor(2)).toBe(1.15);
+    expect(exposureFactor(5)).toBe(1.35);
+    expect(exposureFactor(20)).toBe(1.5);
+  });
+
+  it('an all-ignored concept is excluded with a visible reason, never folded into the total', () => {
+    const summary = debtSummary(stateWith(
+      makeBinding({ id: 'lb-x', conceptId: 'jpa.entity-boundary', status: 'ignored' }),
+      makeBinding({ id: 'lb-y', conceptId: 'jpa.entity-boundary', status: 'ignored' }),
+    ));
+    const [item] = summary.items;
+    expect(item.priority).toBeNull();
+    expect(item.exclusionReason).toContain('ignored');
+    expect(summary.total).toBe(0);
+    expect(summary.calculatedCount).toBe(0);
+    expect(summary.ignoredCount).toBe(2);
   });
 
   it('verified knowledge drops its priority to zero but stays listed', async () => {
@@ -218,9 +263,12 @@ describe('T008 AC06: cognitive debt model transparency', () => {
     const card = learningCard(binding);
     state = applyEvent(state, { type: 'answer', bindingId: binding.id, questionId: card.question.id, optionId: card.question.answerId }, AT).state;
     const summary = debtSummary(state);
-    const item = summary.items.find(i => i.bindingId === binding.id)!;
+    const item = summary.items.find(i => i.conceptId === 'spring.transaction-proxy')!;
     expect(item.priority).toBe(0);
     expect(item.statusLabel).toBe('已验证理解');
+    // drill-down keeps every binding of the concept addressable
+    expect(item.bindingIds).toContain(binding.id);
+    expect(summary.bindingItems.find(b => b.bindingId === binding.id)).toBeDefined();
   });
 });
 

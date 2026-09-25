@@ -108,7 +108,9 @@ describe('T301b: review session lifecycle', () => {
     expect(record.output.suggestedChecks.length).toBe(record.output.insights.length);
     for (const check of record.output.suggestedChecks)
       expect(record.output.insights.some((i: any) => i.id === check.insightId)).toBe(true);
-    expect(record.output.debtDelta.modelVersion).toBe('debt-model-v1');
+    // Case 13: before/after/delta all live under ONE debt model version.
+    expect(record.output.debtDelta.modelVersion).toBe('debt-model-v2');
+    expect(record.output.debtDelta.conceptsAfter).toBeGreaterThan(0);
     expect(record.gate.state).toBe('needs_human');
     expect(record.gate.blocking).toBe(false); // report-only default
     expect(record.gate.reasons.length).toBeGreaterThan(0);
@@ -176,7 +178,8 @@ describe('T301b: review session lifecycle', () => {
 
     const debt = await callTool(agent, 'r17', 'xray_summary', { path: FIXTURE, kind: 'debt' });
     expect(debt.status).toBe('ok');
-    expect(debt.data.modelVersion).toBe('debt-model-v1');
+    expect(debt.data.modelVersion).toBe('debt-model-v2');
+    expect(debt.data.exposure.formula).toContain('log2');
     expect(debt.data.formula).toBeTruthy();
     const learning = await callTool(agent, 'r18', 'xray_summary', { path: FIXTURE, kind: 'learning' });
     expect(learning.data.total).toBeGreaterThan(0);
