@@ -19,7 +19,7 @@ import { mkdtempSync, mkdirSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-const OUT = 'tests/fixtures/review-insight-v0.1-before.json';
+const OUT = process.argv[2] ?? 'tests/fixtures/review-insight-v0.1-before.json';
 
 const dataDir = mkdtempSync(join(tmpdir(), 'xray-baseline-data-'));
 process.env.XRAY_DATA_DIR = dataDir;
@@ -84,12 +84,16 @@ record.analysisId = '<analysisId>';
 record.reviewId = '<reviewId>';
 record.target.createdAt = '<createdAt>';
 
+const isV02 = record.schemaVersion === '0.2';
 const payload = {
-  _note: 'Review Insight Layer v0.2 计划 Phase 1 基线捕获：v0.1 review_finish 真实输出（易变标识符已替换为占位符）。问题特征：同 concept 10 findings → 10 条近似 suggestedChecks；债务按 binding 线性累计（12 × 2.0 = 24.0）。',
-  _capturedFrom: 'scripts/capture-insight-baseline.ts (v0.1 pipeline)',
+  _note: isV02
+    ? 'Review Insight Layer v0.2 计划完成后捕获：同一场景（同 concept 10 findings + tx）在 v0.2 管线下的 review_finish 真实输出。对照 v0.1 基线（review-insight-v0.1-before.json）：suggestedChecks 12→按概念聚合；新增 overview/insights/resolvedInsights/coverageSummary/presentation；债务 debt-model-v2 概念级非线性。'
+    : 'Review Insight Layer v0.2 计划 Phase 1 基线捕获：v0.1 review_finish 真实输出（易变标识符已替换为占位符）。问题特征：同 concept 10 findings → 10 条近似 suggestedChecks；债务按 binding 线性累计（12 × 2.0 = 24.0）。',
+  _capturedFrom: `scripts/capture-insight-baseline.ts (${isV02 ? 'v0.2' : 'v0.1'} pipeline)`,
   _volatileFieldsReplaced: ['workspaceId', 'analysisId', 'reviewId', 'target.createdAt'],
   reused: finished.reused,
   stale: finished.stale,
+  ...('presentation' in finished ? { presentation: (finished as { presentation: string }).presentation } : {}),
   record,
 };
 

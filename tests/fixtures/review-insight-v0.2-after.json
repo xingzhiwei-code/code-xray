@@ -1,0 +1,404 @@
+{
+  "_note": "Review Insight Layer v0.2 计划完成后捕获：同一场景（同 concept 10 findings + tx）在 v0.2 管线下的 review_finish 真实输出。对照 v0.1 基线（review-insight-v0.1-before.json）：suggestedChecks 12→按概念聚合；新增 overview/insights/resolvedInsights/coverageSummary/presentation；债务 debt-model-v2 概念级非线性。",
+  "_capturedFrom": "scripts/capture-insight-baseline.ts (v0.2 pipeline)",
+  "_volatileFieldsReplaced": [
+    "workspaceId",
+    "analysisId",
+    "reviewId",
+    "target.createdAt"
+  ],
+  "reused": false,
+  "stale": false,
+  "presentation": "Code X-Ray Review（schema 0.2）\n\n本轮修改\n──────────────────────\n2 个文件发生变化\n新增 3 个风险概念 · 0 个已有风险概念持续存在 · 0 个历史风险概念已解决\n（具体代码位置：新增 12 · 持续 0 · 移除 0）\n关口：需人工检查（report-only）\n\n需要关注\n──────────────────────\n① JPA 循环内查询放大\n状态：本轮新增　重要性：HIGH　知识状态：新出现知识点\n本轮发现：本轮新增 10 个代码位置。\n涉及位置（10）：demo.BatchService#process1(java.util.List<Demo>)、demo.BatchService#process10(java.util.List<Demo>)、demo.BatchService#process2(java.util.List<Demo>)、demo.BatchService#process3(java.util.List<Demo>)、demo.BatchService#process4(java.util.List<Demo>) 等（主要位置见\"建议确认\"）\n为什么值得关注：当前代码在循环里调用 Repository 方法。循环次数与数据库往返次数线性相关；这是查询放大（常见为 N+1）的典型形态。\n建议确认：优先检查 demo.BatchService#process5(java.util.List<Demo>)：用多条输入记录真实 SQL 次数与响应时间；比较批量查询、缓存或 join/fetch 方案。（该概念本轮共涉及 10 个位置，其余 9 个经 findingIds/evidenceIds 钻取）\n[可展开：findingIds 10 条 · evidenceIds 22 条（xray_explain / xray_evidence）]\n\n② Spring 事务边界与代理入口\n状态：本轮新增　重要性：HIGH　知识状态：新出现知识点\n本轮发现：本轮新增 1 个代码位置。\n涉及位置（1）：demo.TxService#save(String)（主要位置见\"建议确认\"）\n为什么值得关注：当前方法标有 @Transactional。它从事务代理外部进入时，代理负责开启、提交或回滚事务。\n建议确认：优先检查 demo.TxService#save(String)：从另一个 Bean 调用该方法并断言回滚行为；同时测试同类 this 调用路径。\n[可展开：findingIds 1 条 · evidenceIds 2 条（xray_explain / xray_evidence）]\n\n③ Spring 事务代理与同类调用\n状态：本轮新增　重要性：HIGH　知识状态：新出现知识点\n本轮发现：本轮新增 1 个代码位置。\n涉及位置（1）：demo.TxService#submit(String)（主要位置见\"建议确认\"）\n为什么值得关注：当前代码在同一个类里直接调用本类标有 @Transactional 的方法。同类内部调用不经过代理（this 引用直接指向目标对象），事务拦截器没有机会介入。\n建议确认：优先检查 demo.TxService#submit(String)：通过真实 Bean 的外部入口测试回滚/传播行为；检查自调用是否绕过所需代理。\n[可展开：findingIds 1 条 · evidenceIds 3 条（xray_explain / xray_evidence）]\n\n其他信息\n──────────────────────\n• 10 个区域存在静态分析 unknown（未知不等于无风险，见 coverageSummary）。\n\nCognitive Debt\n──────────────────────\n0.0 → 7.0（+7.0；debt-model-v2，概念 0→3，绑定 0→12）\n关口原因：本轮产生 3 个新的风险概念（12 个具体代码位置），另有 0 个已有风险概念持续存在（0 个位置）；需要人工检查，证据与验证建议可经 insights 钻取。\n关口原因：10 项未知/未解析覆盖，已在 coverageSummary 列出；未知不等于无风险。",
+  "record": {
+    "schemaVersion": "0.2",
+    "reviewId": "<reviewId>",
+    "workspaceId": "<workspaceId>",
+    "baseline": {
+      "snapshotId": "70c8121ac19c6a9de7a75b33f25ddfe90a74384d52189099fa3a3a01047c39a2",
+      "gitHead": null,
+      "gitBase": null,
+      "ref": null
+    },
+    "target": {
+      "snapshotId": "6e60711cba1158fad3180496136ddd42636c2153ef3266c14d8ab2cdceb7c075",
+      "gitHead": null,
+      "files": [
+        {
+          "path": "BatchService.java",
+          "digest": "7c23053935e40678cd3a4295aa14a068a9cc31e970956679c6adbbe58be9a1f9"
+        },
+        {
+          "path": "Demo.java",
+          "digest": "b15c3a6d34e522540d5e398685c6aeff763d4d96b2fa0534fd56cbb148966b70"
+        },
+        {
+          "path": "DemoRepository.java",
+          "digest": "48b6ae7fa68e9d8344e43e7df7f5293a5e0ae657b42ae895088025fb0c21994a"
+        },
+        {
+          "path": "TxService.java",
+          "digest": "bb9f9782696d96818b6c19b1d6930a2c64018311a4ca558d9af51e39fd9ed9f9"
+        }
+      ],
+      "createdAt": "<createdAt>"
+    },
+    "analysisId": "<analysisId>",
+    "reportStatus": "complete",
+    "versions": {
+      "engineVersion": "0.1.0",
+      "ruleSetVersion": "1.0.0",
+      "protocolVersion": "0.1",
+      "adapterVersion": "0.1.0",
+      "surface": "agent-mcp"
+    },
+    "gate": {
+      "state": "needs_human",
+      "reasons": [
+        "本轮产生 3 个新的风险概念（12 个具体代码位置），另有 0 个已有风险概念持续存在（0 个位置）；需要人工检查，证据与验证建议可经 insights 钻取。",
+        "10 项未知/未解析覆盖，已在 coverageSummary 列出；未知不等于无风险。"
+      ],
+      "blocking": false
+    },
+    "output": {
+      "overview": {
+        "filesChanged": 2,
+        "newInsightCount": 3,
+        "continuingInsightCount": 0,
+        "resolvedInsightCount": 0,
+        "newFindingCount": 12,
+        "continuingFindingCount": 0,
+        "resolvedFindingCount": 0
+      },
+      "insights": [
+        {
+          "id": "ins_748529e7ebd686b26e5dfca01e3ecb75",
+          "conceptId": "jpa.query-amplification",
+          "title": "JPA 循环内查询放大",
+          "changeType": "new",
+          "importance": "high",
+          "knowledgeStatus": "new-to-user",
+          "summary": "本轮新增 10 个代码位置。",
+          "whyItMatters": "当前代码在循环里调用 Repository 方法。循环次数与数据库往返次数线性相关；这是查询放大（常见为 N+1）的典型形态。",
+          "nextAction": "优先检查 demo.BatchService#process5(java.util.List<Demo>)：用多条输入记录真实 SQL 次数与响应时间；比较批量查询、缓存或 join/fetch 方案。（该概念本轮共涉及 10 个位置，其余 9 个经 findingIds/evidenceIds 钻取）",
+          "severity": "medium",
+          "occurrenceCount": 10,
+          "newOccurrenceCount": 10,
+          "continuingOccurrenceCount": 0,
+          "resolvedOccurrenceCount": 0,
+          "findingIds": [
+            "finding_41872dc35f0252c2f0c1",
+            "finding_4a8c5c04321a04f3b79b",
+            "finding_53e3292285e7479725e1",
+            "finding_67c201ebc1268b89d518",
+            "finding_875439338b5beb526e63",
+            "finding_bfca5636a3e1513858f0",
+            "finding_cde657a2823371e6433b",
+            "finding_d4fca68e674fd17e882d",
+            "finding_db4e785d1d2737949293",
+            "finding_fbec3901d320952bf913"
+          ],
+          "evidenceIds": [
+            "ev_0437846599a77a568d22",
+            "ev_12f54b36892fc710d420",
+            "ev_1b597b3959174bcc640d",
+            "ev_1b99c32284874fbccd73",
+            "ev_268b27efbae689c0c5c6",
+            "ev_355f6ef015937844df00",
+            "ev_3d5db553a92d3d0f0d71",
+            "ev_45c76611e33aa327524a",
+            "ev_4fa9cefa2934bfe8c62d",
+            "ev_5d303bb40c1e024b63a5",
+            "ev_6ad94ad6b102d503bd2d",
+            "ev_9f355793b252ae668ab4",
+            "ev_b564f4eaf89f3233f346",
+            "ev_bf42b423c9b8017864be",
+            "ev_cee9834241c6d5f89a48",
+            "ev_d4d4304d7f42f2c808e1",
+            "ev_e4a918553264d282cdd5",
+            "ev_e9efb8056047b4ab5eb2",
+            "ev_f68f7654583b49cb7832",
+            "ev_fc51717eb8471d3fb38d",
+            "ev_fc8fff9ed8963ad7b2c5",
+            "ev_fdf0b008c78ed62ab520"
+          ],
+          "symbols": [
+            "demo.BatchService#process1(java.util.List<Demo>)",
+            "demo.BatchService#process10(java.util.List<Demo>)",
+            "demo.BatchService#process2(java.util.List<Demo>)",
+            "demo.BatchService#process3(java.util.List<Demo>)",
+            "demo.BatchService#process4(java.util.List<Demo>)",
+            "demo.BatchService#process5(java.util.List<Demo>)",
+            "demo.BatchService#process6(java.util.List<Demo>)",
+            "demo.BatchService#process7(java.util.List<Demo>)",
+            "demo.BatchService#process8(java.util.List<Demo>)",
+            "demo.BatchService#process9(java.util.List<Demo>)"
+          ],
+          "primaryFindingId": "finding_41872dc35f0252c2f0c1",
+          "primaryEvidenceId": "ev_cee9834241c6d5f89a48",
+          "evidenceScope": "target"
+        },
+        {
+          "id": "ins_e7c40dd767348ebe1417c9d3dab4f353",
+          "conceptId": "spring.transaction-boundary",
+          "title": "Spring 事务边界与代理入口",
+          "changeType": "new",
+          "importance": "high",
+          "knowledgeStatus": "new-to-user",
+          "summary": "本轮新增 1 个代码位置。",
+          "whyItMatters": "当前方法标有 @Transactional。它从事务代理外部进入时，代理负责开启、提交或回滚事务。",
+          "nextAction": "优先检查 demo.TxService#save(String)：从另一个 Bean 调用该方法并断言回滚行为；同时测试同类 this 调用路径。",
+          "severity": "medium",
+          "occurrenceCount": 1,
+          "newOccurrenceCount": 1,
+          "continuingOccurrenceCount": 0,
+          "resolvedOccurrenceCount": 0,
+          "findingIds": [
+            "finding_5888e1001e1681319262"
+          ],
+          "evidenceIds": [
+            "ev_3d79bc76223d57b70fb9",
+            "ev_dd179a115553189c60f4"
+          ],
+          "symbols": [
+            "demo.TxService#save(String)"
+          ],
+          "primaryFindingId": "finding_5888e1001e1681319262",
+          "primaryEvidenceId": "ev_dd179a115553189c60f4",
+          "evidenceScope": "target"
+        },
+        {
+          "id": "ins_f4872fb26f31bc169ea4524677837256",
+          "conceptId": "spring.transaction-proxy",
+          "title": "Spring 事务代理与同类调用",
+          "changeType": "new",
+          "importance": "high",
+          "knowledgeStatus": "new-to-user",
+          "summary": "本轮新增 1 个代码位置。",
+          "whyItMatters": "当前代码在同一个类里直接调用本类标有 @Transactional 的方法。同类内部调用不经过代理（this 引用直接指向目标对象），事务拦截器没有机会介入。",
+          "nextAction": "优先检查 demo.TxService#submit(String)：通过真实 Bean 的外部入口测试回滚/传播行为；检查自调用是否绕过所需代理。",
+          "severity": "medium",
+          "occurrenceCount": 1,
+          "newOccurrenceCount": 1,
+          "continuingOccurrenceCount": 0,
+          "resolvedOccurrenceCount": 0,
+          "findingIds": [
+            "finding_939bdf39e5c09dfec91c"
+          ],
+          "evidenceIds": [
+            "ev_3d79bc76223d57b70fb9",
+            "ev_dd179a115553189c60f4",
+            "ev_e10c2826051f137af702"
+          ],
+          "symbols": [
+            "demo.TxService#submit(String)"
+          ],
+          "primaryFindingId": "finding_939bdf39e5c09dfec91c",
+          "primaryEvidenceId": "ev_e10c2826051f137af702",
+          "evidenceScope": "target"
+        }
+      ],
+      "resolvedInsights": [],
+      "coverageSummary": {
+        "status": "complete",
+        "unknownCount": 10,
+        "reasons": [
+          {
+            "path": "BatchService.java",
+            "code": "JAVA_CALL_UNRESOLVED",
+            "message": "外部、生成或复杂接收者的运行目标未解析。"
+          },
+          {
+            "path": "BatchService.java",
+            "code": "JAVA_CALL_UNRESOLVED",
+            "message": "外部、生成或复杂接收者的运行目标未解析。"
+          },
+          {
+            "path": "BatchService.java",
+            "code": "JAVA_CALL_UNRESOLVED",
+            "message": "外部、生成或复杂接收者的运行目标未解析。"
+          },
+          {
+            "path": "BatchService.java",
+            "code": "JAVA_CALL_UNRESOLVED",
+            "message": "外部、生成或复杂接收者的运行目标未解析。"
+          },
+          {
+            "path": "BatchService.java",
+            "code": "JAVA_CALL_UNRESOLVED",
+            "message": "外部、生成或复杂接收者的运行目标未解析。"
+          },
+          {
+            "path": "BatchService.java",
+            "code": "JAVA_CALL_UNRESOLVED",
+            "message": "外部、生成或复杂接收者的运行目标未解析。"
+          },
+          {
+            "path": "BatchService.java",
+            "code": "JAVA_CALL_UNRESOLVED",
+            "message": "外部、生成或复杂接收者的运行目标未解析。"
+          },
+          {
+            "path": "BatchService.java",
+            "code": "JAVA_CALL_UNRESOLVED",
+            "message": "外部、生成或复杂接收者的运行目标未解析。"
+          },
+          {
+            "path": "BatchService.java",
+            "code": "JAVA_CALL_UNRESOLVED",
+            "message": "外部、生成或复杂接收者的运行目标未解析。"
+          },
+          {
+            "path": "BatchService.java",
+            "code": "JAVA_CALL_UNRESOLVED",
+            "message": "外部、生成或复杂接收者的运行目标未解析。"
+          }
+        ]
+      },
+      "changeSummary": "相对基线：新增 2 个文件、修改 0 个、删除 0 个；新增风险 12 项、持续 0 项、移除 0 项。4 个文件完成解析，12 项发现（JPA_CALL_IN_LOOP 10、TRANSACTION_BOUNDARY 1、TX_SELF_INVOCATION 1），0 个解析失败。",
+      "pathImpacts": {
+        "added": [
+          "BatchService.java",
+          "TxService.java"
+        ],
+        "modified": [],
+        "deleted": []
+      },
+      "newFindingIds": [
+        "finding_41872dc35f0252c2f0c1",
+        "finding_4a8c5c04321a04f3b79b",
+        "finding_53e3292285e7479725e1",
+        "finding_5888e1001e1681319262",
+        "finding_67c201ebc1268b89d518",
+        "finding_875439338b5beb526e63",
+        "finding_939bdf39e5c09dfec91c",
+        "finding_bfca5636a3e1513858f0",
+        "finding_cde657a2823371e6433b",
+        "finding_d4fca68e674fd17e882d",
+        "finding_db4e785d1d2737949293",
+        "finding_fbec3901d320952bf913"
+      ],
+      "continuingFindingIds": [],
+      "removedFindingIds": [],
+      "removedFindingTitles": [],
+      "evidenceRefs": [
+        "ev_0437846599a77a568d22",
+        "ev_12f54b36892fc710d420",
+        "ev_1b597b3959174bcc640d",
+        "ev_1b99c32284874fbccd73",
+        "ev_268b27efbae689c0c5c6",
+        "ev_355f6ef015937844df00",
+        "ev_3d5db553a92d3d0f0d71",
+        "ev_3d79bc76223d57b70fb9",
+        "ev_45c76611e33aa327524a",
+        "ev_4fa9cefa2934bfe8c62d",
+        "ev_5d303bb40c1e024b63a5",
+        "ev_6ad94ad6b102d503bd2d",
+        "ev_9f355793b252ae668ab4",
+        "ev_b564f4eaf89f3233f346",
+        "ev_bf42b423c9b8017864be",
+        "ev_cee9834241c6d5f89a48",
+        "ev_d4d4304d7f42f2c808e1",
+        "ev_dd179a115553189c60f4",
+        "ev_e10c2826051f137af702",
+        "ev_e4a918553264d282cdd5",
+        "ev_e9efb8056047b4ab5eb2",
+        "ev_f68f7654583b49cb7832",
+        "ev_fc51717eb8471d3fb38d",
+        "ev_fc8fff9ed8963ad7b2c5",
+        "ev_fdf0b008c78ed62ab520"
+      ],
+      "unknownCoverage": [
+        {
+          "path": "BatchService.java",
+          "code": "JAVA_CALL_UNRESOLVED",
+          "message": "外部、生成或复杂接收者的运行目标未解析。"
+        },
+        {
+          "path": "BatchService.java",
+          "code": "JAVA_CALL_UNRESOLVED",
+          "message": "外部、生成或复杂接收者的运行目标未解析。"
+        },
+        {
+          "path": "BatchService.java",
+          "code": "JAVA_CALL_UNRESOLVED",
+          "message": "外部、生成或复杂接收者的运行目标未解析。"
+        },
+        {
+          "path": "BatchService.java",
+          "code": "JAVA_CALL_UNRESOLVED",
+          "message": "外部、生成或复杂接收者的运行目标未解析。"
+        },
+        {
+          "path": "BatchService.java",
+          "code": "JAVA_CALL_UNRESOLVED",
+          "message": "外部、生成或复杂接收者的运行目标未解析。"
+        },
+        {
+          "path": "BatchService.java",
+          "code": "JAVA_CALL_UNRESOLVED",
+          "message": "外部、生成或复杂接收者的运行目标未解析。"
+        },
+        {
+          "path": "BatchService.java",
+          "code": "JAVA_CALL_UNRESOLVED",
+          "message": "外部、生成或复杂接收者的运行目标未解析。"
+        },
+        {
+          "path": "BatchService.java",
+          "code": "JAVA_CALL_UNRESOLVED",
+          "message": "外部、生成或复杂接收者的运行目标未解析。"
+        },
+        {
+          "path": "BatchService.java",
+          "code": "JAVA_CALL_UNRESOLVED",
+          "message": "外部、生成或复杂接收者的运行目标未解析。"
+        },
+        {
+          "path": "BatchService.java",
+          "code": "JAVA_CALL_UNRESOLVED",
+          "message": "外部、生成或复杂接收者的运行目标未解析。"
+        }
+      ],
+      "suggestedChecks": [
+        {
+          "insightId": "ins_748529e7ebd686b26e5dfca01e3ecb75",
+          "findingId": "finding_41872dc35f0252c2f0c1",
+          "ruleId": "JPA_CALL_IN_LOOP",
+          "symbol": "demo.BatchService#process5(java.util.List<Demo>)",
+          "nextCheck": "用多条输入记录真实 SQL 次数与响应时间；比较批量查询、缓存或 join/fetch 方案。"
+        },
+        {
+          "insightId": "ins_e7c40dd767348ebe1417c9d3dab4f353",
+          "findingId": "finding_5888e1001e1681319262",
+          "ruleId": "TRANSACTION_BOUNDARY",
+          "symbol": "demo.TxService#save(String)",
+          "nextCheck": "从另一个 Bean 调用该方法并断言回滚行为；同时测试同类 this 调用路径。"
+        },
+        {
+          "insightId": "ins_f4872fb26f31bc169ea4524677837256",
+          "findingId": "finding_939bdf39e5c09dfec91c",
+          "ruleId": "TX_SELF_INVOCATION",
+          "symbol": "demo.TxService#submit(String)",
+          "nextCheck": "通过真实 Bean 的外部入口测试回滚/传播行为；检查自调用是否绕过所需代理。"
+        }
+      ],
+      "conceptRefs": [
+        "jpa.query-amplification",
+        "spring.transaction-boundary",
+        "spring.transaction-proxy"
+      ],
+      "debtDelta": {
+        "modelVersion": "debt-model-v2",
+        "before": 0,
+        "after": 7,
+        "delta": 7,
+        "bindingsBefore": 0,
+        "bindingsAfter": 12,
+        "conceptsBefore": 0,
+        "conceptsAfter": 3
+      },
+      "limitations": []
+    }
+  }
+}

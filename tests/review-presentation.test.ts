@@ -179,3 +179,50 @@ describe('T302 Phase 7: review presentation (plan §12/§15)', () => {
     expect(text).not.toContain('需要关注');
   });
 });
+
+describe('T302: gate semantics survive insight aggregation (plan §16, Case 8)', () => {
+  it('partial coverage with zero findings is still incomplete — never pass', () => {
+    const report = makeReport([], { newFindingIds: [] });
+    report.status = 'partial';
+    report.limitations = ['1 个文件语法解析失败，规则未应用于这些文件。'];
+    const record = buildRecord(report, emptyLearningState(), emptyLearningState());
+    expect(record.gate.state).toBe('incomplete');
+    expect(record.gate.reasons.some(r => r.includes('partial'))).toBe(true);
+    expect(record.output.coverageSummary.status).toBe('partial');
+  });
+
+  it('unknown coverage keeps the gate at needs_human and stays visible after aggregation', () => {
+    const finding = makeFinding('n1', 'jpa.query-amplification', 'S.loop');
+    const after = stateWith(makeBinding('b1', 'jpa.query-amplification', 'unassessed'));
+    const record = buildRecord(makeReport([finding], { newFindingIds: ['n1'] }, 4), emptyLearningState(), after);
+    expect(record.gate.state).toBe('needs_human');
+    expect(record.gate.reasons.some(r => r.includes('4 项未知/未解析覆盖'))).toBe(true);
+    expect(record.output.coverageSummary.unknownCount).toBe(4);
+    // The concept-phrased headline keeps finding counts as detail.
+    const headline = record.gate.reasons.find(r => r.includes('风险概念'))!;
+    expect(headline).toContain('1 个新的风险概念');
+    expect(headline).toContain('1 个具体代码位置');
+  });
+
+  it('blocking only under explicit enforce policy — aggregation never changes gate policy', () => {
+    const finding = makeFinding('n1', 'jpa.query-amplification', 'S.loop');
+    const after = stateWith(makeBinding('b1', 'jpa.query-amplification', 'unassessed'));
+    const report = makeReport([finding], { newFindingIds: ['n1'] });
+    const reportOnly = buildRecord(report, emptyLearningState(), after);
+    expect(reportOnly.gate.blocking).toBe(false);
+    const enforced = buildReviewRecord({
+      session: {
+        schemaVersion: '0.1', reviewId: '', workspace: '/tmp/ws', base: null,
+        baseline: { id: 'snap-base', workspaceId: 'ws-test', files: [], gitHead: null, gitBase: null, ref: null },
+        createdAt: AT,
+      },
+      report, reviewId: REVIEW_ID,
+      versions: { engineVersion: '0.1.0', ruleSetVersion: '1.0.0', protocolVersion: '0.1', adapterVersion: '0.1.0', surface: 'agent-mcp' },
+      learningStateBefore: emptyLearningState(), learningStateAfter: after,
+      debtBefore: debtSummary(emptyLearningState()), debtAfter: debtSummary(after),
+      gateBlocking: true,
+    });
+    expect(enforced.gate.blocking).toBe(true);
+    expect(enforced.gate.state).toBe(reportOnly.gate.state);
+  });
+});
