@@ -49,7 +49,7 @@ CST 分析不做类型解析。同名同参数个数重载、Lambda/方法引用
 - gate 策略：默认 `report-only`（永不阻塞）；仅 `XRAY_AGENT_GATE=enforce` 时非 pass 关口携带 `blocking:true`。partial/failed/unknown 不会包装成 pass。
 - 出错语义:域错误在 envelope（`status:'error'` + code/exitCode，MCP `isError:true`）；协议错误走 JSON-RPC 错误码（-32700 坏 JSON、-32601 未知方法、-32602 未知工具/坏参数）。取消（notifications/cancelled）返回 CANCELLED（130 语义），绝不返回伪造 complete。单条消息上限 1MB。
 - 隐私:源码只经 `xray_evidence` 进入工具通道（source-data 包裹 + 逐行脱敏）；恶意源码文本不进入摘要/gate/建议（注入遏制测试锁定）。审查会话基线缓存含源码明文，存用户数据目录 `workspaces/<id>/review-sessions/`（0600/0700），随 `deleteData('reviews'|'all')` 清除。
-- 限制：宿主自动触发（Claude Code Stop/PostToolUse hook）为 opt-in 规划项，当前版本需 Agent 显式调用工具；Codex CLI 宿主完整闭环实测待其上游可用后补记；`xray_review_finish` 的 base 参数走 git 基线时会话基线缓存不参与对比。
+- 限制：宿主自动触发（Claude Code Stop/PostToolUse hook）为 opt-in 规划项，当前版本需 Agent 显式调用工具；Codex CLI 宿主闭环已实测通过（E035，2026-09-25）——注意 `codex exec`（headless）默认审批策略会拒绝 MCP 工具调用（"approval policy is never"），需加 `--dangerously-bypass-approvals-and-sandbox`，交互模式 `codex` 当场审批即可；注册条目可能因 `~/.codex/config.toml` 被外部工具重写而丢失，用 `codex mcp list` 核对后重新 `codex mcp add`；`xray_review_finish` 的 base 参数走 git 基线时会话基线缓存不参与对比。
 
 ## 已知限制
 

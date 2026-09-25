@@ -588,3 +588,21 @@
 - limitations:Insight 仅覆盖触达变更文件的 finding（§17 事实层保持不动）；resolved 证据属基线快照、xray_evidence 无法按目标报告回源；occurrence-increase 型升级不做推断（当前 diff 事实不足）；analyzer severity 全 medium 使 importance 区分度受限；CLI/VSCode review 视图未做（渲染器已备好复用）；Codex 宿主实测仍属 T301d 搁置项，与本条无关。
 - review_mode:self → independent（补记）;checker:独立 Checker agent（全新上下文，aeb1d212b47641936）;supersedes:null。
 - checker_addendum（2026-09-25）：独立 Checker 复查结论**通过**——§21 十二条禁止项全部遵守（analyzer diff 为空、insights 无 LLM/随机/时钟/网络、adapter 零聚合、unknown≠pass、presentation 不落盘）；DoD 抽查 9 项均有代码/测试证据；before/after fixture 真实性核对通过（newFindingIds 12 项逐项相等、checks 12→3、debt 24→7）；6 个目标测试文件独立实测 59/59 通过；§27 实施记录抽查 5 条与实现一致。低级别备注 2 条：①全量 verify/bench 未由 Checker 复跑——已在其复查后独立重跑确认（npm run verify exit 0、158/158（20 文件）、oracle 通过，本次补记时实测）；②exposure 的 occurrence 代理含 stale 绑定——计划 §27.9-4 已诚实披露，非缺陷。零中/高级别发现。
+
+## E035 — T301d Codex CLI 第二宿主实测：会话内自主调用双轮 review 闭环（V04-1 双宿主收口）
+
+- kind:test;recorded_at:2026-09-25T18:59+08:00;checkpoint_revision:r28。
+- claim:Codex 上游代理恢复（探测 `codex exec "reply PONG" --skip-git-repo-check` 返回 PONG）后,发现并修复 `~/.codex/config.toml` 中 code-xray 注册丢失（期间配置被外部重写,重新 `codex mcp add` → enabled）;发现并绕过 headless 审批坑（默认 exec 拒绝会话内 MCP 调用:"approval policy is never",需 `--dangerously-bypass-approvals-and-sandbox`）。随后 codex exec 会话内 LLM 自主经 MCP 工具完成双轮闭环(与 E032 同语义,范围差异见 limitations):review_start(基线 `ec46f53e147569cb702932eeb600a82c6f3f508c762074c99c2a945ea1953d17` 与冻结 fixture/E027/E028/E032 逐字符一致,36 文件)→修改 OrderService 新增 auditAll 循环→review_finish(R1=`rev_abc7b15ebc0ef642470a9bb7fd9d02be`,new=1 即 `finding_d133fd902f20b89fe741`——与 E032 Claude 宿主同一 finding ID,JPA_CALL_IN_LOOP 锚定 auditAll,归入 Insight `ins_7315294b…` 概念 jpa.query-amplification,gate=needs_human 非阻塞 report-only,debt 0→15.62 v2)→再修改 saveAll 修复→重新 start/finish(R2=`rev_dee81835…`,JPA_CALL_IN_LOOP 6→5、总 findings 28→27、debt 15.62→14.59;diff 计数为 0 系提示词使 S2 基线捕获于修改之后,baseline==target,宿主 LLM 主动指出)→review_read(R1)返回 stale=true、stalePaths 指向被改文件、gate 降级 incomplete、reason 明示"结论不代表当前代码"。跨宿主确定性成立(同基线 snapshotId、同 finding ID)。
+- task:T301(T301d);acceptance:V04-1(Codex 第二宿主"修改→分析→再修改→重扫"实测,双宿主硬条件达成)、V04-3 部分(标识/快照核对/过期/持久恢复)、V04-2 部分(过期语义诚实不伪装)、V04-4 部分(gate 全程 report-only)。
+- operator:20260925-claude-t301d(codex exec 宿主内 LLM 自主调用,用户在场并授权收口范围)。
+- subject_snapshot:base_commit=185246d(r27 链头,工作树干净);dist/agent.js sha256=38ed0f1406b6d1d23f3b8a550882e72391098774dfdc14e1d6081f93a613eca9(r27 源码构建,无源码新于产物);/tmp/xray-v04-codex(36 文件工作副本,OrderService.java 初始 sha256=b23f786cec19cc60d46bd5f76b7a268db5c541d6c9b0741146dc86da3d016987,实测后已清理);~/.codex/config.toml(code-xray 注册条目)。
+- environment:macOS arm64、Node v22.14.0、codex-cli 0.155.1、CC Switch 本地代理(127.0.0.1:15721,已恢复)、`--dangerously-bypass-approvals-and-sandbox --skip-git-repo-check`、默认 LocalStore(~/Library/Application Support/code-xray,与 E032 同一数据目录)。
+- invocation:`codex exec "reply PONG" --skip-git-repo-check`;`codex mcp add code-xray -- node <repo>/dist/agent.js && codex mcp list`;`codex exec --dangerously-bypass-approvals-and-sandbox "…xray_capabilities…"`;`codex exec --dangerously-bypass-approvals-and-sandbox --skip-git-repo-check -o /tmp/e035-quick-last.md "…六步双轮闭环…"`(工作目录 /tmp/xray-v04-codex)。
+- expected:上游探测返回 PONG;注册后 enabled;会话内 MCP 调用成功且 capabilities status=ok;双轮闭环各步返回与 E031/E032 同语义断言一致(基线 snapshotId 与冻结值一致、新 finding 锚定 auditAll、gate needs_human 非阻塞、修复后计数下降、旧审查 stale+incomplete);无一处 partial/unknown/过期被包装为通过。
+- actual:全部成立(详见 artifacts/evidence/E035/codex-host-session-transcript.md 前置探测+六步序列);跨宿主确定性额外成立(ec46f53e… 基线与 finding_d133fd90… 两宿主逐字符一致);第二轮 diff 计数为 0 的原因被宿主 LLM 如实指出(基线捕获顺序),未伪装成 removed 检出。
+- exit_code:not_applicable(宿主内工具调用);codex exec 进程均正常结束。
+- result:passed(Codex 第二宿主 V04-1 闭环;双宿主硬条件达成)。
+- limitations:explain/evidence 未在本 Codex 会话内复跑("读取证据"子步骤由 E032 宿主实测+E027/E030 同一二进制契约测试覆盖);removed 归因未在 Codex 侧演示(E031 断言+E032 步骤 7 覆盖,本轮经绝对计数可见修复);跨会话幂等未在 Codex 复跑(E029/E032 步骤 9 覆盖,本轮 review_read reused=true 佐证);用户明确指示不再补跑、按本次实测范围收口(D014);转录为摘要级(完整返回在 codex 会话记录);codex exec 依赖 bypass 审批参数与 CC Switch 代理存活。
+- review_mode:self-separated;checker:20260925-claude-t301d。
+- artifacts:artifacts/evidence/E035/codex-host-session-transcript.md(sha256=326676c380dae3909cf9a924e7a2086cd842fa42a42f6c662a6de334e4e5b433)。
+- supersedes:null。

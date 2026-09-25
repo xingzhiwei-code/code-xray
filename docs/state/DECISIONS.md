@@ -139,3 +139,15 @@
 - evidence:E034;affects:T302、T301（review 工具输出）、AC05/AC06（债务展示）、V04-2/3/4（工具契约）。
 - supersedes:null。
 - revisit_when:接入 LLM 增强表述时（只能建立在本结构化事实层之上）;或第二个 Surface（CLI/VSCode）需要 review 视图时复用 presentation。
+
+## D014 — V04-1 按 Codex 实测范围收口（用户授权）
+
+- 状态:accepted;日期:2026-09-25;提出者:用户当前明确指示（"不用再验证了，刚刚已经验证过了，就直接文档标记收口即可"）;checkpoint_revision:r28。
+- context:Codex 上游恢复后已在 codex exec 宿主会话内实测双轮闭环（E035:基线→修改→审查→再修改→重扫→旧审查 stale,跨宿主确定性成立）,但该次快速验证的范围与 E032 九步存在三处差异:explain/evidence 未在 Codex 会话内复跑、removed 归因未演示（提示词顺序致第二轮 diff 为空,修复效果经绝对计数可见）、跨会话幂等未复跑。V04_ACCEPTANCE 规则为"有缺口不得标 passed"，严格字面执行需补跑一轮完整九步。
+- options:(a) 补跑完整九步 codex exec 闭环再收口——最严格,但用户明确指示不再验证;(b) 按实测范围收口,差异如实登记在 E035 limitations 与 V04-1 备注,三个差异子步骤均已有同二进制其他通道证据（E032 宿主实测/E031 断言/E029/E030 契约测试）——采纳;(c) 保持 V04-1 open——违背用户当前明确授权。
+- decision:V04-1 标记 passed（双宿主实测达成）,T301/T301d → done;收口范围以 E035 实际断言为准,三处差异不隐藏、写入验收映射备注。
+- reason:双宿主硬条件的核心语义（两个不同宿主内 LLM 自主完成修改→分析→再修改→重扫,确定性结果一致,差异只来自宿主行为）已被 E035 直接证明;未复跑的三个子步骤均作用于同一 dist/agent.js 且已有独立证据覆盖,补跑的边际信息量低;用户为验收授权人,明确选择收口。
+- consequences:V04-1 的 passed 带有书面范围备注;若未来审计 V04 或 Codex 侧出现 explain/evidence/removed 相关缺陷,不得以"V04-1 passed"抗辩,应先补跑完整九步。
+- evidence:E035;affects:T301、V04-1。
+- supersedes:null。
+- revisit_when:V04 被独立审计,或 Codex 宿主出现与 explain/evidence/removed 归因相关的缺陷报告时。

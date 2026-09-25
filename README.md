@@ -49,7 +49,7 @@ npm run build:agent        # 产出 dist/agent.js
 ```
 
 **Claude Code**：项目根 `.mcp.json` 已配置；或 `claude mcp add code-xray -- node <绝对路径>/dist/agent.js`。
-**Codex CLI**：`codex mcp add code-xray -- node <绝对路径>/dist/agent.js`。
+**Codex CLI**：`codex mcp add code-xray -- node <绝对路径>/dist/agent.js`。交互模式 `codex` 中 MCP 调用当场审批；headless `codex exec` 需加 `--dangerously-bypass-approvals-and-sandbox`，否则工具调用会被审批策略拒绝。
 
 八个工具（全部返回 `{schemaVersion,status,data|error}` envelope）：
 

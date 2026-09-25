@@ -1,6 +1,6 @@
 # Backlog：任务状态的唯一来源
 
-当前 revision：r27（T302 Review Insight Layer v0.2 done，E034；r26 hook opt-in + V04 验收映射 + 独立 Checker E033——T301d 仅剩 Codex 实测，用户指示搁置）。v0.1 必需任务 10/10 done；T011 done；T101 in_progress（VS Code 交互待重设计）；T201 in_progress（挂起：V03-2 评估债 + JetBrains 壳环境阻塞）；T301 in_progress（T301a/b/c done；T301d 仅剩 Codex 第二宿主实测（V04-1 唯一缺口，搁置中））；T302 done。拆分任务须保留原 ID、依赖和 AC 追踪。
+当前 revision：r28（T301 done——Codex 第二宿主实测收口 V04-1（E035/D014），V04-1—V04-4 全部 passed；r27 T302 Review Insight Layer v0.2 done，E034）。v0.1 必需任务 10/10 done；T011 done；T101 in_progress（VS Code 交互待重设计）；T201 in_progress（挂起：V03-2 评估债 + JetBrains 壳环境阻塞）；T301 done；T302 done。拆分任务须保留原 ID、依赖和 AC 追踪。
 
 状态与更新规则见 [HANDOFF_PROTOCOL](../HANDOFF_PROTOCOL.md)，验收原文见 [PRD](../PRD.md)。单个任务只负责其交付范围内的 AC 子项，并在 Evidence 写明覆盖边界；完整 AC 的跨任务汇总由 T010 验收。不得将下游能力作为上游任务的隐含完成条件。
 
@@ -95,7 +95,7 @@
 |---|---|---|---|---|
 | T101 | v0.2 VS Code：侧栏、Hover/CodeLens、选中解释、Diff 审查与完整学习/债务闭环 | in_progress | T010 | PRD 第 8.3 节 V02-1—V02-4；继承 v0.1，同快照/能力结果一致，真实编辑器生命周期验收 |
 | T201 | v0.3 JetBrains：完整 IDE 闭环、PSI 事实补充及 Bean/事务/JPA 三类深化 | in_progress（按 D012 挂起：V03-2 评估债保留；JetBrains 壳环境阻塞） | T101 | PRD 第 8.4 节 V03-1—V03-4；三类深化有正反未知案例；增强事实注明来源，规则留在 Engine |
-| T301 | v0.4 Agent：两宿主接入、修改后审查、证据读取、可配置关口与报告恢复 | in_progress（按 D012 提前于 T201 完成启动；拆分为 T301a—T301d） | Engine/Protocol（v0.1 已冻结）；对 T201 的顺序依赖经 D012 授权豁免 | PRD 第 8.5 节 V04-1—V04-4；实测基线→改动→审查→修正→再验，未知/失败不伪装通过 |
+| T301 | v0.4 Agent：两宿主接入、修改后审查、证据读取、可配置关口与报告恢复 | done（E027—E035：MCP server 8 工具 + Claude Code（E032）与 Codex CLI（E035）双宿主实测闭环 + hook opt-in（E033）+ V04-1—V04-4 passed（V04-1 带 D014 范围备注）） | Engine/Protocol（v0.1 已冻结）；对 T201 的顺序依赖经 D012 授权豁免 | PRD 第 8.5 节 V04-1—V04-4；实测基线→改动→审查→修正→再验，未知/失败不伪装通过 |
 | T302 | Review Insight Layer v0.2：概念级 Insight 聚合、Review schema 0.2、Cognitive Debt v2、确定性 presentation（用户提供计划驱动） | done（E034：verify 0/158-158、oracle/bench 通过、before/after 实证 checks 12→3、debt 24.0→7.0；计划 DoD 22/22） | T301b（Review 会话）；计划文件 docs/plans/CODE_XRAY_REVIEW_INSIGHT_LAYER_V0.2_PLAN.md | 计划 §19 Case 1—13 全部有测试；§28 DoD 全勾；不接 LLM、不新增 Java Rule、gate/幂等/stale/注入遏制/离线保证零回归 |
 
 ### T301 子任务拆分（Loop A—D，2026-09-22）
@@ -105,7 +105,7 @@
 | T301a | MCP stdio server（手写 JSON-RPC 2.0 + NDJSON，零新依赖）+ capabilities/scan/evidence 三工具 + envelope + 构建/检查脚本 + 契约测试 | done（E027 机器验证 + E028 Claude Code 真实宿主闭环；Codex 实测归 T301d） | V04-1（单宿主部分）、V04-2 部分 |
 | T301b | Review 会话：review_start/finish、ReviewRecord 持久化、幂等/过期、explain/summary 工具、gate（默认 report-only） | done（E029：9 契约用例 + 二进制 smoke；宿主内双轮闭环归 T301d） | V04-1、V04-3 |
 | T301c | 契约加固：取消/超时/partial/failed、注入 fixture 与测试、消息上限、stderr 无敏感 | done（E030：10 契约用例 + injection fixture + 隐私矩阵；verify 115/115） | V04-2、V04-4 |
-| T301d | 双宿主验收：Claude Code + Codex CLI 实测完整闭环、hook opt-in、文档、独立检查 | in_progress（E031/E032/E033：演示+Claude 宿主闭环+hook opt-in+V04 映射+独立 Checker done；仅剩 Codex 宿主实测——V04-1 双宿主硬条件，用户指示搁置待环境） | V04-1—V04-4 |
+| T301d | 双宿主验收：Claude Code + Codex CLI 实测完整闭环、hook opt-in、文档、独立检查 | done（E031/E032/E033/E035：演示+Claude 宿主闭环+hook opt-in+V04 映射+独立 Checker+Codex 宿主实测（E035，V04-1 双宿主达成，范围备注 D014）） | V04-1—V04-4 |
 
 修改阶段顺序或压缩范围需要记录 Decision；阶段完成不自动代表后续阶段可用。
 
@@ -127,6 +127,8 @@
 - r14：用户报告“已经测试过了”，登记 E017；因缺少样本数、完成结果与是否到达证据查看，T010/AC12 保持 in_progress，不冒称通过。
 - r15：按用户要求提交本地 Git：bd26abe（Developer Profile 功能）+ 4b1fd41（状态回填）；`npm run verify` 通过。GitHub 凭据失效导致 push 失败，登记 E018，远端待重新认证后推送。
 - r16：用户确认“验证可以了，各个命令功能都正确”。E017 更新为 passed（单人验收），按 D010 将 T010 → done。v0.1 必需任务 10/10 done；V02（T101）解锁。远端推送仍因 GitHub 凭据失效阻塞。
+- r28：L027——T301d Codex 第二宿主实测收口：上游探测 PONG 成功、修复 config.toml 注册丢失、发现并绕过 codex exec 审批策略坑（需 --dangerously-bypass-approvals-and-sandbox）；codex exec 会话内 LLM 自主 MCP 调用六步双轮闭环通过（E035：基线 ec46f53e… 与冻结值逐字符一致、新 finding 与 E032 同 ID——跨宿主确定性成立、旧审查 stale+incomplete）。V04-1 → passed（范围备注 D014，用户授权按快速实测收口）；T301/T301d → done；V04-1—V04-4 全部 passed。零产品代码改动。
+- r27：L026——T302 Review Insight Layer v0.2 done（E034：verify 0/158-158、oracle/bench 通过、checks 12→3、debt 24.0→7.0、DoD 22/22、独立 Checker 通过）。
 - r26：L025——Stop hook opt-in（scripts/agent-review-hook.mjs + 4 契约用例，report-only 永 0/enforce 才 2/失败明示不可用）；docs/state/V04_ACCEPTANCE.md 验收映射（V04-2/3/4 passed，V04-1 open 仅剩 Codex）；独立 Checker（新上下文）"有保留通过"，其高级别发现（映射引用未落盘 E033/hook 无测试）本轮闭环；verify 0（119/119，16 文件，E033）。用户指示 Codex 实测搁置。
 - r25：L024——用户重启 Claude Code 会话后，宿主 LLM 自主调用完成双轮 review 闭环（E032 九步：基线→修改→审查→explain/evidence→再修改→重扫→旧审查 stale 降级→跨会话幂等同 reviewId）；V04-1 单宿主收口，Codex 侧仍 502。
 - r24：L023 完成 T301d 第一轮——scripts/demo-v04-double-loop.py 在真实 dist/agent.js MCP 通道上 13/13 断言通过（基线→修改→审查→证据→再修改→重扫 + 幂等 + 旧审查 stale/incomplete + removed 检出，E031，transcript 存 artifacts/evidence/E031/）；README +AI Agent 接入章节、SUPPORT +Agent Surface 章节。Codex 上游仍 502；当前 Claude 会话 server 为 Loop A 构建（3 工具），review 工具宿主实测需重启会话。
@@ -204,14 +206,13 @@
 - 下一步：补充三类规则的正/负/未知 fixture 与独立评估；建立 JetBrains 项目骨架；等待 V02 交互重设计需求。
 - 最后 revision：r19。
 
-### T301 — v0.4 Agent Integration（in_progress）
+### T301 — v0.4 Agent Integration（done）
 
-- owner：20260922-claude-v04；session：20260922-claude-v04；开始：2026-09-22。
-- 当前目标：T301d 仅剩 Codex 第二宿主实测（用户指示搁置；上游恢复后按 HANDOFF 流程执行并更新 V04_ACCEPTANCE）。
-- 已完成（待宿主实测收口）：apps/agent/{index.ts,host/{jsonrpc,mcp,bridge}.ts,tools/index.ts}；protocol +Envelope/Gate；scripts/build-agent.mjs+check-agent.mjs 入 verify 链；tests/agent-mcp.test.ts 10 用例（握手、tools/list、scan 27 findings、evidence 回源、域错误 envelope、协议错误码、parse error、stderr 纯净、跨进程确定性）；.mcp.json（Claude Code）；codex mcp add 全局注册。
-- 阻塞：Codex CLI 上游代理 502（CC Switch 本地代理→127.0.0.1:15721 失败）——V04-1 双宿主收口唯一缺口，用户 2026-09-23 指示搁置；Claude 宿主侧已收口（E032，8 工具会话实测）；探测命令与流程已写入 HANDOFF。
-- 下一步：用户重启 Claude Code 会话后宿主内跑真实 review 闭环并记录；Codex 恢复后同流程；Stop hook opt-in 设计；V04-1..4 映射 + 独立 Checker（新上下文）。
-- decisions：D011、D012；evidence：E027—E033；最后 revision：r26。
+- owner：20260925-claude-t301d（收口轮）；此前：20260922-claude-v04；开始：2026-09-22；完成：2026-09-25T19:00+08:00。
+- 完成依据：V04-1—V04-4 全部 passed（docs/state/V04_ACCEPTANCE.md）。双宿主实测：Claude Code（E032 九步）+ Codex CLI（E035 六步,范围备注 D014）；跨宿主确定性（同基线 snapshotId、同 finding ID）；hook opt-in（E033）；契约加固（E030）；独立 Checker"有保留通过"且发现闭环（E033）。
+- 交付：apps/agent/{index.ts,host/{jsonrpc,mcp,bridge}.ts,tools/index.ts}（8 工具 MCP stdio server,零新依赖）；protocol +Envelope/Gate/ReviewRecord 家族；engine +analyzeWithBaseline；storage +reviews/review-sessions；scripts/{build,check}-agent.mjs 入 verify 链；scripts/agent-review-hook.mjs；tests/agent-*.test.ts；fixtures/injection-java；.mcp.json；codex 全局注册（注意：注册可被外部工具重写 config.toml 丢失,E035 已重新登记）。
+- 限制：V04-1 Codex 侧为快速实测范围（explain/evidence、removed 归因、跨会话幂等未在 Codex 复跑,由同二进制其他证据覆盖——D014 书面备注,审计时按 revisit_when 补跑）；codex exec headless 需 --dangerously-bypass-approvals-and-sandbox 才能调用 MCP 工具；hook 宿主 settings.json 端到端触发留用户启用时验证。
+- decisions：D011、D012、D014；evidence：E027—E033、E035；最后 revision：r28。
 
 ### T302 — Review Insight Layer v0.2（done）
 

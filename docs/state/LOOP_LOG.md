@@ -410,3 +410,17 @@
 - 独立 Checker（补记）：全新上下文 Checker 复查 T302 变更集，结论**通过**（§21 禁止项全守、DoD 抽查 9 项有据、before/after 证据真实、59/59 目标用例独立实测、§27 记录与实现一致；零中/高发现，2 条低级别备注已处置：全量 verify 重跑确认 exit 0/158-158/oracle 通过，stale 暴露代理为已披露限制）。详见 E034 checker_addendum。
 - 下一步（可选）：CLI/VSCode review 视图复用 renderReviewPresentation；LLM 增强仅允许建立在 Insight 结构化层之上（D013 revisit_when）。
 - checkpoint completion：completed（r27 由本轮提交链承载）。
+
+## L027 — T301d Codex 第二宿主实测收口（V04-1 双宿主达成,T301 done）
+
+- checkpoint_revision：r28；checkpoint_status：completed。
+- 日期：2026-09-25；session/owner：20260925-claude-t301d。
+- 目标：Codex 上游恢复后完成 T301d 唯一剩余项——Codex CLI 第二宿主实测闭环,更新 V04_ACCEPTANCE,收口 T301。
+- 过程事实：探测 PONG 成功（CC Switch 代理已恢复）→ 发现 ~/.codex/config.toml 中 code-xray 注册丢失（期间被外部重写）,重新 codex mcp add → 发现 codex exec 默认审批策略拒绝会话内 MCP 调用（"approval policy is never"）,需 --dangerously-bypass-approvals-and-sandbox → 会话内 xray_capabilities 实测 ok → 六步双轮闭环实测通过（E035）。
+- 变更：零产品代码改动;仅证据与状态落盘——artifacts/evidence/E035/、EVIDENCE(E035)、DECISIONS(D014)、V04_ACCEPTANCE(V04-1→passed)、BACKLOG(T301/T301d→done)、SUPPORT/README(Codex 实测状态+exec 审批参数注意)、HANDOFF/CURRENT(r28)。
+- 验证：E035（宿主内自主调用;基线 ec46f53e… 与冻结值逐字符一致、finding_d133fd90… 与 E032 同 ID——跨宿主确定性成立;gate 全程 report-only;旧审查 stale+incomplete 诚实降级）。
+- 反思：宿主接入的"环境事实"（注册可被外部工具重写、headless 审批策略）与产品同等重要,已写入 HANDOFF 已知探索结果与 SUPPORT;快速验证提示词里 review_start 顺序错误导致 removed 未归因——诚实登记而非补跑（用户授权,D014）。
+- 任务状态：T301d done、T301 done（V04-1—V04-4 全部 passed,V04-1 带 D014 范围备注）;T101/T201 维持挂起。
+- outcome：done。
+- 下一步（可选,无阻塞）：CLI/VSCode review 视图复用 renderReviewPresentation;V03-2 评估债回补（D012 挂起项）;T101 交互重设计（需用户需求）。
+- checkpoint completion：completed（r28 由本轮提交承载）。

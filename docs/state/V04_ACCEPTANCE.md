@@ -1,6 +1,6 @@
 # V04 验收映射（T301 / PRD §8.5）
 
-制作：2026-09-23（r26 轮）；制作依据：PRD §8.5 验收原文 + E027—E033 证据链；独立 Checker 复查结论"有保留通过"，其唯一高级别发现（自动触发子项当时缺 E033 与契约测试）已在 r26 补齐闭环。
+制作：2026-09-23（r26 轮）；更新：2026-09-25（r28 轮，V04-1 Codex 侧收口，E035/D014）；制作依据：PRD §8.5 验收原文 + E027—E035 证据链；独立 Checker 复查结论"有保留通过"，其唯一高级别发现（自动触发子项当时缺 E033 与契约测试）已在 r26 补齐闭环。
 规则：每项列出"验收原文要点 → 证据 → 状态"；有缺口不得标 passed。状态汇总见文末。
 
 ## V04-1 — 两个不同宿主实测"修改→分析→读取证据→再修改→重扫"；相同输入与能力的确定性结果一致，差异只来自允许变化的表达/宿主行为
@@ -10,9 +10,9 @@
 | Claude Code 宿主内 LLM 自主调用完成九步双轮闭环（基线→修改 auditAll→审查 new=1→explain→evidence 回源→再修改 saveAll+restockOne→重扫 JPA_CALL_IN_LOOP 6→5 / TX_SELF_INVOCATION 5→6→旧审查 stale→跨会话幂等同 reviewId） | E032（artifacts/evidence/E032/host-session-transcript.md） | passed |
 | 工具链双轮闭环语义在真实构建产物 dist/agent.js 上 13/13 断言（含 removed 检出、幂等 reused、stale+incomplete 降级） | E031（artifacts/evidence/E031/） | passed |
 | 确定性：同快照跨进程 scan 结果除 analysisId/savedTo 外深度相等；宿主内 snapshotId 与契约测试一致（ec46f53e…） | E027（tests/agent-mcp.test.ts determinism 用例）、E028、E032 步骤 1 | passed |
-| **第二个宿主（Codex CLI）实测同一闭环** | 无——Codex 上游代理 502（CC Switch→127.0.0.1:15721），server 已注册 enabled 但 LLM 会话无法建立 | **open（用户决定搁置，T301 收口硬条件）** |
+| **第二个宿主（Codex CLI）实测同一闭环**（codex exec 会话内 LLM 自主 MCP 调用：基线 ec46f53e… 与冻结值一致→修改 auditAll→审查 new=1 同 E032 finding ID→再修改 saveAll→重扫 JPA_CALL_IN_LOOP 6→5 / 总 28→27→旧审查 stale+incomplete；跨宿主确定性成立） | E035（artifacts/evidence/E035/codex-host-session-transcript.md） | passed（范围备注见下，D014） |
 
-**V04-1 整体：open**（单宿主 passed；"两个不同宿主"未达成）。
+**V04-1 整体：passed**（两宿主实测达成）。范围备注（D014，用户授权收口）：Codex 侧快速实测未复跑 explain/evidence 回源、removed 归因（提示词顺序致第二轮 diff 为空，修复经绝对计数可见）与跨会话幂等三个子步骤；三者均作用于同一 dist/agent.js 且分别由 E032（宿主实测）、E031/E032（removed）、E029/E032（幂等）独立覆盖，差异如实登记于 E035 limitations，不隐藏。
 
 ## V04-2 — 初次启用、自动触发、重复请求、取消、超时、工具错误与不完整覆盖有契约测试；partial/failed/unknown 不被包装成审查通过
 
@@ -55,9 +55,9 @@
 
 | 验收 | 状态 |
 |---|---|
-| V04-1 | **open**——唯一缺口：Codex 第二宿主实测（用户 2026-09-23 决定搁置；环境恢复后按 HANDOFF"第一条可执行动作"补做） |
+| V04-1 | **passed**——双宿主实测达成（Claude Code E032 + Codex CLI E035）；Codex 侧范围备注见 V04-1 节（D014，用户 2026-09-25 授权按快速实测收口） |
 | V04-2 | passed |
 | V04-3 | passed |
 | V04-4 | passed |
 
-**T301 结论：不得 done**（V04-1 双宿主硬条件未达成）。其余全部验收项已有证据且无 unresolved failure；Codex 实测是唯一剩余缺口，解除方式为环境恢复后执行 HANDOFF 记录的既定流程。
+**T301 结论：done**（V04-1—V04-4 全部 passed，2026-09-25 r28；V04-1 带 D014 书面范围备注，未来审计或 Codex 侧 explain/evidence/removed 相关缺陷出现时按其 revisit_when 补跑完整九步）。
