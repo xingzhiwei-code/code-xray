@@ -25,12 +25,18 @@ const sha256 = (value: string) => createHash('sha256').update(value).digest('hex
 const SEVERITY_RANK: Record<Severity, number> = { high: 0, medium: 1, low: 2 };
 
 // ---- Importance (plan §6.1): transparent, testable, deterministic scoring ----
+// score = severity + changeType + knowledgeStatus weights, mapped by threshold:
+//   critical >= 7 (only reachable with severity 'high' — never inflated by
+//   medium-severity facts alone), high >= 5, medium >= 3, low < 3.
+// Worked examples: new+high+new-to-user=7 critical; new+medium+unassessed=5
+// high (plan §15 example); continuing+high+stale=5 high (fact-backed
+// escalation, §12); continuing+low+known=2 low (quiet).
 export const IMPORTANCE_WEIGHTS = {
   severity: { high: 3, medium: 2, low: 1 } as Record<Severity, number>,
-  changeType: { new: 2, continuing: 0, resolved: 0 } as Record<ReviewInsight['changeType'], number>,
+  changeType: { new: 2, continuing: 1, resolved: 0 } as Record<ReviewInsight['changeType'], number>,
   knowledgeStatus: { 'new-to-user': 2, unassessed: 1, stale: 1, learning: 0, known: 0 } as Record<ReviewInsight['knowledgeStatus'], number>,
 } as const;
-export const IMPORTANCE_THRESHOLDS = { critical: 6, high: 4, medium: 2 } as const;
+export const IMPORTANCE_THRESHOLDS = { critical: 7, high: 5, medium: 3 } as const;
 
 export function importanceScore(input: { severity: Severity; changeType: ReviewInsight['changeType']; knowledgeStatus: ReviewInsight['knowledgeStatus'] }): number {
   return IMPORTANCE_WEIGHTS.severity[input.severity]

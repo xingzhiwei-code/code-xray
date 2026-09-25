@@ -12,6 +12,7 @@ import { LocalStore } from '../../../packages/storage-local/index.js';
 import { debtSummary, emptyLearningState, learningCard, syncBindings, type LearningState } from '../../../packages/learning/engine.js';
 import { emptyDeveloperProfile, knowledgeGaps } from '../../../packages/developer-profile/engine.js';
 import { buildReviewRecord } from '../../../packages/insights/review.js';
+import { renderReviewPresentation } from '../../../packages/insights/presentation.js';
 import { snapshotWorkspace, stalePaths } from '../../../packages/workspace-local/index.js';
 import {
   SCHEMA_VERSION, VERSION, XrayError,
@@ -147,6 +148,8 @@ export interface ReviewFinishResult {
   stale: boolean;
   stalePaths: string[];
   analysisId: string;
+  /** Deterministic human-friendly first-screen rendering (plan §15); derived from the record, never a new fact source. */
+  presentation: string;
 }
 
 /**
@@ -173,7 +176,8 @@ export async function finishReview(path: string, sessionId: string, options: { b
     const existing = await local.loadReview<StoredReviewRecord>(workspacePath, existingId);
     if (existing) {
       const staleness = await stalenessOf(workspacePath, existing);
-      return { record: withStaleness(existing, staleness), reused: true, ...staleness, analysisId: existing.analysisId };
+      const record = withStaleness(existing, staleness);
+      return { record, reused: true, ...staleness, analysisId: existing.analysisId, presentation: renderReviewPresentation(record) };
     }
   }
   // Debt delta: bindings before this report vs after syncing to it. Both
@@ -195,7 +199,7 @@ export async function finishReview(path: string, sessionId: string, options: { b
     gateBlocking: gatePolicy() === 'enforce',
   });
   await local.saveReview(workspacePath, record);
-  return { record, reused: false, ...(await stalenessOf(workspacePath, record)), analysisId: report.analysisId };
+  return { record, reused: false, ...(await stalenessOf(workspacePath, record)), analysisId: report.analysisId, presentation: renderReviewPresentation(record) };
 }
 
 export function computeReviewId(workspaceId: string, targetSnapshotId: string): string {
@@ -209,7 +213,8 @@ export async function readReview(path: string, reviewId: string): Promise<Review
   const record = await store().loadReview<StoredReviewRecord>(workspacePath, reviewId);
   if (!record) throw new XrayError('NO_REVIEW', `没有找到审查记录 ${reviewId}。`, 2);
   const staleness = await stalenessOf(workspacePath, record);
-  return { record: withStaleness(record, staleness), reused: true, ...staleness, analysisId: record.analysisId };
+  const fresh = withStaleness(record, staleness);
+  return { record: fresh, reused: true, ...staleness, analysisId: record.analysisId, presentation: renderReviewPresentation(fresh) };
 }
 
 async function stalenessOf(workspacePath: string, record: StoredReviewRecord): Promise<{ stale: boolean; stalePaths: string[] }> {

@@ -113,6 +113,10 @@ describe('T301b: review session lifecycle', () => {
     expect(record.output.debtDelta.conceptsAfter).toBeGreaterThan(0);
     expect(record.gate.state).toBe('needs_human');
     expect(record.gate.blocking).toBe(false); // report-only default
+    // Phase 7: deterministic human-friendly first-screen rendering ships with the record.
+    expect(finish.data.presentation).toContain('Code X-Ray Review（schema 0.2）');
+    expect(finish.data.presentation).toContain('需要关注');
+    expect(finish.data.presentation).toContain('JPA 循环内查询放大');
     expect(record.gate.reasons.length).toBeGreaterThan(0);
     // Full report was persisted and is recoverable by analysisId.
     expect(record.analysisId).toMatch(/^[0-9a-f-]{36}$/);
@@ -146,6 +150,8 @@ describe('T301b: review session lifecycle', () => {
     expect(fresh.status).toBe('ok');
     expect(fresh.data.record.reviewId).toBe(reviewId);
     expect(fresh.data.stale).toBe(false);
+    expect(fresh.data.presentation).toContain('Code X-Ray Review');
+    expect(fresh.data.presentation).toBe(finish.data.presentation);
 
     writeFileSync(join(workspace, 'DemoBatch.java'), readFileSync(join(workspace, 'DemoBatch.java'), 'utf8') + '\n// touched again\n');
     const stale = await callTool(agent, 'r12', 'xray_review_read', { path: workspace, reviewId });

@@ -131,6 +131,11 @@ describe('T301c: prompt-injection containment (V04-4)', () => {
     const serialized = JSON.stringify({
       gate: record.gate, changeSummary: record.output.changeSummary,
       suggestedChecks: record.output.suggestedChecks, unknownCoverage: record.output.unknownCoverage,
+      // v0.2 channels: insights and the human-friendly presentation must stay
+      // injection-free too (concept metadata + analyzer-generated text only).
+      overview: record.output.overview, insights: record.output.insights,
+      resolvedInsights: record.output.resolvedInsights, coverageSummary: record.output.coverageSummary,
+      presentation: finish.data.presentation,
     });
     for (const marker of MALICIOUS_MARKERS) expect(serialized).not.toContain(marker);
   }, 150_000);
