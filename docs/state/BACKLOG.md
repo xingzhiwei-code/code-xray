@@ -97,6 +97,7 @@
 | T201 | v0.3 JetBrains：完整 IDE 闭环、PSI 事实补充及 Bean/事务/JPA 三类深化 | in_progress（按 D012 挂起：V03-2 评估债保留；JetBrains 壳环境阻塞） | T101 | PRD 第 8.4 节 V03-1—V03-4；三类深化有正反未知案例；增强事实注明来源，规则留在 Engine |
 | T301 | v0.4 Agent：两宿主接入、修改后审查、证据读取、可配置关口与报告恢复 | done（E027—E035：MCP server 8 工具 + Claude Code（E032）与 Codex CLI（E035）双宿主实测闭环 + hook opt-in（E033）+ V04-1—V04-4 passed（V04-1 带 D014 范围备注）） | Engine/Protocol（v0.1 已冻结）；对 T201 的顺序依赖经 D012 授权豁免 | PRD 第 8.5 节 V04-1—V04-4；实测基线→改动→审查→修正→再验，未知/失败不伪装通过 |
 | T302 | Review Insight Layer v0.2：概念级 Insight 聚合、Review schema 0.2、Cognitive Debt v2、确定性 presentation（用户提供计划驱动） | done（E034：verify 0/158-158、oracle/bench 通过、before/after 实证 checks 12→3、debt 24.0→7.0；计划 DoD 22/22） | T301b（Review 会话）；计划文件 docs/plans/CODE_XRAY_REVIEW_INSIGHT_LAYER_V0.2_PLAN.md | 计划 §19 Case 1—13 全部有测试；§28 DoD 全勾；不接 LLM、不新增 Java Rule、gate/幂等/stale/注入遏制/离线保证零回归 |
+| T303 | Developer Context & Relevance Gate v1：developer-profile-v1→developer-context-v1（provenance/freshness/observation/correction）、确定性 SKIP/LIGHT/FULL Gate、MCP xray_relevance、被动 Context 积累、指标（用户提供计划驱动） | in_progress（L028） | T302（ConceptKnowledgeState 复用）；计划文件 docs/plans/CODE_XRAY_T303_DEVELOPER_CONTEXT_RELEVANCE_GATE_V1_PLAN.md | 计划 §22 场景表全部有测试；§23 Case A—E E2E；§26 DoD 全勾；Gate 无 LLM；knowledgeGaps/Insight/Debt/gate 语义零回归；skip 默认安静 |
 
 ### T301 子任务拆分（Loop A—D，2026-09-22）
 
