@@ -606,3 +606,21 @@
 - review_mode:self-separated;checker:20260925-claude-t301d。
 - artifacts:artifacts/evidence/E035/codex-host-session-transcript.md(sha256=326676c380dae3909cf9a924e7a2086cd842fa42a42f6c662a6de334e4e5b433)。
 - supersedes:null。
+
+## E036 — T303 Developer Context & Relevance Gate v1：全链路验证与真实二进制 E2E
+
+- kind:test;recorded_at:2026-09-30T18:39+08:00;checkpoint_revision:r29。
+- claim:T303 计划（docs/plans/CODE_XRAY_T303_DEVELOPER_CONTEXT_RELEVANCE_GATE_V1_PLAN.md）Phase 1—8 全部落地且零回归：① developer-profile-v1→developer-context-v1（provenance 5 值/freshness 3 值/observation 聚合/correction 保留历史/preference 预留;迁移幂等、旧数据版本化读取、不伪造来源——自述 level=expert 迁移为 self-reported+low,verified-learning 保持 verified）;② toLegacyProfileView 使 knowledgeGaps 对 v1 数据输出逐字段不变（测试断言 deep-equal,T011 零回归）;③ packages/relevance 确定性 Gate（decideRelevance 纯函数、注入 now、规则版本 relevance-rules-v1、无 LLM/随机/网络）通过计划 §22 全部 14 场景;④ MCP 第 9 工具 xray_relevance（skip envelope 实测 253 字节 wire、quiet:true;light targets 可作 scan scope.selected;server instructions/scan/review_start 描述改为"先问相关性门,常规低风险不做完整分析"）;⑤ 被动观察只存聚合计数（存储中不出现文件名/任务原文,测试断言）;⑥ 决策日志 0600、有界 500、workspace 隔离、可 deleteData('relevance'|'all') 清除;false-skip 事实信号只在"最近一条是 skip 决策且分析发现新增风险"时追加一次;⑦ 指标经 xray_summary kind=relevance 与 xray relevance --stats 输出,useful-analysis-rate 诚实标注 v1 不估算。真实二进制演示（dist/agent.js 与 dist/cli.js 为本轮 verify 重建产物,sha256 记录于 transcript 头部）完成 §23 Case A—E:Case A skip（wire 253B vs 同工作区 xray_scan envelope 17059B=67.4 倍,§24.5 token 影响为实测事实）、Case B light（authorization boundary/existing auth abstraction/relevant symbols targets）、Case C full（transaction boundary/idempotency/state transition/data consistency）、Case D 自述 Spring 专家→self-reported/low 且后端任务 light 不 skip、Case E 修正后 spring 证据 3 条全保留+窗口内不 skip;skipRate 0.2/falseSkipSignals 0 如实输出。
+- task:T303;acceptance:计划 §22 场景表 14/14、§23 Case A—E、§26 DoD（见 BACKLOG T303 扩展字段逐项映射）;AC05/AC06 增强（画像语义诚实化）;V04-2/3/4 工具契约保持（agent-mcp/agent-contract/agent-review 全绿,gate 语义零变化）。
+- operator:20260930-claude-t303。
+- subject_snapshot:main 提交链 f37fd16(r28)→314bd73(Phase 1—3 域模型)→9f04770(Phase 5 Gate)→f01b5cf(Phase 4/6/7 接线)→f237682(Phase 8 E2E)→本状态提交;新增/修改 17 产品与测试文件;analyzer/insights/learning 聚合零改动（oracle 结果文件逐字节一致,仅时间戳变化已还原）。
+- environment:macOS arm64、Node v22.14.0、vitest 5.0.0、默认离线、XRAY_DATA_DIR=临时目录（演示与测试）。
+- invocation:npm run verify; npx vitest run（全量）; npx tsx evals/run.ts; npx tsx evals/bench.ts; node scripts/demo-t303-relevance.mjs。
+- expected:verify exit 0;全量测试 235/235（26 文件,新增 69 用例）;冻结 oracle 通过（analyzer 无退化）;bench AC12 达标;演示 Case A—E 输出与计划 §23 一致;任何 skip 输出不得携带完整分析、任何自述不得形成 verified、任务原文不得入库。
+- actual:与预期一致——verify exit 0;235/235（26 文件）;oracle "结果：通过";bench cold 1.07s/hot 0.92s/peak 335.9MiB 达标;演示 transcript 逐字记录 8 步全部成立;修正一个实现缺陷（upsertContextSkill 的 [null,at].sort() 字符串化排序把 lastObservedAt 置 null、freshness 假 stale——修复并补测试断言）。
+- exit_code:0（verify/eval/bench/demo 全部）。
+- result:passed。
+- limitations:宿主内 LLM 自主调用 xray_relevance 的真实会话未跑（需 Claude Code/Codex 会话环境,同 E032/E035 模式,留待用户环境就绪;MCP 通道本身已由 spawn 真实 server 进程的契约/验收测试覆盖）;前端技术栈的 observed 熟悉度只在 gate/scan 被调用时积累（snapshot 仅收 .java,非 Java 观察来自 relevance 调用的 changedFiles——已在代码注释与本记录声明）;useful-analysis-rate（§24.4）v1 不估算;preference 管理仅 CLI+域模型（§31.5 允许）;Windows/Linux 未测;JetBrains/VSCode Surface 未接 relevance（无需求）。
+- review_mode:self-separated;checker:20260930-claude-t303（独立 Checker 可选,同 T302 惯例在收口后补）。
+- artifacts:artifacts/evidence/E036/relevance-gate-transcript.md(sha256=4b7d9492850f0434c49e4212d12dc62464cb8872bdc801a011855b5b202b56cf)。
+- supersedes:null。

@@ -151,3 +151,22 @@
 - evidence:E035;affects:T301、V04-1。
 - supersedes:null。
 - revisit_when:V04 被独立审计,或 Codex 宿主出现与 explain/evidence/removed 归因相关的缺陷报告时。
+
+## D015 — T303 Developer Context 与 Relevance Gate 架构边界（复用优先，单 seam 组合）
+
+- 状态:accepted;日期:2026-09-30;提出者:20260930-claude-t303（用户提供的 T303 计划为需求来源）;checkpoint_revision:r29。
+- context:T303 要求"需要我时认真工作,不需要我时安静消失"。仓库现状:developer-profile-v1（level×confidence 数值信号 profileSignal,与计划 §3.3"无能力评分"存在张力）、T302 ConceptKnowledgeState/ReviewInsight/Debt v2 已收口、MCP 8 工具无廉价"要不要分析"询问通道（Agent 只能直接 scan/review,输出 17KB 级）。计划硬约束:Gate 确定性（无 LLM）、不复制 Knowledge State、迁移不伪造 provenance、SKIP 默认安静、不强制 onboarding、local-first。
+- options:(a) 新建 packages/developer-context 与第二套存储——与 v1 数据/代码平行,违反"优先复用、迁移和收敛"（计划 §28-6）,拒绝;(b) Gate 放进 apps/agent（MCP 层）——违反 Surface 边界（D009/D011）,拒绝;(c) developer-profile 包原地演进为 developer-context-v1（版本化读取+写时迁移,仿 ReviewRecord 0.1/0.2 先例）+ 新领域包 packages/relevance（纯函数 Gate + port 化组合 service）+ bridge/CLI 只编排——采纳。
+- decision:
+  1. 数据:同一文件 developer/profile.json 承载 v1|v2;readContextFrom 版本化读取（v1 即时迁移,永不失败）,任何 updateProfile 写回即升级为 developer-context-v1;迁移保留原 evidence id/kind/summary,provenance 按 V1_KIND_PROVENANCE 映射（self-assessment/onboarding-answer/cli-update→self-reported,verified-learning→verified,project-scan→observed）;自述 level 迁移为 self-reported+confidence low（§19）,原 level/confidence 存 legacyLevel/legacyConfidence。
+  2. 兼容边界:knowledgeGaps（T011）不改一行——经 toLegacyProfileView（仅含 legacyLevel 的技能参与,observation-only 技能不伪造 level）消费,对 v1 数据输出逐字段一致（测试锁定）;profileSignal 限定为 legacy 排序信号,新模型（SkillAssessment）无任何数值评分字段,Relevance Gate 永不消费 profileSignal（§3.3 的落实方式:新增面禁评分,存量面冻结不扩散）。
+  3. Gate:packages/relevance 纯函数 decideRelevance(input,{developer,concepts,now})——注入时钟、无 LLM/随机/网络;规则词表/阈值全部具名导出（relevance-rules-v1）;ConceptKnowledgeState 只组合不重算（§7/§21）;critical 词命中默认 FULL,唯一降级通道=映射概念全部 verified+小变更+无近期修正;routine-class SKIP 由任务类别驱动而非技能声明驱动,self-reported 技能声明在任何分支都不能单独驱动 SKIP;近期修正（30 天窗口,常量具名）全局否决 SKIP;未知上下文降级 LIGHT 不降 SKIP。
+  4. 组合:packages/relevance/service.ts 是唯一 Surface 共享组合（evaluateRelevance/recordReportObservations/noteAnalysisAfterDecision/relevanceStats,storage 走结构化 port）,bridge 与 CLI 同调一个 service,零逻辑复制（D009 延伸）。
+  5. 观察与隐私:被动观察只存聚合计数+首见证据（无逐事件证据洪流、无文件名/任务原文入库）;观察来源=报告事实（java/spring/jpa）与 relevance 调用的 changedFiles/projectContext（snapshot 仅收 .java,前端观察只能来自 gate 调用——如实声明）;决策日志 workspace 隔离、0600、有界 500、任务只存 sha256 指纹;deleteData 增 'relevance'。
+  6. MCP/UX:xray_relevance 为第 9 工具（置于 capabilities 后）;skip 输出 {decision,quiet:true,reasons≤1,limitations} 极小化（§15.1/§16）,light 附 scope.selected 可用 targets+hint;scan/review_start 描述与 server instructions 改为"先问门,常规低风险不做完整分析"（§26 Phase 6 wording）;人类解释走 CLI xray relevance --explain（信号全量,任务原文不回显）;onboarding 保持零强制（现状即满足 §15.3,不新造交互问卷）;preference 仅域模型+CLI（§31.5 预留,无 UI）。
+  7. 指标:skipRate/false-skip 为事实统计（false-skip=最近一条 skip 决策后分析发现新增风险时追加一次,不推断、不打断流程、可恢复 §31.4）;useful-analysis-rate v1 不估算并显式标注（诚实优先）。
+- reason:计划全部硬约束满足——Gate 零 LLM、T302 资产零改动零回归（oracle 逐字节一致）、无第二套 Knowledge 体系、迁移幂等且 provenance 诚实、SKIP 安静且 <800 字节、正常 coding 流程零额外交互（所有命令显式触发）、默认 local-first;实测 wire 对比（253B vs 17059B=67.4×）证明常规任务的 token 影响可忽略。
+- consequences:tools/list 从 8→9（agent-mcp 精确断言已更新）;profile CLI 输出措辞由"开发者画像"改"开发者上下文"（profile-cli 测试同步更新;debt 行显示 developer-context-v1）;v1 数据首次写入后升级为 v2（不可逆,但 legacy view 保证旧行为;读路径永远兼容 v1）;修正会全局否决 SKIP 30 天（保守方向的副作用,窗口常量可调需带测试）;前端熟悉度积累依赖 gate 被调用（冷启动前期为 LIGHT,符合 §12 安全原则）。
+- evidence:E036;affects:T303、T301（MCP 工具面）、AC05/AC06（画像语义）、V04-2/3/4（契约保持）。
+- supersedes:null。
+- revisit_when:接入第二语言 analyzer（analyzableByEngine 语义变化）;宿主实测发现 Agent 对 gate 输出的消费偏差;需要 preference 管理 UI;或调整 freshness/修正窗口/exposure 类常量（必须带测试与新记录）。

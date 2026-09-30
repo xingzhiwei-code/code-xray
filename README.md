@@ -22,7 +22,9 @@ xray scan <路径> --format json # 结构化完整报告（stdout 纯净 JSON，
 xray explain [编号]        # 单条发现的完整上下文：证据/前提/未知/下一步
 xray learn [编号] [子命令] # 学习卡与知识状态（status/answer/ignore/restore/rebind/delete）
 xray debt                  # 透明的认知债务模型 v2（概念级聚合 + 非线性暴露；因子/权重/公式全部可见）
-xray profile [show|init|update] # 本机开发者画像（角色/语言/框架/工程能力）
+xray relevance [--task <描述>] [--files <a,b>] [--explain] [--stats]
+                               # 确定性相关性门：SKIP/LIGHT/FULL（常规低风险任务不打扰）
+xray profile [show|init|update|correct|prefer] # 本机开发者上下文（可选，可跳过；随真实使用被动积累）
 xray doctor                # 环境与本地数据状态
 ```
 
@@ -51,18 +53,21 @@ npm run build:agent        # 产出 dist/agent.js
 **Claude Code**：项目根 `.mcp.json` 已配置；或 `claude mcp add code-xray -- node <绝对路径>/dist/agent.js`。
 **Codex CLI**：`codex mcp add code-xray -- node <绝对路径>/dist/agent.js`。交互模式 `codex` 中 MCP 调用当场审批；headless `codex exec` 需加 `--dangerously-bypass-approvals-and-sandbox`，否则工具调用会被审批策略拒绝。
 
-八个工具（全部返回 `{schemaVersion,status,data|error}` envelope）：
+九个工具（全部返回 `{schemaVersion,status,data|error}` envelope）：
 
 | 工具 | 用途 |
 |---|---|
 | `xray_capabilities` | 协议/引擎/规则版本、支持语言与静态分析边界 |
+| `xray_relevance` | 确定性相关性门（T303，无 LLM）：判断任务是否值得分析，返回 `skip/light/full`。skip 输出极小且安静；light 的 `kind=path` targets 可直接作为 `xray_scan` 的 `scope.selected` |
 | `xray_scan` | 分析工作区（可带 git `base` 对比），报告存本地可按 analysisId 追溯 |
 | `xray_evidence` | 按 evidenceId 回源读取源码片段（source-data 包裹，逐行脱敏） |
 | `xray_review_start` | 一轮修改**前**调用：记录改动前基线（含未提交内容） |
 | `xray_review_finish` | 修改**后**调用：生成结构化审查（schema 0.2：概念级 insights/overview/coverageSummary + 人类可读 presentation + 债务变化/关口状态；旧 0.1 记录版本化读取） |
 | `xray_review_read` | 按 reviewId 跨会话/跨宿主恢复审查记录；代码再变更后自动标记过期 |
 | `xray_explain` | 单条发现的前提/未知/下一步/学习卡状态（只读） |
-| `xray_summary` | learning / debt / profile 摘要（只读） |
+| `xray_summary` | learning / debt / profile / relevance 摘要（只读；relevance 提供 skip 率与 false-skip 事实信号） |
+
+**相关性门（Relevance Gate，T303）**：Code X-Ray 不参与每一次编码。常规低风险任务（样式/文案/按钮/类型级修改）经 `xray_relevance` 判定 `skip` 时保持安静——不扫描、不产生大量输出、不打扰用户；中等风险任务 `light` 只聚焦变更文件与审查重点；高风险任务（支付/事务/权限/并发/迁移等）`full` 完整分析。判定是确定性规则（`relevance-rules-v1`，可解释、可经 `xray relevance --explain` 诊断），不依赖 LLM；自述技能永远不会直接驱动 SKIP，用户显式修正后 30 天窗口内保持谦逊。`skip ≠ 代码正确`，只表示本次不值得消耗分析成本。
 
 **审查关口（gate）**：默认 `report-only`——只报告结果，绝不阻塞 Agent 流程。仅当显式设置 `XRAY_AGENT_GATE=enforce` 时，`needs_human/incomplete/failed` 关口才携带 `blocking:true` 供宿主策略消费。partial/unknown 永远不会被包装成 pass。
 

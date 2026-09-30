@@ -25,11 +25,14 @@ CST 分析不做类型解析。同名同参数个数重载、Lambda/方法引用
 **学习状态保存在哪里？**
 用户数据目录（macOS: ~/Library/Application Support/code-xray；或 XRAY_DATA_DIR 指定目录），按工作区路径隔离。报告与学习状态不进入被扫描项目、不进入版本控制。
 
-**开发者画像和学习状态有什么区别？**
-开发者画像是本机全局的 `developer/profile.json`，记录角色、语言/框架/工程技能、confidence 与证据来源；项目学习状态按工作区保存，记录"概念 × 当前代码位置"的学习进度。Knowledge Gap 会同时读取两者：画像缺失时显示"未评估"，不把未知当作零或高熟练度。
+**开发者上下文和学习状态有什么区别？**
+开发者上下文（`developer-context-v1`，T303 起，原 developer-profile-v1 自动迁移）是本机全局的 `developer/profile.json`，记录角色、技能证据（provenance：self-reported/observed/inferred/verified/unknown）、新鲜度（fresh/aging/stale）、被动观察聚合与用户修正/偏好；它随真实使用自动积累，不需要填问卷，也不是能力评分。项目学习状态按工作区保存，记录"概念 × 当前代码位置"的学习进度。Knowledge Gap 会同时读取两者：上下文缺失时显示"未评估"，不把未知当作零或高熟练度。旧 v1 数据首次读取时按真实证据来源迁移（自述等级 → self-reported/low），历史证据永不丢失、不伪造来源。
+
+**为什么某次任务被 SKIP / 如何调试相关性判定？**
+`xray relevance --task "..." --files a,b --explain` 输出完整可解释信号（命中的风险词、任务类别、熟悉度证据、偏好）。判定是确定性规则（`relevance-rules-v1`），不依赖 LLM。SKIP 只表示"不值得消耗 X-Ray 分析成本"，不代表代码正确。用户可以随时纠正系统：`xray profile correct --key <技能> --unfamiliar`（修正后 30 天窗口内相关任务不再 SKIP），或用 `xray profile prefer --scope "frontend/*" --skip|--always` 表达范围偏好（非永久白名单，高风险信号仍会介入）。指标：`xray relevance --stats` 或 MCP `xray_summary kind=relevance`（skip 率、false-skip 事实信号；仅本机存储，任务原文不入库、只留指纹）。
 
 **如何删除本地数据？**
-删除对应工作区子目录，或删除整个数据目录。开发者画像在 `developer/profile.json`。被扫描项目本身不会被修改。
+删除对应工作区子目录，或删除整个数据目录（相关性决策日志在 `workspaces/<id>/relevance-log.json`，上限 500 条）。开发者上下文在 `developer/profile.json`。被扫描项目本身不会被修改。
 
 ## 命令退出码
 
@@ -44,11 +47,11 @@ CST 分析不做类型解析。同名同参数个数重载、Lambda/方法引用
 ## Agent Surface（MCP，v0.4）
 
 - 接入：`npm run build:agent` 产出 `dist/agent.js`；Claude Code 用项目 `.mcp.json` 或 `claude mcp add`，Codex CLI 用 `codex mcp add`（均为本地 stdio，零网络）。
-- 工具：`xray_capabilities / xray_scan / xray_evidence / xray_review_start / xray_review_finish / xray_review_read / xray_explain / xray_summary`；全部返回 `{schemaVersion:'0.1',status:'ok'|'error',...}` envelope。
+- 工具：`xray_capabilities / xray_relevance / xray_scan / xray_evidence / xray_review_start / xray_review_finish / xray_review_read / xray_explain / xray_summary`；全部返回 `{schemaVersion:'0.1',status:'ok'|'error',...}` envelope。`xray_relevance`（T303）是确定性相关性门：常规低风险改动先问它，`skip` 时安静继续开发（输出 <800 字节），`light` 时把 `kind=path` targets 作为 `xray_scan` 的 `scope.selected`，`full` 时才走完整 review 流程。
 - 修改后审查：修改前 `xray_review_start`（记录基线，含未提交内容），修改后 `xray_review_finish`（结构化审查 + gate）。reviewId 内容寻址、重复触发幂等（`reused:true`）；代码再变更后旧审查读取时 `stale:true` 且 gate 降级 `incomplete`。Review schema 0.2（T302）：`output.overview/insights/resolvedInsights/coverageSummary` 为主要消费面（概念级聚合、每 Insight 一个主行动建议、findingIds/evidenceIds 钻取），v0.1 字段保留为 deprecated 明细；结果附确定性 `presentation` 首屏文本；存量 0.1 记录版本化读取、原样返回并明确标记，不做静默迁移。债务为 `debt-model-v2`（概念级 + 非线性暴露），同一审查 before/after 恒用同一模型版本。
 - gate 策略：默认 `report-only`（永不阻塞）；仅 `XRAY_AGENT_GATE=enforce` 时非 pass 关口携带 `blocking:true`。partial/failed/unknown 不会包装成 pass。
 - 出错语义:域错误在 envelope（`status:'error'` + code/exitCode，MCP `isError:true`）；协议错误走 JSON-RPC 错误码（-32700 坏 JSON、-32601 未知方法、-32602 未知工具/坏参数）。取消（notifications/cancelled）返回 CANCELLED（130 语义），绝不返回伪造 complete。单条消息上限 1MB。
-- 隐私:源码只经 `xray_evidence` 进入工具通道（source-data 包裹 + 逐行脱敏）；恶意源码文本不进入摘要/gate/建议（注入遏制测试锁定）。审查会话基线缓存含源码明文，存用户数据目录 `workspaces/<id>/review-sessions/`（0600/0700），随 `deleteData('reviews'|'all')` 清除。
+- 隐私:源码只经 `xray_evidence` 进入工具通道（source-data 包裹 + 逐行脱敏）；恶意源码/任务文本不进入摘要/gate/建议/决策日志（注入遏制测试锁定；relevance 日志只存规则输出与任务指纹，不存任务原文）。审查会话基线缓存含源码明文，存用户数据目录 `workspaces/<id>/review-sessions/`（0600/0700），随 `deleteData('reviews'|'all')` 清除；相关性日志随 `deleteData('relevance'|'all')` 清除。
 - 限制：宿主自动触发（Claude Code Stop/PostToolUse hook）为 opt-in 规划项，当前版本需 Agent 显式调用工具；Codex CLI 宿主闭环已实测通过（E035，2026-09-25）——注意 `codex exec`（headless）默认审批策略会拒绝 MCP 工具调用（"approval policy is never"），需加 `--dangerously-bypass-approvals-and-sandbox`，交互模式 `codex` 当场审批即可；注册条目可能因 `~/.codex/config.toml` 被外部工具重写而丢失，用 `codex mcp list` 核对后重新 `codex mcp add`；`xray_review_finish` 的 base 参数走 git 基线时会话基线缓存不参与对比。
 
 ## 已知限制

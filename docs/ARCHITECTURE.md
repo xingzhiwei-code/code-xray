@@ -59,6 +59,7 @@ packages/
   analyzer-java-client/   # Java sidecar 的端口实现
   storage-local/          # 缓存、个人状态、迁移与恢复
   insights/               # Review Insight Layer：概念聚合、审查记录装配、gate 与确定性 presentation（T302/v0.2）
+  relevance/              # Relevance Gate：确定性 SKIP/LIGHT/FULL 判定、规则词表、决策日志与指标（T303）
   explanation-providers/ # 可选 provider 实现；SDK 仅限这里
 analyzers/
   java/                   # JVM worker / AST 与 Java-framework extraction

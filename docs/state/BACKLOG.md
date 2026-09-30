@@ -1,6 +1,6 @@
 # Backlog：任务状态的唯一来源
 
-当前 revision：r28（T301 done——Codex 第二宿主实测收口 V04-1（E035/D014），V04-1—V04-4 全部 passed；r27 T302 Review Insight Layer v0.2 done，E034）。v0.1 必需任务 10/10 done；T011 done；T101 in_progress（VS Code 交互待重设计）；T201 in_progress（挂起：V03-2 评估债 + JetBrains 壳环境阻塞）；T301 done；T302 done。拆分任务须保留原 ID、依赖和 AC 追踪。
+当前 revision：r29（T303 Developer Context & Relevance Gate v1 done——E036/D015/L028，verify 0、235/235、oracle/bench 通过、真实二进制 Case A—E 全过；r28 T301 done，r27 T302 done）。v0.1 必需任务 10/10 done；T011 done；T101 in_progress（VS Code 交互待重设计）；T201 in_progress（挂起：V03-2 评估债 + JetBrains 壳环境阻塞）；T301 done；T302 done；T303 done。拆分任务须保留原 ID、依赖和 AC 追踪。
 
 状态与更新规则见 [HANDOFF_PROTOCOL](../HANDOFF_PROTOCOL.md)，验收原文见 [PRD](../PRD.md)。单个任务只负责其交付范围内的 AC 子项，并在 Evidence 写明覆盖边界；完整 AC 的跨任务汇总由 T010 验收。不得将下游能力作为上游任务的隐含完成条件。
 
@@ -97,7 +97,7 @@
 | T201 | v0.3 JetBrains：完整 IDE 闭环、PSI 事实补充及 Bean/事务/JPA 三类深化 | in_progress（按 D012 挂起：V03-2 评估债保留；JetBrains 壳环境阻塞） | T101 | PRD 第 8.4 节 V03-1—V03-4；三类深化有正反未知案例；增强事实注明来源，规则留在 Engine |
 | T301 | v0.4 Agent：两宿主接入、修改后审查、证据读取、可配置关口与报告恢复 | done（E027—E035：MCP server 8 工具 + Claude Code（E032）与 Codex CLI（E035）双宿主实测闭环 + hook opt-in（E033）+ V04-1—V04-4 passed（V04-1 带 D014 范围备注）） | Engine/Protocol（v0.1 已冻结）；对 T201 的顺序依赖经 D012 授权豁免 | PRD 第 8.5 节 V04-1—V04-4；实测基线→改动→审查→修正→再验，未知/失败不伪装通过 |
 | T302 | Review Insight Layer v0.2：概念级 Insight 聚合、Review schema 0.2、Cognitive Debt v2、确定性 presentation（用户提供计划驱动） | done（E034：verify 0/158-158、oracle/bench 通过、before/after 实证 checks 12→3、debt 24.0→7.0；计划 DoD 22/22） | T301b（Review 会话）；计划文件 docs/plans/CODE_XRAY_REVIEW_INSIGHT_LAYER_V0.2_PLAN.md | 计划 §19 Case 1—13 全部有测试；§28 DoD 全勾；不接 LLM、不新增 Java Rule、gate/幂等/stale/注入遏制/离线保证零回归 |
-| T303 | Developer Context & Relevance Gate v1：developer-profile-v1→developer-context-v1（provenance/freshness/observation/correction）、确定性 SKIP/LIGHT/FULL Gate、MCP xray_relevance、被动 Context 积累、指标（用户提供计划驱动） | in_progress（L028） | T302（ConceptKnowledgeState 复用）；计划文件 docs/plans/CODE_XRAY_T303_DEVELOPER_CONTEXT_RELEVANCE_GATE_V1_PLAN.md | 计划 §22 场景表全部有测试；§23 Case A—E E2E；§26 DoD 全勾；Gate 无 LLM；knowledgeGaps/Insight/Debt/gate 语义零回归；skip 默认安静 |
+| T303 | Developer Context & Relevance Gate v1：developer-profile-v1→developer-context-v1（provenance/freshness/observation/correction）、确定性 SKIP/LIGHT/FULL Gate、MCP xray_relevance、被动 Context 积累、指标（用户提供计划驱动） | done（E036：verify 0、235/235（26 文件）、oracle/bench 通过、真实二进制演示 Case A—E；计划 DoD 25/25） | T302（ConceptKnowledgeState 复用）；计划文件 docs/plans/CODE_XRAY_T303_DEVELOPER_CONTEXT_RELEVANCE_GATE_V1_PLAN.md | 计划 §22 场景表全部有测试；§23 Case A—E E2E；§26 DoD 全勾；Gate 无 LLM；knowledgeGaps/Insight/Debt/gate 语义零回归；skip 默认安静 |
 
 ### T301 子任务拆分（Loop A—D，2026-09-22）
 
@@ -111,6 +111,8 @@
 修改阶段顺序或压缩范围需要记录 Decision；阶段完成不自动代表后续阶段可用。
 
 ## 状态变更记录
+
+- r29：L028——T303 done（E036/D015）：developer-context-v1（provenance/freshness/迁移幂等/correction/preference 预留）+ packages/relevance 确定性 Gate（relevance-rules-v1，§22 场景 14/14）+ MCP 第 9 工具 xray_relevance（skip wire 253B vs scan 17059B=67.4×）+ 被动观察聚合 + 决策日志/false-skip 事实信号/指标 + CLI relevance/correct/prefer；235/235（26 文件）、oracle 逐字节零回归、bench 达标；修复 lastObservedAt null-sort 缺陷。宿主内 LLM 自主调用实测留待用户环境（非阻塞）。
 
 - r0：按用户请求初始化；任务均未实现。下一位从 T001 开始，产品证据从现有最大编号后分配。
 - r1：按用户反馈补全 PRD 四版本范围，并将后续入口任务映射到 V02/V03/V04；只修改规划，产品状态仍为 0/10 done。详见 D006/E004。
@@ -224,3 +226,13 @@
 - 边界保持：不接 LLM、不新增 Java Rule、Evidence/Finding 未删减、unknown 不变 pass、gate 默认 report-only、幂等/stale/注入遏制/离线/隐私零回归；MCP adapter 零领域聚合。
 - decisions：D013；evidence：E034；最后 revision：r27。
 - 遗留（非阻塞，记录于计划 §27.9/§27.10）：CLI/VSCode review 视图、occurrence-increase 升级推断（事实不足不做）、severity 精细化、独立 Checker 复查（可选）。
+
+### T303 — Developer Context & Relevance Gate v1（done）
+
+- owner/session：20260930-claude-t303；开始/完成：2026-09-30。
+- 输入：用户提供的执行计划（docs/plans/CODE_XRAY_T303_DEVELOPER_CONTEXT_RELEVANCE_GATE_V1_PLAN.md，已入版本控制）；按 §30 先审计后实施，Phase 1—8 小步提交（314bd73→9f04770→f01b5cf→f237682→状态收口）。
+- 交付：packages/developer-profile 演进（DeveloperContext/ContextEvidence/SkillAssessment/DeveloperObservation/DeveloperPreference；migrateProfileToContext/readContextFrom/toLegacyProfileView/recordObservations/recordCorrection/setPreference/freshnessOf/observeFromReport）；packages/relevance（types/rules/engine/service：decideRelevance 纯函数 + 唯一 Surface 组合）；storage relevance-log（0600/有界 500/workspace 隔离/deleteData）；MCP xray_relevance + scan/review_start/instructions 措辞 + xray_summary kind=relevance；bridge 观察/false-skip 接线；CLI xray relevance（--task/--files/--explain/--stats）+ profile correct/prefer + 上下文措辞；tests 6 个新文件 69 用例 + 既有断言更新；scripts/demo-t303-relevance.mjs + artifacts/evidence/E036/。
+- §26 DoD 逐项（25/25）：①v1 已迁移（幂等+版本化读取，测试）②self-reported 不当事实（Case D）③provenance 完整（5 值+映射表）④freshness 可用（30/180 天常量+边界测试）⑤Context 与 Knowledge State 边界明确（只组合 ConceptKnowledgeState，D015-3）⑥onboarding 可跳过（零强制，现状即满足）⑦被动积累（scan/review/gate 三入口聚合观察）⑧显式修正（correct+窗口否决 SKIP，Case E）⑨Gate 已实现（relevance-rules-v1）⑩SKIP/LIGHT/FULL 均有测试（§22 14 场景）⑪不依赖 LLM（纯函数+注入时钟，测试锁定确定性）⑫MCP 可利用（第 9 工具+instructions）⑬普通前端任务可 SKIP（Case A）⑭高风险任务可 FULL（Case C）⑮T302 不破坏（oracle/insights/learning/debt 测试零改动零回归）⑯E2E evidence（E036 真实二进制转录）⑰Skip Rate/False Skip/Token Saving 指标（stats+67.4× 实测；useful-rate 诚实标注不估算）⑱local-first（全部本机 0600，任务原文不入库）⑲无能力评分（SkillAssessment 零数值分字段，测试断言）⑳无强制问卷（零交互命令）㉑正常 coding 无额外交互（所有入口显式调用）㉒SKIP 默认安静（quiet:true，wire<800B 断言）㉓LIGHT 只提供必要信息（targets≤15+hint）㉔FULL 才完整分析（既有 scan/review 链不变）㉕用户可解释/调试（--explain 信号全量+CLI/MCP stats）。
+- 边界保持：analyzer/insights/learning 聚合零改动；审查关口（gate）语义零变化；注入遏制扩展到 relevance 通道（task 文本不回显，测试）；profileSignal 冻结为 legacy 排序信号不扩散（D015-2）。
+- decisions：D015；evidence：E036；最后 revision：r29。
+- 遗留（非阻塞）：宿主内 LLM 自主调用 xray_relevance 实测（需用户环境）；独立 Checker 复查；第二语言 analyzer 接入时重审 analyzableByEngine 语义（D015 revisit_when）；preference 管理 UI。

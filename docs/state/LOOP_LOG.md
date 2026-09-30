@@ -424,3 +424,17 @@
 - outcome：done。
 - 下一步（可选,无阻塞）：CLI/VSCode review 视图复用 renderReviewPresentation;V03-2 评估债回补（D012 挂起项）;T101 交互重设计（需用户需求）。
 - checkpoint completion：completed（r28 由本轮提交承载）。
+
+## L028 — T303 Developer Context & Relevance Gate v1（Phase 1—8 全量落地）
+
+- checkpoint_revision：r29；checkpoint_status：completed。
+- 日期：2026-09-30；session/owner：20260930-claude-t303。
+- 目标：按用户提供的 T303 计划（已入库 docs/plans/）交付"知道什么时候应该分析"的相关性门与诚实的开发者上下文；§30 十问审计先行，不猜文件路径。
+- 过程事实：审计（START_HERE/CURRENT/HANDOFF r28 → developer-profile/learning/insights/bridge/tools/cli/storage 全读）确认三处关键现状——profileSignal(level×confidence) 与 §3.3 的张力、snapshot 仅收 .java（前端观察只能来自 gate 调用）、tools/list 精确断言 8 工具。方案按"复用/迁移/收敛"落定（D015）：v1 包原地演进 + 版本化读取 + legacy view 保 T011 逐字段零回归；Gate 独立纯函数包；service.ts 单组合供 bridge/CLI。
+- 变更：4 个产品提交小步推进——314bd73（Phase 1—3 域模型+迁移）、9f04770（Phase 5 Gate）、f01b5cf（Phase 4/6/7 接线：storage 日志/service/MCP 第 9 工具/CLI relevance+correct+prefer/描述与 instructions 改写）、f237682（Phase 8 E2E 验收+演示脚本+E036 转录）；本提交为状态与文档收口（README/SUPPORT/ARCHITECTURE/EVIDENCE/DECISIONS/BACKLOG/CURRENT/HANDOFF）。
+- 验证：E036——npm run verify exit 0；全量 235/235（26 文件,新增 69 用例：developer-context 14 + relevance-gate 25 + relevance-service 11 + relevance-cli 9 + agent-relevance 9 + relevance-acceptance 8,另更新既有断言）；冻结 oracle eval 通过（结果文件仅时间戳变化,已还原=analyzer 零改动实证）；bench AC12 达标（cold 1.07s/hot 0.92s/335.9MiB）；真实二进制演示 8 步：Case A skip wire 253B vs scan 17059B（67.4×）、B light targets、C full、D 自述专家不 skip、E 修正保留 3 条证据+窗口内不 skip、指标 skipRate 0.2/falseSkip 0 如实。
+- 反思：实现期发现并修复一个真实缺陷（[null,at].sort() 字符串化把 lastObservedAt 置 null → freshness 假 stale;补断言 lastObservedAt=AT/freshness=fresh）;测试顺序教训——全局修正否决 SKIP 会影响同文件后续用例,acceptance 文件内 Case E 必须放最后（已按此固化）;§24.5 的 token 节省坚持用实测 wire 字节而非估算。
+- 任务状态：T303 done（计划 §22 场景表 14/14、§23 Case A—E、§26 DoD 全勾——逐项映射见 BACKLOG T303 扩展字段）；T101/T201 维持挂起。
+- outcome：done。
+- 下一步（可选,无阻塞）：宿主内 LLM 自主调用 xray_relevance 的真实会话实测（Claude Code/Codex,同 E032/E035 模式,需用户环境）；独立 Checker 复查 T303（惯例收口后补）；CLI/VSCode review 视图（沿用 r28 可选项排序）。
+- checkpoint completion：completed（r29 由本轮提交链承载）。
