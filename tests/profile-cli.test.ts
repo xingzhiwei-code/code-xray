@@ -29,7 +29,7 @@ describe('profile CLI surface', () => {
     const std = captureStd();
     try {
       expect(await main(['profile'])).toBe(0);
-      expect(std.stdout).toContain('Developer Profile');
+      expect(std.stdout).toContain('Developer Context');
       expect(std.stdout).toContain('技能：0 项');
       expect(std.stdout).toContain('xray profile init');
     } finally {
@@ -49,7 +49,8 @@ describe('profile CLI surface', () => {
         '--evidence', '前端工程师，维护 Java 后端，自述初学'])).toBe(0);
       expect(init.stdout).toContain('language · language:java');
       expect(init.stdout).toContain('Java = beginner');
-      expect(init.stdout).toContain('confidence medium');
+      expect(init.stdout).toContain('confidence low'); // T303 §19: 自述等级 → self-reported/low
+      expect(init.stdout).toContain('provenance self-reported');
       expect(init.stdout).toContain('证据 1 条');
       expect(init.stdout).toContain('不写入当前项目或 Git');
       init.restore();
@@ -67,13 +68,13 @@ describe('profile CLI surface', () => {
       expect(scan.stderr).toContain('Developer Profile');
       expect(scan.stderr).toContain('spring.transaction-proxy=画像信号');
       expect(scan.stderr).toContain('jpa.query-amplification=画像缺少该技能');
-      expect(scan.stdout).toContain('开发者画像：已启用');
+      expect(scan.stdout).toContain('开发者上下文：已启用');
       scan.restore();
       delete process.env.XRAY_PROFILE_DIAGNOSTICS;
 
       const debt = captureStd();
       expect(await main(['debt'])).toBe(0);
-      expect(debt.stdout).toContain('开发者画像：developer-profile-v1');
+      expect(debt.stdout).toContain('开发者上下文：developer-context-v1');
       debt.restore();
     } finally {
       rmSync(dataDir, { recursive: true, force: true });

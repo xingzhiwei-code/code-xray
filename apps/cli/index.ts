@@ -12,9 +12,15 @@ import {
   type LearningBinding, type LearningState,
 } from '../../packages/learning/engine.js';
 import {
-  emptyDeveloperProfile, knowledgeGaps, setRoles, upsertSkill, DEVELOPER_PROFILE_VERSION,
-  type DeveloperProfile, type ProfileDimension, type ProfileEvidenceKind, type ProfileSkillLevel,
+  emptyDeveloperContext, knowledgeGaps, readContextFrom, recordCorrection, resetDeclaredSkills,
+  setContextRoles, setPreference, toLegacyProfileView, upsertContextSkill, freshnessOf,
+  type DeveloperContext, type ProfileDimension, type ProfileEvidenceKind, type ProfileSkillLevel,
+  type StoredDeveloperData,
 } from '../../packages/developer-profile/engine.js';
+import {
+  evaluateRelevance, noteAnalysisAfterDecision, recordReportObservations, relevanceStats,
+} from '../../packages/relevance/service.js';
+import type { RelevanceInput } from '../../packages/relevance/service.js';
 import { enhanceFinding, enhanceInputFrom, OUTBOUND_SCOPE, providerFromEnv } from '../../packages/explanation-providers/index.js';
 
 const exec = promisify(execFile);
@@ -27,10 +33,12 @@ interface ScanOptions {
 function usage(): string {
   return ['用法：xray scan [路径] [--format human|json] [--git-tracked-only] [--no-save]',
     '           [--exclude <glob> ...] [--max-files <n>] [--max-file-bytes <n>] [--base <git-ref>]',
+    '       xray relevance [--task <描述>] [--files <a,b>] [--explain] [--stats]',
+    '           确定性相关性门：SKIP/LIGHT/FULL（常规低风险任务不打扰；--explain 查看可解释信号）',
     '       xray explain [编号] [--enhance]   单条发现完整上下文（--enhance 需显式配置 LLM provider）',
     '       xray learn [编号] [status|answer|ignore|restore|rebind|delete] …',
     '       xray debt                        透明认知债务模型',
-    '       xray profile [init|show|update]  本机开发者画像（角色/语言/框架/工程能力）',
+    '       xray profile [init|show|update|correct|prefer]  本机开发者上下文（可选，可跳过；被动积累）',
     '       xray doctor',
     '无参数运行 xray 等价于 xray scan .；默认扫描工作区磁盘现状（含未跟踪文件）。',
     '--base 对照显式 Git 基线（commit/branch/HEAD~1 等）输出变更摘要；需要 Git 仓库。',
@@ -155,8 +163,8 @@ function humanSummary(report: AnalysisReport, gaps?: ReturnType<typeof knowledge
     const concepts = [...new Set(report.findings.map(f => f.conceptId))];
     const profileNote = gaps
       ? gaps.profileConfigured
-        ? `开发者画像：已启用（${gaps.items.filter(item => item.reason === 'profile-signal' || item.reason === 'learning-state-used').length}/${gaps.items.length} 个概念有画像信号）`
-        : `开发者画像：未评估——先运行 xray profile init，再结合个人画像查看缺口。`
+        ? `开发者上下文：已启用（${gaps.items.filter(item => item.reason === 'profile-signal' || item.reason === 'learning-state-used').length}/${gaps.items.length} 个概念有上下文信号）`
+        : `开发者上下文：未评估——随真实使用自动积累（observed），也可运行 xray profile init（可跳过）。`
       : '';
     lines.push(...[`知识缺口：${concepts.slice(0, 3).join('、')}${concepts.length > 3 ? ' 等' : ''}（${concepts.length} 个概念）——用 xray learn 逐个掌握，xray debt 查看认知债务。`]);
     if (profileNote) lines.push(profileNote);
@@ -185,13 +193,19 @@ async function runScan(args: string[], signal?: AbortSignal): Promise<void> {
     await store.saveReport(options.path, report.analysisId, report);
     // Learning bindings follow the saved report; reading never changes status.
     await store.updateState(options.path, emptyLearningState(), state => syncBindings(state, report).state);
-    const [profile, learningState] = await Promise.all([
-      store.readProfile(emptyDeveloperProfile()),
+    const [stored, learningState] = await Promise.all([
+      store.readProfile<StoredDeveloperData>(emptyDeveloperContext()),
       store.readState(options.path, emptyLearningState()),
     ]);
-    const gaps = knowledgeGaps(report, Object.keys(profile.skills).length ? profile : undefined, learningState);
+    const context = readContextFrom(stored);
+    const legacyView = toLegacyProfileView(context);
+    const gaps = knowledgeGaps(report, Object.keys(legacyView.skills).length ? legacyView : undefined, learningState);
     if (process.env.XRAY_PROFILE_DIAGNOSTICS === '1')
       process.stderr.write(`知识缺口（Developer Profile）：${gaps.items.map(item => `${item.conceptId}=${item.reasonLabel}`).join('、')}\n`);
+    // Passive context growth + false-skip fact signal (T303 Phase 4/7); local-only.
+    const now = new Date().toISOString();
+    await recordReportObservations(store, report, now);
+    if (report.diff) await noteAnalysisAfterDecision(store, options.path, { source: 'scan', newRiskCount: report.diff.newFindingIds.length }, now);
     saved = `报告已保存到本地（analysisId ${report.analysisId.slice(0, 8)}…）；--no-save 可跳过。`;
     if (options.format === 'human') process.stdout.write(humanSummary(report, gaps) + `\n${saved}\n`);
   }
@@ -402,8 +416,8 @@ async function runDebt(): Promise<void> {
   const width = terminalWidth();
   const state = await store.readState('.', emptyLearningState());
   const summary = debtSummary(state);
-  const profile = await store.readProfile(emptyDeveloperProfile());
-  const profileConfigured = Object.keys(profile.skills).length > 0;
+  const context = readContextFrom(await store.readProfile<StoredDeveloperData>(emptyDeveloperContext()));
+  const contextConfigured = Object.keys(context.skills).length > 0;
   const lines = [
     `认知债务（${summary.modelVersion}，按知识概念聚合；个人启发式，不是能力评分）`,
     `总债务：${summary.total}（${summary.calculatedCount} 个概念计入；绑定级未评估 ${summary.unassessedCount}、待复核 ${summary.staleCount}、未知关联 ${summary.unknownCount}、已忽略 ${summary.ignoredCount}）`,
@@ -412,7 +426,7 @@ async function runDebt(): Promise<void> {
     `含义：${summary.meaning}`,
     `范围：${summary.scope}`,
     `去重：${summary.deduplication}`,
-    `开发者画像：${profileConfigured ? `${DEVELOPER_PROFILE_VERSION}（本机全局，影响个人建议排序，不改变代码发现）` : '未评估——xray profile init 后可结合画像计算个人知识缺口'}`,
+    `开发者上下文：${contextConfigured ? `${context.schemaVersion}（本机全局，影响个人建议排序，不改变代码发现）` : '未评估——随真实使用自动积累，或 xray profile init（可跳过）后结合上下文计算个人知识缺口'}`,
     '',
     '概念明细（按优先级降序）：',
   ];
@@ -461,15 +475,39 @@ function parseProfileArgs(args: string[]): { dimension: ProfileDimension; key: s
   };
 }
 
-function renderProfile(profile: DeveloperProfile): string {
+function renderContext(context: DeveloperContext, now = new Date().toISOString()): string {
+  const observationTotal = Object.values(context.observations).reduce((sum, observation) => sum + observation.count, 0);
   const lines = [
-    `Developer Profile（${profile.schemaVersion}，本机全局；不是能力评分）`,
-    `角色：${profile.roles.length ? profile.roles.join('、') : '未设置'}${profile.primaryRole ? ` · 主角色：${profile.primaryRole}` : ''}`,
-    `技能：${Object.keys(profile.skills).length} 项 · 证据：${Object.keys(profile.evidence).length} 条`,
+    `Developer Context（${context.schemaVersion}，本机全局；证据聚合，不是能力评分）`,
+    `角色：${context.roles.length ? context.roles.join('、') : '未设置'}${context.primaryRole ? ` · 主角色：${context.primaryRole}` : ''}（可选，随时可跳过）`,
+    `技能：${Object.keys(context.skills).length} 项 · 观察：${observationTotal} 次 · 证据：${Object.keys(context.evidence).length} 条`,
   ];
-  for (const skill of Object.values(profile.skills).sort((a, b) => a.key.localeCompare(b.key, 'en')))
-    lines.push(`  ${skill.dimension} · ${skill.key}：${skill.label} = ${skill.level}（confidence ${skill.confidence}，证据 ${skill.evidenceIds.length} 条）`);
+  for (const skill of Object.values(context.skills).sort((a, b) => a.key.localeCompare(b.key, 'en'))) {
+    const freshness = freshnessOf(skill.lastObservedAt, now);
+    lines.push(`  ${skill.dimension} · ${skill.key}：${skill.label}${skill.legacyLevel ? ` = ${skill.legacyLevel}` : ''}` +
+      `（provenance ${skill.provenance}，confidence ${skill.confidence}，freshness ${freshness}，观察 ${skill.observationCount} 次，证据 ${skill.evidenceIds.length} 条）` +
+      (skill.lastCorrection ? ` · 近期修正：${skill.lastCorrection.direction === 'unfamiliar' ? '自述不熟悉' : '自述熟悉'}（${skill.lastCorrection.at.slice(0, 10)}）` : ''));
+  }
+  if (context.preferences.length) {
+    lines.push('偏好（用户控制）：');
+    for (const preference of context.preferences)
+      lines.push(`  ${preference.scope} → ${preference.preference === 'skip-deep-analysis' ? '默认跳过深度分析' : '总是分析'}`);
+  }
   return lines.join('\n');
+}
+
+function parseFlagPairs(args: string[]): { values: Map<string, string>; flags: Set<string> } {
+  const values = new Map<string, string>();
+  const flags = new Set<string>();
+  for (let i = 0; i < args.length; i++) {
+    const arg = args[i]!;
+    if (!arg.startsWith('--')) throw new XrayError('INVALID_ARGUMENT', `未知参数：${arg}`, 2);
+    const flag = arg.slice(2);
+    const next = args[i + 1];
+    if (next === undefined || next.startsWith('--')) flags.add(flag);
+    else { values.set(flag, next); i++; }
+  }
+  return { values, flags };
 }
 
 async function runProfile(args: string[]): Promise<void> {
@@ -479,38 +517,120 @@ async function runProfile(args: string[]): Promise<void> {
       '       xray profile init --roles <逗号分隔> --primary-role <role> --dimension <language|framework|engineering|domain|tool>',
       '           --key <技能> --label <显示名> --level <novice|beginner|intermediate|advanced|expert>',
       '           [--confidence <low|medium|high>] [--evidence-kind <...>] [--evidence <说明>]',
-      '       xray profile update …（参数同 init，更新已有画像；保留历史证据）'].join('\n') + '\n');
+      '       xray profile update …（参数同 init，增量更新；保留历史证据与被动观察）',
+      '       xray profile correct --key <技能> [--dimension <维度>] (--unfamiliar|--familiar) [--note <说明>]',
+      '       xray profile prefer --scope <路径通配> (--skip|--always)',
+      '所有命令均可选；上下文主要随真实使用被动积累，不需要维护问卷。'].join('\n') + '\n');
     return;
   }
   const store = new LocalStore(process.env.XRAY_DATA_DIR ? { dataDir: process.env.XRAY_DATA_DIR } : {});
   if (sub === 'show') {
-    const profile = await store.readProfile(emptyDeveloperProfile());
-    process.stdout.write(renderProfile(profile) + '\n');
-    if (!Object.keys(profile.skills).length) process.stdout.write('下一步：xray profile init --roles frontend,backend --primary-role frontend --dimension language --key Java --label Java --level beginner --confidence medium\n');
+    const context = readContextFrom(await store.readProfile<StoredDeveloperData>(emptyDeveloperContext()));
+    process.stdout.write(renderContext(context) + '\n');
+    if (!Object.keys(context.skills).length) process.stdout.write('下一步（均可跳过）：随使用自动积累观察；或 xray profile init --roles frontend --primary-role frontend --dimension language --key Java --label Java --level beginner\n');
     return;
   }
-  if (sub !== 'init' && sub !== 'update') throw new XrayError('INVALID_ARGUMENT', `未知 profile 子命令：${sub}（可用 init/show/update）`, 2);
+  if (sub === 'correct') {
+    const { values, flags } = parseFlagPairs(args.slice(1));
+    const key = values.get('key');
+    if (!key) throw new XrayError('INVALID_ARGUMENT', 'correct 需要 --key <技能>。', 2);
+    const unfamiliar = flags.has('unfamiliar');
+    const familiar = flags.has('familiar');
+    if (unfamiliar === familiar) throw new XrayError('INVALID_ARGUMENT', 'correct 需要 --unfamiliar 或 --familiar 二选一。', 2);
+    const dimension = values.get('dimension') as ProfileDimension | undefined;
+    if (dimension && !['language', 'framework', 'engineering', 'domain', 'tool'].includes(dimension))
+      throw new XrayError('INVALID_ARGUMENT', 'dimension 需为 language/framework/engineering/domain/tool。', 2);
+    // Pre-check so a missing skill is a usage error (exit 2), not a crash.
+    const existingContext = readContextFrom(await store.readProfile<StoredDeveloperData>(emptyDeveloperContext()));
+    const normalizedKey = key.trim().toLowerCase();
+    const skillExists = Object.keys(existingContext.skills).some(candidate => candidate === normalizedKey || candidate.endsWith(`:${normalizedKey}`));
+    if (!skillExists && !dimension)
+      throw new XrayError('INVALID_ARGUMENT', `上下文里没有技能 ${key}；首次修正请用 --dimension 指定维度（language/framework/engineering/domain/tool）。`, 2);
+    const updated = await store.updateProfile(emptyDeveloperContext(), stored => {
+      const context = readContextFrom(stored as StoredDeveloperData);
+      return recordCorrection(context, { key, direction: unfamiliar ? 'unfamiliar' : 'familiar', ...(dimension ? { dimension } : {}), ...(values.get('note') ? { note: values.get('note') } : {}) });
+    });
+    const skillKey = Object.keys(updated.skills).find(candidate => candidate.endsWith(`:${key.trim().toLowerCase()}`)) ?? key;
+    const skill = updated.skills[skillKey];
+    process.stdout.write(`已记录修正证据（self-reported，type=correction）：${skillKey}${skill ? ` → provenance ${skill.provenance}，confidence ${skill.confidence}` : ''}。\n历史证据全部保留；最终状态由证据聚合产生，相关任务在修正窗口内不会因旧画像跳过分析。\n`);
+    return;
+  }
+  if (sub === 'prefer') {
+    const { values, flags } = parseFlagPairs(args.slice(1));
+    const scope = values.get('scope');
+    if (!scope) throw new XrayError('INVALID_ARGUMENT', 'prefer 需要 --scope <路径通配>，如 --scope "frontend/*"。', 2);
+    const skip = flags.has('skip');
+    const always = flags.has('always');
+    if (skip === always) throw new XrayError('INVALID_ARGUMENT', 'prefer 需要 --skip 或 --always 二选一。', 2);
+    const updated = await store.updateProfile(emptyDeveloperContext(), stored =>
+      setPreference(readContextFrom(stored as StoredDeveloperData), scope, skip ? 'skip-deep-analysis' : 'always-analyze'));
+    process.stdout.write(`已记录偏好：${scope} → ${skip ? '默认跳过深度分析（高风险信号仍会介入，非永久白名单）' : '总是分析'}。\n`);
+    process.stdout.write(renderContext(updated) + '\n');
+    return;
+  }
+  if (sub !== 'init' && sub !== 'update') throw new XrayError('INVALID_ARGUMENT', `未知 profile 子命令：${sub}（可用 init/show/update/correct/prefer）`, 2);
   const rest = args.slice(1).filter(arg => arg !== '--help' && arg !== '-h');
   const parsed = parseProfileArgs(rest);
-  const updated = await store.updateProfile(emptyDeveloperProfile(), profile => {
-    let next = sub === 'init' ? emptyDeveloperProfile() : profile;
-    if (parsed.roleKeys.length || parsed.primaryRole !== undefined) next = setRoles(next, parsed.roleKeys, parsed.primaryRole);
-    return upsertSkill(next, {
+  const updated = await store.updateProfile(emptyDeveloperContext(), stored => {
+    let next = readContextFrom(stored as StoredDeveloperData);
+    if (sub === 'init') next = resetDeclaredSkills(next);
+    if (parsed.roleKeys.length || parsed.primaryRole !== undefined) next = setContextRoles(next, parsed.roleKeys, parsed.primaryRole);
+    return upsertContextSkill(next, {
       dimension: parsed.dimension, key: parsed.key, label: parsed.label, level: parsed.level,
       confidence: parsed.confidence, evidenceKind: parsed.evidenceKind, evidenceSummary: parsed.evidenceSummary,
     });
   });
-  process.stdout.write(renderProfile(updated) + '\n');
-  process.stdout.write('画像仅保存在本机用户数据目录，不写入当前项目或 Git。\n');
+  process.stdout.write(renderContext(updated) + '\n');
+  process.stdout.write('上下文仅保存在本机用户数据目录，不写入当前项目或 Git；自述等级是声明（self-reported），不是事实。\n');
+}
+
+async function runRelevance(args: string[]): Promise<void> {
+  const store = new LocalStore(process.env.XRAY_DATA_DIR ? { dataDir: process.env.XRAY_DATA_DIR } : {});
+  const width = terminalWidth();
+  if (args.includes('--stats')) {
+    const stats = await relevanceStats(store, '.');
+    const lines = [
+      `Relevance 指标（本机存储，最近 ${stats.eventsRetained} 条事件窗口；上限 500）`,
+      `决策：${stats.totalDecisions} 次 · skip ${stats.skip} · light ${stats.light} · full ${stats.full}`,
+      `Skip 率：${stats.skipRate === null ? '—（尚无决策）' : stats.skipRate.toFixed(2)}`,
+      `False-skip 事实信号：${stats.falseSkipSignals}${stats.falseSkipRate === null ? '' : `（率 ${stats.falseSkipRate.toFixed(2)}）`}`,
+      `说明：${stats.note}`,
+    ];
+    process.stdout.write(lines.flatMap(line => wrapLine(line, width)).join('\n') + '\n');
+    return;
+  }
+  const { values, flags } = parseFlagPairs(args);
+  const input: RelevanceInput = {
+    ...(values.get('task') ? { task: values.get('task') } : {}),
+    ...(values.get('files') ? { changedFiles: values.get('files')!.split(',').map(file => file.trim()).filter(Boolean) } : {}),
+  };
+  const { decision } = await evaluateRelevance(store, '.', input, new Date().toISOString());
+  const lines = [
+    `Relevance Gate（${decision.rulesVersion}；确定性规则，无 LLM；不是正确性证明）`,
+    `决策：${decision.level.toUpperCase()}${decision.level === 'skip' ? ' —— 安静通过，不值得消耗 X-Ray 分析成本' : decision.level === 'light' ? ' —— 聚焦分析，不扫描整个仓库' : ' —— 完整分析'}`,
+    '原因：',
+    ...decision.reasons.map(reason => `  - ${reason}`),
+  ];
+  if (decision.targets.length) {
+    lines.push('目标（LIGHT：kind=path 可作为 xray scan 聚焦范围；focus/concept 为审查聚焦点）：');
+    for (const target of decision.targets) lines.push(`  - [${target.kind}] ${target.ref}（${target.reason}）`);
+  }
+  for (const limitation of decision.limitations) lines.push(`限制：${limitation}`);
+  process.stdout.write(lines.flatMap(line => wrapLine(line, width)).join('\n') + '\n');
+  if (flags.has('explain')) {
+    // Human debug view (§16 "Why was this skipped?"): full explainable signals.
+    process.stdout.write('信号（可解释诊断；任务原文不回显，仅指纹关联）：\n' + JSON.stringify(decision.signals, null, 2) + '\n');
+  }
 }
 
 export function buildCommands(signal?: AbortSignal): { name: string; description: string; run: (args: string[]) => Promise<void> }[] {
   return [
     { name: 'scan', description: '扫描 Java 项目并输出有证据的分析摘要', run: args => runScan(args, signal) },
+    { name: 'relevance', description: '确定性相关性门：判断任务是否值得 X-Ray 分析（SKIP/LIGHT/FULL）', run: runRelevance },
     { name: 'explain', description: '查看最近报告中单条发现的完整上下文（证据/前提/未知）', run: runExplain },
     { name: 'learn', description: '学习知识缺口：查看学习卡、自述状态、验证理解', run: runLearn },
     { name: 'debt', description: '查看透明的认知债务模型与明细', run: () => runDebt() },
-    { name: 'profile', description: '查看或更新本机开发者画像（角色与技能证据）', run: runProfile },
+    { name: 'profile', description: '查看或更新本机开发者上下文（角色/技能证据/修正/偏好，全部可选）', run: runProfile },
     { name: 'doctor', description: '检查运行环境、依赖与本地数据状态', run: () => runDoctor() },
   ];
 }

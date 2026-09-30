@@ -212,6 +212,9 @@ describe('Context skills, roles & preferences (T303 §4, §31.5)', () => {
     expect(spring.confidence).toBe('low');
     expect(spring.legacyLevel).toBe('expert');
     expect(spring.observationCount).toBe(0);
+    // Freshness is anchored to the declaration time, not nulled by aggregation.
+    expect(spring.lastObservedAt).toBe(AT);
+    expect(spring.freshness).toBe('fresh');
   });
 
   it('supports reserved preference controls without a UI', () => {

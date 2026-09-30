@@ -10,7 +10,11 @@ import { resolve } from 'node:path';
 import { analyze, analyzeWithBaseline, capabilities as engineCapabilities, ENGINE_VERSION, RULE_SET_VERSION } from '../../../packages/engine/index.js';
 import { LocalStore } from '../../../packages/storage-local/index.js';
 import { debtSummary, emptyLearningState, learningCard, syncBindings, type LearningState } from '../../../packages/learning/engine.js';
-import { emptyDeveloperProfile, knowledgeGaps } from '../../../packages/developer-profile/engine.js';
+import { emptyDeveloperContext, knowledgeGaps, readContextFrom, toLegacyProfileView } from '../../../packages/developer-profile/engine.js';
+import {
+  evaluateRelevance, noteAnalysisAfterDecision, recordReportObservations, relevanceStats,
+  type RelevanceInput,
+} from '../../../packages/relevance/service.js';
 import { buildReviewRecord } from '../../../packages/insights/review.js';
 import { renderReviewPresentation } from '../../../packages/insights/presentation.js';
 import { snapshotWorkspace, stalePaths } from '../../../packages/workspace-local/index.js';
@@ -85,6 +89,11 @@ export async function runScan(input: ScanInput): Promise<ScanResult> {
   await local.saveReport(path, report.analysisId, report);
   // Learning bindings follow the saved report, same lifecycle as CLI/VS Code Surfaces.
   await local.updateState(path, emptyLearningState(), state => syncBindings(state, report).state);
+  // Passive context growth + false-skip fact signal (T303 Phase 4/7). Both are
+  // local-only bookkeeping; failures must never break the scan itself.
+  const now = new Date().toISOString();
+  await recordReportObservations(local, report, now);
+  if (report.diff) await noteAnalysisAfterDecision(local, path, { source: 'scan', newRiskCount: report.diff.newFindingIds.length }, now);
   return {
     analysisId: report.analysisId,
     snapshotId: report.snapshot.id,
@@ -199,6 +208,11 @@ export async function finishReview(path: string, sessionId: string, options: { b
     gateBlocking: gatePolicy() === 'enforce',
   });
   await local.saveReview(workspacePath, record);
+  // Passive context growth + false-skip fact signal (T303 Phase 4/7); a fresh
+  // analysis is a real coding event. Reused/stale records never log again.
+  const finishedAt = new Date().toISOString();
+  await recordReportObservations(local, report, finishedAt);
+  await noteAnalysisAfterDecision(local, workspacePath, { source: 'review', newRiskCount: record.output.overview.newInsightCount }, finishedAt);
   return { record, reused: false, ...(await stalenessOf(workspacePath, record)), analysisId: report.analysisId, presentation: renderReviewPresentation(record) };
 }
 
@@ -268,9 +282,10 @@ export async function explainFinding(path: string, findingId: string, analysisId
   };
 }
 
-export async function summarize(path: string, kind: 'learning' | 'debt' | 'profile', analysisId?: string): Promise<unknown> {
+export async function summarize(path: string, kind: 'learning' | 'debt' | 'profile' | 'relevance', analysisId?: string): Promise<unknown> {
   const workspacePath = resolveWorkspace(path);
   const local = store();
+  if (kind === 'relevance') return { kind, ...(await relevanceStats(local, workspacePath)) };
   const state = await local.readState<LearningState>(workspacePath, emptyLearningState());
   if (kind === 'debt') return { kind, ...debtSummary(state) };
   if (kind === 'learning') {
@@ -283,9 +298,47 @@ export async function summarize(path: string, kind: 'learning' | 'debt' | 'profi
     };
   }
   const report = await loadSavedReport(workspacePath, analysisId);
-  const profile = await local.readProfile(emptyDeveloperProfile());
-  const gaps = knowledgeGaps(report, Object.keys(profile.skills).length ? profile : undefined, state);
+  const context = readContextFrom(await local.readProfile(emptyDeveloperContext()));
+  const legacy = toLegacyProfileView(context);
+  const gaps = knowledgeGaps(report, Object.keys(legacy.skills).length ? legacy : undefined, state);
   return { kind, analysisId: report.analysisId, ...gaps };
+}
+
+// ---------- Relevance Gate (T303 Phase 6): deterministic triage, minimal wire output ----------
+
+export interface RelevanceWireResult {
+  decision: 'skip' | 'light' | 'full';
+  quiet: boolean;
+  reasons: string[];
+  targets?: { kind: string; ref: string; reason: string }[];
+  limitations: string[];
+  rulesVersion: string;
+  hint?: string;
+}
+
+/**
+ * Agent-minimal gate output (§15.1/§16): skip stays tiny and quiet; light/full
+ * carry bounded targets (paths map directly to xray_scan scope.selected).
+ * The full explainable signal dump stays available via CLI `xray relevance --explain`.
+ */
+export async function relevanceDecision(path: string, input: RelevanceInput): Promise<RelevanceWireResult> {
+  const workspacePath = resolveWorkspace(path);
+  const { decision } = await evaluateRelevance(store(), workspacePath, input, new Date().toISOString());
+  if (decision.level === 'skip') {
+    return {
+      decision: 'skip', quiet: true, reasons: decision.reasons.slice(0, 1),
+      limitations: decision.limitations, rulesVersion: decision.rulesVersion,
+    };
+  }
+  return {
+    decision: decision.level, quiet: false,
+    reasons: decision.reasons.slice(0, 3),
+    targets: decision.targets.slice(0, 15).map(target => ({ kind: target.kind, ref: target.ref, reason: target.reason })),
+    limitations: decision.limitations, rulesVersion: decision.rulesVersion,
+    ...(decision.level === 'light'
+      ? { hint: 'kind=path 的 targets 可直接作为 xray_scan 的 scope.selected.paths；kind=focus/concept 是审查聚焦点，不是必须逐条回执的指令。' }
+      : {}),
+  };
 }
 
 async function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {

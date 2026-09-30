@@ -9,7 +9,9 @@ export class LocalStoreError extends Error {
     super(message); this.name = 'LocalStoreError';
   }
 }
-export type DataKind = 'reports' | 'reviews' | 'learning' | 'cache' | 'llm-cache' | 'all';
+export type DataKind = 'reports' | 'reviews' | 'learning' | 'relevance' | 'cache' | 'llm-cache' | 'all';
+/** Relevance decision log stays bounded: newest events survive, the file never grows unboundedly. */
+export const RELEVANCE_LOG_LIMIT = 500;
 const digest = (value: string) => createHash('sha256').update(value).digest('hex');
 const absent = (error: unknown) => (error as NodeJS.ErrnoException).code === 'ENOENT';
 const clone = <T>(value: T): T => JSON.parse(JSON.stringify(value)) as T;
@@ -193,6 +195,22 @@ export class LocalStore {
   async readState<T>(workspace: string, initial: T): Promise<T> {
     return (await this.read<T>(join(await this.directory(workspace), 'learning.json'))) ?? clone(initial);
   }
+  /**
+   * Relevance decision log (T303 §24): bounded, local, append-only semantics
+   * via read-append-atomic-write under the workspace lock. Events carry no
+   * raw task text (fingerprint only) and no source content.
+   */
+  async appendRelevanceEvent(workspace: string, event: unknown): Promise<void> {
+    await this.locked(workspace, async directory => {
+      const path = join(directory, 'relevance-log.json');
+      const events = (await this.read<unknown[]>(path)) ?? [];
+      await this.atomicWrite(directory, path, [...events, event].slice(-RELEVANCE_LOG_LIMIT));
+    });
+  }
+  async readRelevanceEvents<T = unknown>(workspace: string): Promise<T[]> {
+    const directory = await this.directory(workspace);
+    return (await this.read<T[]>(join(directory, 'relevance-log.json'))) ?? [];
+  }
   private async developerDirectory(): Promise<string> {
     if (this.developerProfileDirectory) return this.developerProfileDirectory;
     const root = await this.root();
@@ -242,12 +260,13 @@ export class LocalStore {
     });
   }
   async deleteData(workspace: string, kind: DataKind): Promise<void> {
-    if (!['reports', 'reviews', 'learning', 'cache', 'llm-cache', 'all'].includes(kind)) throw new LocalStoreError('STORAGE_BOUNDARY', '未知数据类别。');
+    if (!['reports', 'reviews', 'learning', 'relevance', 'cache', 'llm-cache', 'all'].includes(kind)) throw new LocalStoreError('STORAGE_BOUNDARY', '未知数据类别。');
     await this.locked(workspace, async directory => {
       // 'reviews' owns the pending-session baseline caches too: they are
       // review data (and the only place baseline source content is retained).
-      const selected = kind === 'all' ? ['reports', 'reviews', 'review-sessions', 'learning', 'cache', 'llm-cache']
+      const selected = kind === 'all' ? ['reports', 'reviews', 'review-sessions', 'learning', 'relevance-log.json', 'cache', 'llm-cache']
         : kind === 'reviews' ? ['reviews', 'review-sessions']
+        : kind === 'relevance' ? ['relevance-log.json']
         : [kind];
       for (const name of selected) {
         const path = join(directory, name === 'learning' ? 'learning.json' : name);

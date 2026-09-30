@@ -28,7 +28,7 @@ describe('T301 Loop A: MCP stdio contract', () => {
     const response = await agent.request(2, 'tools/list');
     const names = response.result.tools.map((tool: { name: string }) => tool.name);
     expect(names).toEqual([
-      'xray_capabilities', 'xray_scan', 'xray_evidence',
+      'xray_capabilities', 'xray_relevance', 'xray_scan', 'xray_evidence',
       'xray_review_start', 'xray_review_finish', 'xray_review_read', 'xray_explain', 'xray_summary',
     ]);
     for (const tool of response.result.tools) expect(tool.inputSchema.type).toBe('object');

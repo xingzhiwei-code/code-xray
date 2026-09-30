@@ -313,6 +313,20 @@ export function setContextRoles(context: DeveloperContext, roleKeys: string[], p
   return { ...context, updatedAt: at, roles: unique, ...(primaryRole !== undefined ? { primaryRole: normalizeSkillKey(primaryRole) } : {}) };
 }
 
+/**
+ * `profile init` semantics: resets ONLY user-declared skills and roles.
+ * Passively observed skills, observation aggregates, preferences and every
+ * evidence entry survive — an explicit re-init must never destroy long-term
+ * context the user did not explicitly provide (§17/§31.4).
+ */
+export function resetDeclaredSkills(context: DeveloperContext, at = new Date().toISOString()): DeveloperContext {
+  const skills: Record<string, SkillAssessment> = {};
+  for (const [key, assessment] of Object.entries(context.skills)) {
+    if (!assessment.legacyLevel) skills[key] = assessment;
+  }
+  return { ...context, updatedAt: at, roles: [], primaryRole: undefined, skills };
+}
+
 /** Explicit user-declared skill (CLI init/update, §15.3): stays a self-reported claim unless evidence says otherwise. */
 export function upsertContextSkill(context: DeveloperContext, input: ProfileSkillInput, at = new Date().toISOString()): DeveloperContext {
   const key = normalizeSkillKey(input.key);
@@ -331,7 +345,9 @@ export function upsertContextSkill(context: DeveloperContext, input: ProfileSkil
     evidence: { ...context.evidence, [evidenceId]: evidence },
   };
   const observationCount = existing?.observationCount ?? 0;
-  const lastObservedAt = [existing?.lastObservedAt ?? null, at].sort().at(-1) ?? null;
+  // Filter before sorting: String(null) sorts AFTER ISO timestamps, which would
+  // silently null out lastObservedAt (and fake a stale freshness).
+  const lastObservedAt = [existing?.lastObservedAt, at].filter((value): value is string => Boolean(value)).sort().at(-1) ?? null;
   const aggregated = strongestProvenance(existing ? [existing.provenance, provenance] : [provenance]);
   next.skills = {
     ...context.skills,
@@ -417,6 +433,36 @@ export function technologiesForNames(names: { languages?: string[]; frameworks?:
   };
   for (const name of names.languages ?? []) add('language', name);
   for (const name of names.frameworks ?? []) add('framework', name);
+  return [...seen.entries()].sort((a, b) => a[0].localeCompare(b[0], 'en')).map(([, sighting]) => sighting);
+}
+
+/**
+ * Passive observation from analysis-report FACTS (T303 §17): language from the
+ * snapshot manifest, framework signals only when the analyzer actually proved
+ * concept hits. No content reading, no inference beyond report facts.
+ */
+export function observeFromReport(report: AnalysisReport): TechnologySighting[] {
+  const sightings = technologiesForPaths(report.snapshot.files.map(file => file.path));
+  const keys = new Set(sightings.map(s => `${s.dimension}:${normalizeSkillKey(s.key)}`));
+  const concepts = new Set(report.findings.map(finding => finding.conceptId));
+  const push = (dimension: ProfileDimension, key: string, label: string) => {
+    const storedKey = `${dimension}:${key}`;
+    if (keys.has(storedKey)) return;
+    keys.add(storedKey);
+    sightings.push({ dimension, key, label });
+  };
+  if ([...concepts].some(concept => concept.startsWith('spring.'))) push('framework', 'spring', 'Spring');
+  if ([...concepts].some(concept => concept.startsWith('jpa.'))) push('framework', 'jpa', 'JPA / Hibernate');
+  return sightings.sort((a, b) => `${a.dimension}:${a.key}`.localeCompare(`${b.dimension}:${b.key}`, 'en'));
+}
+
+/** Deduplicate sightings by stored key, keeping deterministic order. */
+export function dedupeSightings(sightings: TechnologySighting[]): TechnologySighting[] {
+  const seen = new Map<string, TechnologySighting>();
+  for (const sighting of sightings) {
+    const storedKey = `${sighting.dimension}:${normalizeSkillKey(sighting.key)}`;
+    if (!seen.has(storedKey)) seen.set(storedKey, sighting);
+  }
   return [...seen.entries()].sort((a, b) => a[0].localeCompare(b[0], 'en')).map(([, sighting]) => sighting);
 }
 
