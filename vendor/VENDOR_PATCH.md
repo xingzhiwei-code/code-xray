@@ -14,11 +14,11 @@ Provenance checks (2026-09-08): registry manifests declare `repository: git+http
 
 ## Why vendored
 
-The published tarballs are unusable as direct npm dependencies: cross-package dependencies use the `workspace:*` protocol (`@cliffx/core` → `@cliffx/ui`, `@cliffx/test` → `@cliffx/core`), which `npm install` rejects (`EUNSUPPORTEDPROTOCOL`). Per CLIFF_INTEGRATION §4 step 2, the fallback is local tarballs with the protocol rewritten — vendoring with `file:` links is the recorded form of that.
+The published tarballs are unusable as direct npm dependencies: cross-package dependencies use the `workspace:*` protocol (`@cliffx/core` → `@cliffx/ui`, `@cliffx/test` → `@cliffx/core`), which `npm install` rejects (`EUNSUPPORTEDPROTOCOL`). Per docs/architecture.md §4 (cliff 集成边界）, the fallback is local tarballs with the protocol rewritten — vendoring with `file:` links is the recorded form of that.
 
 ## Patches
 
-All patches are generic CLI-infrastructure changes; no Code X-Ray domain logic enters cliff (per CLIFF_INTEGRATION §2 / D002).
+All patches are generic CLI-infrastructure changes; no Code X-Ray domain logic enters cliff (per docs/architecture.md §4 / D002).
 
 ### 1. Dependency protocol rewrite (core, test)
 
@@ -26,7 +26,7 @@ All patches are generic CLI-infrastructure changes; no Code X-Ray domain logic e
 
 ### 2. `checkUpdates` opt-in (core `Cli.run`)
 
-Upstream: a set `version` alone triggers an npm-registry update check on every `run()`. Patch: the check requires `checkUpdates: true` explicitly; default is off (zero network). Default-off matches CLIFF_INTEGRATION §2 ("添加默认关闭的开关").
+Upstream: a set `version` alone triggers an npm-registry update check on every `run()`. Patch: the check requires `checkUpdates: true` explicitly; default is off (zero network). Default-off matches docs/architecture.md §4 ("默认零外发").
 
 ### 3. `errorMode: 'throw'` (core `Cli.run` unknown-command branch + `handleError`)
 
@@ -40,4 +40,4 @@ Upstream: every matched command run loads config files from `.`, `..`, `../..`, 
 
 ## Upstreaming / changes
 
-If cliff upstream adds equivalent embedding switches or publishes installable tarballs, re-evaluate against CLIFF_INTEGRATION §5: re-run the CLI and privacy contract tests (`tests/cliff-adapter.test.ts`) against the new artifact and update this file plus D007. Do not treat an upstream changelog claim as verification.
+If cliff upstream adds equivalent embedding switches or publishes installable tarballs, re-evaluate against docs/architecture.md §4: re-run the CLI and privacy contract tests (`tests/cliff-adapter.test.ts`) against the new artifact and update this file plus D007. Do not treat an upstream changelog claim as verification.
