@@ -10,10 +10,12 @@ apps/（Surface，只做适配与呈现）
   agent       MCP server（本地 stdio，零网络，主 surface）
         │ 通过 protocol + engine facade 调用
 packages/engine            facade：analyze / analyzeWithBaseline / capabilities、规则调度、报告装配
-        │ 通过各自 ports 调用
+        │ 通过 Analyzer 接口（packages/analyzer）调用，不 import 具体语言分析器
 packages/
   protocol                 canonical schema（JSON Schema 校验，版本化）
-  analyzer-java            Java CST 分析器（语法级，无类型系统）
+  analyzer                 Analyzer 接口 + 语言注册表（engine 依赖此接口）
+  analyzer-java            实现 Analyzer 接口的 Java CST 分析器（语法级，无类型系统）
+  links                    链路摘要 9 环（"讲懂"能力，消费 Analyzer 结果 + 风险 findings）
   workspace-local          受限文件读取、内容摘要、Git baseline
   storage-local            本地持久化、迁移、缓存
   learning                 学习卡与知识状态
@@ -23,7 +25,9 @@ packages/
   explanation-providers    可选 LLM 增强（默认禁用）
 ```
 
-强制依赖方向：Surface → facade / Protocol；Engine → 自研 ports；infrastructure 实现 ports。Engine 与 Protocol 不得 import cliff、任何 IDE SDK 或 provider SDK。
+强制依赖方向：Surface → facade / Protocol；Engine → Analyzer 接口（不依赖具体语言）；infrastructure 实现 ports。Engine 与 Protocol 不得 import cliff、任何 IDE SDK 或 provider SDK。
+
+链路摘要（v0.6 M2）：`packages/links` 把 analyzer 的原始链路数据（entries/methods/calls/branches/data-touches/side-effects）与风险 findings 组装成每条变更入口的 9 环可读摘要；确定的环带 path:line 证据，接口/虚方法/反射/动态代理与"为什么这样写"一律显式标 unknown/推测。
 
 ## 2. 六条规则
 

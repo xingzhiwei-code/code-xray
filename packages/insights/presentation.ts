@@ -15,7 +15,7 @@
  * raw evidence and finding-id lists stay out of the first screen; they remain
  * available via the record fields, xray_explain and xray_evidence.
  */
-import type { ReviewInsight, ReviewRecord, ReviewRecordV01, StoredReviewRecord } from '../protocol/index.js';
+import type { LinkSummary, ReviewInsight, ReviewRecord, ReviewRecordV01, StoredReviewRecord } from '../protocol/index.js';
 
 const CHANGE_LABELS: Record<ReviewInsight['changeType'], string> = {
   new: '本轮新增', continuing: '持续存在', resolved: '已解决',
@@ -55,8 +55,31 @@ function renderInsightFull(insight: ReviewInsight, index: number): string[] {
   return lines;
 }
 
+const LINK_KIND_LABELS: Record<string, string> = { http: 'HTTP 接口', scheduled: '定时任务', mq: 'MQ 监听器' };
+
+/** Render the per-entry link summaries (v0.6 M2 "讲懂" view) when present. */
+function renderLinkSummaries(linkSummaries: LinkSummary[]): string[] {
+  if (!linkSummaries.length) return [];
+  const lines: string[] = ['链路摘要', RULE];
+  for (const summary of linkSummaries) {
+    lines.push(`▸ [${LINK_KIND_LABELS[summary.entryKind] ?? summary.entryKind}] ${summary.entry}（${summary.file}）`);
+    for (const [index, ring] of summary.rings.entries()) {
+      lines.push(`  ${marker(index)} ${ring.title}：${ring.summary}`);
+      for (const item of ring.items.slice(0, 6)) {
+        const access = item.access ? `（${item.access === 'read' ? '读' : item.access === 'write' ? '写' : '未知'}）` : '';
+        const loc = item.evidence.length ? ` @ ${item.evidence.map(e => `${e.path.split('/').at(-1)}:${e.line}`).join('、')}` : '';
+        lines.push(`    - ${item.label}${access}${item.resolution === 'unknown' ? ' [unknown]' : ''}${loc}`);
+      }
+      for (const unknown of ring.unknowns.slice(0, 1)) lines.push(`    ? ${unknown}`);
+      for (const concept of ring.concepts) lines.push(`    认领学习卡：xray learn --concept ${concept.conceptId}`);
+    }
+  }
+  lines.push('');
+  return lines;
+}
+
 function renderV02(record: ReviewRecord): string[] {
-  const { overview, insights, resolvedInsights, coverageSummary, debtDelta } = record.output;
+  const { overview, insights, resolvedInsights, coverageSummary, debtDelta, linkSummaries } = record.output;
   const lines: string[] = ['Code X-Ray Review（schema 0.2）', ''];
 
   lines.push('本轮修改', RULE);
@@ -91,6 +114,8 @@ function renderV02(record: ReviewRecord): string[] {
     for (const insight of resolvedInsights) lines.push(`  - ${insight.title}`);
     lines.push('');
   }
+
+  lines.push(...renderLinkSummaries(linkSummaries ?? []));
 
   lines.push('其他信息', RULE);
   if (coverageSummary.status !== 'complete') lines.push(`• 分析状态：${coverageSummary.status}——结论范围受限。`);

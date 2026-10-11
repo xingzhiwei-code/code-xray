@@ -19,6 +19,35 @@ export interface FlowEdge {
   from: string; to?: string; status: 'observed' | 'inferred' | 'unresolved';
   reason?: string; evidenceIds: string[];
 }
+// ---- v0.6 M2: link summary (链路摘要) — the first "讲懂" capability ----
+export type LinkRingKind = 'entry' | 'parameters' | 'call-chain' | 'branches' | 'data-touch' | 'side-effects' | 'transaction' | 'return' | 'rationale';
+export interface LinkConceptRef { conceptId: string }
+export interface LinkEvidenceRef { path: string; line: number }
+export interface LinkRingItem {
+  label: string;
+  evidence: LinkEvidenceRef[];
+  resolution: 'resolved' | 'unknown';
+  reason?: string;
+  /** read/write distinction for the data-touch ring. */
+  access?: 'read' | 'write' | 'unknown';
+}
+export interface LinkRing {
+  kind: LinkRingKind;
+  title: string;
+  summary: string;
+  items: LinkRingItem[];
+  unknowns: string[];
+  concepts: LinkConceptRef[];
+  /** The "why" ring is always speculation, never fact. */
+  speculation?: boolean;
+}
+export interface LinkSummary {
+  id: string;
+  entry: string;
+  entryKind: 'http' | 'scheduled' | 'mq' | 'unknown';
+  file: string;
+  rings: LinkRing[];
+}
 export interface Diagnostic { path: string; code: string; message: string }
 export interface Snapshot {
   id: string; workspaceId: string; files: {path:string;digest:string}[];
@@ -38,6 +67,8 @@ export interface AnalysisReport {
   status: 'complete' | 'partial' | 'failed' | 'cancelled';
   snapshot: Snapshot; coverage: Coverage; findings: Finding[]; evidence: EvidenceRef[];
   flows: FlowEdge[]; summary: string; diff: DiffSummary | null;
+  /** v0.6 M2: per-entry link summaries (only present when a diff identifies changed entries). */
+  linkSummaries?: LinkSummary[];
   provenance: {engineVersion:string;adapterVersion:string;ruleSetVersion:string;offline:boolean;llm:'disabled'|'enhanced'|'unavailable'};
   limitations: string[];
 }
@@ -169,6 +200,8 @@ export interface ReviewOutput {
   insights: ReviewInsight[];
   resolvedInsights: ReviewInsight[];
   coverageSummary: ReviewCoverageSummary;
+  /** v0.6 M2: per-entry link summaries for changed entries (optional; "讲懂" view). */
+  linkSummaries?: LinkSummary[];
   /** @deprecated migration detail — prefer overview/changeSummary only as a headline. */
   changeSummary: string;
   pathImpacts: { added: string[]; modified: string[]; deleted: string[] };
@@ -225,6 +258,13 @@ const position = obj({line:{type:'integer',minimum:1},column:{type:'integer',min
 const finding = obj({id:str,ruleId:str,ruleVersion:str,title:str,severity:{enum:['high','medium','low']},epistemic:{enum:['fact','inference','recommendation','unknown']},evidenceIds:{...strings,minItems:1},conceptId:str,symbol:str,assumptions:strings,uncertainties:strings,nextCheck:str});
 const diagnostic = obj({path:str,code:str,message:str});
 const nullableString = {type:['string','null']};
+const linkEvidence = obj({path:str,line:{type:'integer',minimum:1}});
+const linkRingItem = obj({label:str,evidence:arr(linkEvidence),resolution:{enum:['resolved','unknown']},reason:str,access:{enum:['read','write','unknown']}},['label','evidence','resolution']);
+const linkRing = obj({
+  kind:{enum:['entry','parameters','call-chain','branches','data-touch','side-effects','transaction','return','rationale']},
+  title:str,summary:str,items:arr(linkRingItem),unknowns:strings,concepts:arr(obj({conceptId:str})),speculation:{type:'boolean'},
+},['kind','title','summary','items','unknowns','concepts']);
+const linkSummary = obj({id:str,entry:str,entryKind:{enum:['http','scheduled','mq','unknown']},file:str,rings:arr(linkRing)});
 export const reportSchema = {
   $schema:'https://json-schema.org/draft/2020-12/schema',
   $id:'https://code-xray.local/schemas/analysis-0.1.json',
@@ -235,8 +275,9 @@ export const reportSchema = {
     findings:arr(finding),evidence:arr(obj({id:str,path:str,digest:str,start:position,end:position,observation:str,producer:str})),
     flows:arr(obj({from:str,to:str,status:{enum:['observed','inferred','unresolved']},reason:str,evidenceIds:strings},['from','status','evidenceIds'])),summary:str,
     diff:{anyOf:[{type:'null'},obj({base:str,added:strings,modified:strings,deleted:strings,newFindingIds:strings,continuingFindingIds:strings,removedFindings:arr(finding),limitations:strings})]},
+    linkSummaries:arr(linkSummary),
     provenance:obj({engineVersion:str,adapterVersion:str,ruleSetVersion:str,offline:{type:'boolean'},llm:{enum:['disabled','enhanced','unavailable']}}),limitations:strings,
-  }),
+  }, ['schemaVersion','analysisId','createdAt','status','snapshot','coverage','findings','evidence','flows','summary','diff','provenance','limitations']),
 };
 const validate = new Ajv2020({allErrors:true,strict:true}).compile<AnalysisReport>(reportSchema);
 export function assertReport(value: unknown): asserts value is AnalysisReport {
@@ -285,6 +326,7 @@ export const reviewRecordSchema = {
       overview:obj({filesChanged:count,newInsightCount:count,continuingInsightCount:count,resolvedInsightCount:count,newFindingCount:count,continuingFindingCount:count,resolvedFindingCount:count}),
       insights:arr(insight), resolvedInsights:arr(insight),
       coverageSummary:obj({status:{enum:['complete','partial','failed','cancelled']},unknownCount:count,reasons:arr(diagnostic)}),
+      linkSummaries:arr(linkSummary),
       changeSummary:str,
       pathImpacts:obj({added:strings,modified:strings,deleted:strings}),
       newFindingIds:strings, continuingFindingIds:strings, removedFindingIds:strings, removedFindingTitles:strings,
@@ -295,7 +337,7 @@ export const reviewRecordSchema = {
       debtDelta:obj({modelVersion:str,before:{type:'number'},after:{type:'number'},delta:{type:'number'},bindingsBefore:count,bindingsAfter:count,conceptsBefore:count,conceptsAfter:count},
         ['modelVersion','before','after','delta','bindingsBefore','bindingsAfter']),
       limitations:strings,
-    }),
+    }, ['overview','insights','resolvedInsights','coverageSummary','changeSummary','pathImpacts','newFindingIds','continuingFindingIds','removedFindingIds','removedFindingTitles','evidenceRefs','unknownCoverage','suggestedChecks','conceptRefs','debtDelta','limitations']),
   }),
 };
 const validateReview = new Ajv2020({allErrors:true,strict:true}).compile<ReviewRecord>(reviewRecordSchema);

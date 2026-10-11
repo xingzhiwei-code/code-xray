@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto';
 import { parse, type CstNode, type IToken } from 'java-parser';
+import type { Analyzer } from '../analyzer/index.js';
 import type { JavaAnalysis, JavaDiagnostic, JavaEvidence, JavaFinding, JavaSourceFile } from './types.js';
 export type * from './types.js';
 
@@ -22,6 +23,23 @@ const BEAN_ANNOTATIONS = new Set([
 ]);
 const LOOPS = new Set(['basicForStatement', 'enhancedForStatement', 'whileStatement', 'doStatement']);
 const NESTED = new Set(['classDeclaration', 'interfaceDeclaration', 'recordDeclaration', 'enumDeclaration', 'anonymousClassBody']);
+// v0.6 M2 (link summary): entry-point, validation and side-effect vocabularies.
+const SCHEDULED = 'org.springframework.scheduling.annotation.Scheduled';
+const MQ_LISTENERS = new Set([
+  'org.springframework.amqp.rabbit.annotation.RabbitListener',
+  'org.springframework.kafka.annotation.KafkaListener',
+  'org.springframework.jms.annotation.JmsListener',
+]);
+const EXCEPTION_HANDLER = 'org.springframework.web.bind.annotation.ExceptionHandler';
+const VALIDATION_PREFIXES = ['jakarta.validation', 'javax.validation'] as const;
+const CACHE_ANNOTATIONS = new Set(['org.springframework.cache.annotation.CachePut', 'org.springframework.cache.annotation.CacheEvict']);
+/** Receiver type-name hints for external side effects (MQ / HTTP / cache). */
+const MQ_TYPE_HINT = /(RabbitTemplate|KafkaTemplate|JmsTemplate|JmsMessagingTemplate)$/;
+const HTTP_TYPE_HINT = /(RestTemplate|WebClient|RestClient)$/;
+const CACHE_TYPE_HINT = /(RedisTemplate|StringRedisTemplate|ValueOperations|CacheManager)$/;
+/** Repository methods classified as writes; everything else deriving/querying is a read. */
+const WRITE_QUERY_NAMES = new Set(['save', 'saveAll', 'saveAndFlush', 'saveAllAndFlush', 'delete', 'deleteAll', 'deleteById', 'deleteInBatch', 'deleteAllInBatch', 'flush']);
+const BRANCH_KINDS = new Set(['ifStatement', 'switchStatement', 'throwStatement', 'tryStatement', 'returnStatement', 'catchClause']);
 type Node = CstNode;
 type Part = Node | IToken;
 interface Annotation { raw: string; full?: string; node: Node }
@@ -114,7 +132,8 @@ function parseUnit(source: JavaSourceFile): Unit {
         const regular=direct(param,'variableParaRegularParameter') ?? direct(param,'variableArityParameter') ?? param;
         const variable=direct(regular,'variableDeclaratorId');
         const paramName=variable ? tokenChildren(variable,'Identifier')[0]?.image : tokenChildren(regular,'Identifier')[0]?.image;
-        if(paramName) parameters.push({name:paramName,type:typeName(direct(regular,'unannType')),node:regular,annotations:[]});
+        // Parameter annotations (web binding + validation) feed the "参数与校验" ring (v0.6 M2).
+        if(paramName) parameters.push({name:paramName,type:typeName(direct(regular,'unannType')),node:regular,annotations:annotations(regular,'variableModifier',unit)});
       }
       info.methods.push({name:methodName,signature:`${full}#${methodName}(${parameters.map(p=>p.type).join(',')})`,arity:parameters.length,node:method,header,
         body:direct(method,'methodBody'),annotations:annotations(method,'methodModifier',unit),parameters,type:typeName(direct(header,'result')),owner:info});
@@ -188,6 +207,150 @@ export async function analyzeJava(files: JavaSourceFile[], onProgress?: (parsed:
         if(method.body) visitBody(method.body,method);
       }
     }
+  }
+  // v0.6 M2: link-summary raw data ("讲懂" capability). Computed after the rule
+  // pass so the rule view (findings/diagnostics/flows) stays byte-identical.
+  result.links = buildLinkData();
+  function buildLinkData(): JavaAnalysis['links'] {
+    const entries: NonNullable<JavaAnalysis['links']>['entries'] = [];
+    const methods: NonNullable<JavaAnalysis['links']>['methods'] = [];
+    const calls: NonNullable<JavaAnalysis['links']>['calls'] = [];
+    const branches: NonNullable<JavaAnalysis['links']>['branches'] = [];
+    const dataTouches: NonNullable<JavaAnalysis['links']>['dataTouches'] = [];
+    const sideEffects: NonNullable<JavaAnalysis['links']>['sideEffects'] = [];
+
+    // Flat method index for chain traversal; ownerKind feeds interface → unknown.
+    for (const type of types) {
+      for (const method of type.methods) {
+        methods.push({
+          signature: method.signature, name: method.name, owner: type.full, ownerKind: type.kind,
+          annotations: method.annotations.map(a => a.full ?? a.raw), returnType: method.type,
+          params: method.parameters.map(p => ({ name: p.name, type: p.type, annotations: p.annotations.map(a => a.full ?? a.raw) })),
+          hasTransactional: method.annotations.some(a => a.full === TX),
+          isExceptionHandler: method.annotations.some(a => a.full === EXCEPTION_HANDLER),
+          path: type.file.source.path, line: method.header.location.startLine,
+        });
+      }
+    }
+
+    const toParams = (m: Method) => m.parameters.map(p => ({ name: p.name, type: p.type, annotations: p.annotations.map(a => a.full ?? a.raw) }));
+
+    // Entry detection: HTTP mapping (@RestController/@Controller), @Scheduled, MQ listener.
+    for (const type of types) {
+      const isRest = type.annotations.some(a => a.full === WEB + 'RestController');
+      const isController = type.annotations.some(a => a.full === 'org.springframework.stereotype.Controller');
+      for (const method of type.methods) {
+        const line = method.header.location.startLine;
+        const path = type.file.source.path;
+        const httpMapped = method.annotations.some(a => MAPPINGS.has(a.full ?? ''));
+        if (httpMapped && (isRest || isController)) {
+          entries.push({ method: method.signature, kind: 'http', annotations: method.annotations.map(a => a.full ?? a.raw), params: toParams(method), returnType: method.type, path, line });
+          continue;
+        }
+        const scheduled = method.annotations.find(a => a.full === SCHEDULED);
+        if (scheduled) { entries.push({ method: method.signature, kind: 'scheduled', annotations: [scheduled.full ?? scheduled.raw], params: toParams(method), returnType: method.type, path, line }); continue; }
+        const mq = method.annotations.find(a => MQ_LISTENERS.has(a.full ?? ''));
+        if (mq) entries.push({ method: method.signature, kind: 'mq', annotations: [mq.full ?? mq.raw], params: toParams(method), returnType: method.type, path, line });
+      }
+    }
+
+    // Per-method call/branch/data-touch/side-effect collection (mirrors the rule
+    // pass's walk, but never mutates findings/diagnostics/flows).
+    const branchKind = (name: string) => name === 'ifStatement' ? 'if' : name === 'switchStatement' ? 'switch' : name === 'throwStatement' ? 'throw' : name === 'tryStatement' ? 'try' : name === 'catchClause' ? 'catch' : 'return' as const;
+    const collectCall = (method: Method, primary: Node, deferred: boolean) => {
+      const unit = method.owner.file;
+      const invocation = nodes(primary, 'primarySuffix').flatMap(s => nodes(s, 'methodInvocationSuffix'));
+      if (!invocation.length) return;
+      for (const inv of invocation) {
+        const before = tokens(primary).filter(t => t.endOffset < inv.location.startOffset);
+        // Identifier-like tokens include contextual keywords (open/module/record…)
+        // which the parser reports under a non-Identifier token type.
+        const isIdent = (image: string) => image === 'this' || /^[A-Za-z_$][A-Za-z0-9_$]*$/.test(image);
+        const valid = before.length > 0 && before.every((t, i) => i % 2 === 0 ? isIdent(t.image) : t.image === '.');
+        const parts = valid ? before.filter((_, i) => i % 2 === 0).map(t => t.image) : [];
+        const methodName = parts.at(-1);
+        const receiver = parts.slice(0, -1).join('.');
+        const line = primary.location.startLine;
+        if (!valid || !methodName) {
+          calls.push({ from: method.signature, label: '复杂接收者调用', methodName: methodName ?? '', resolution: 'unknown', reason: '外部、生成或复杂接收者的运行目标未解析。', path: unit.source.path, line });
+          continue;
+        }
+        const label = parts.join('.') + '()';
+        const args = direct(inv, 'argumentList');
+        const arity = args ? nodes(args, 'expression').length : 0;
+        let target: Method | undefined; let receiverType: string | undefined; let receiverIsInterface = false; let reason: string | undefined;
+        const self = receiver === '' || receiver === 'this';
+        const selfCandidates = self ? method.owner.methods.filter(m => m.name === methodName && m.arity === arity) : [];
+        if (self && !deferred && selfCandidates.length === 1) target = selfCandidates[0];
+        else if (selfCandidates.length > 1) reason = '同名同参数个数重载需要完整类型解析；不选择猜测目标。';
+        const simpleReceiver = receiver.startsWith('this.') ? receiver.slice(5) : receiver;
+        const explicitThis = receiver.startsWith('this.');
+        const localVars = method.body ? descendants(method.body, 'localVariableDeclaration').flatMap(v => typeFields(v, 'localVariableType', [])) : [];
+        const shadow = explicitThis ? undefined : [...method.parameters, ...localVars].find(v => v.name === simpleReceiver);
+        const field = shadow ?? method.owner.fields.find(f => f.name === simpleReceiver);
+        if (!target && !reason && field) {
+          const declared = localType(field.type, unit);
+          if (declared) {
+            receiverType = declared.full;
+            receiverIsInterface = declared.kind === 'interface';
+            const candidates = declared.methods.filter(m => m.name === methodName && m.arity === arity);
+            if (!deferred && candidates.length === 1) target = candidates[0];
+            else if (candidates.length > 1) reason = '同名同参数个数重载需要完整类型解析；不选择猜测目标。';
+            else reason = '接收者声明类型的方法目标未解析（接口/继承/外部实现）。';
+          } else reason = '接收者类型不在本地唯一声明中；运行目标 unknown。';
+        } else if (!target && !reason && !self) reason = '接收者声明不可见；运行目标 unknown。';
+        if (self && deferred && !target && !reason) reason = 'Lambda 延迟执行：静态出现不等于外层方法立即调用。';
+        calls.push({
+          from: method.signature, label, methodName,
+          ...(target ? { to: target.signature } : {}),
+          ...(receiverType ? { receiverType } : {}),
+          ...(receiverIsInterface ? { receiverIsInterface } : {}),
+          resolution: target ? 'resolved' : 'unknown',
+          ...(reason ? { reason } : {}),
+          ...(self ? { self: true } : {}),
+          path: unit.source.path, line,
+        });
+        if (field) {
+          const declared = localType(field.type, unit);
+          if (declared && isRepository(declared)) {
+            const access = WRITE_QUERY_NAMES.has(methodName) ? 'write' : (QUERY_NAMES.has(methodName) || methodName.startsWith('findBy') || methodName.startsWith('existsBy') || methodName.startsWith('countBy') || methodName.startsWith('readBy')) ? 'read' : 'unknown';
+            dataTouches.push({ method: method.signature, repositoryMethod: methodName, receiverType: declared.full, access, path: unit.source.path, line });
+          }
+          const typeHint = (declared?.full ?? resolveName(outerType(field.type), unit) ?? field.type);
+          if (MQ_TYPE_HINT.test(typeHint) && /(send|convertAndSend|receive)/.test(methodName)) sideEffects.push({ method: method.signature, kind: 'mq', detail: `${label}（${typeHint}）`, path: unit.source.path, line });
+          else if (HTTP_TYPE_HINT.test(typeHint) && /(getForObject|postForObject|getForEntity|postForEntity|exchange|retrieve|post|put|delete|get)/.test(methodName)) sideEffects.push({ method: method.signature, kind: 'http', detail: `${label}（${typeHint}）`, path: unit.source.path, line });
+          else if (CACHE_TYPE_HINT.test(typeHint) && /(set|put|delete|evict|opsForValue|opsForHash|get)/.test(methodName)) sideEffects.push({ method: method.signature, kind: 'cache', detail: `${label}（${typeHint}）`, path: unit.source.path, line });
+        }
+      }
+    };
+    const walk = (method: Method, n: Node, deferred: boolean) => {
+      if (NESTED.has(n.name)) return;
+      if (BRANCH_KINDS.has(n.name)) {
+        const kind = branchKind(n.name);
+        let detail: string | undefined;
+        if (n.name === 'throwStatement') detail = textOf(n).replace(/\s+/g, ' ').slice(0, 80);
+        if (n.name === 'catchClause') { const formal = direct(n, 'catchFormalParameter'); const ct = formal && direct(formal, 'catchType'); detail = ct ? textOf(ct) : undefined; }
+        branches.push({ method: method.signature, kind, ...(detail ? { detail } : {}), path: method.owner.file.source.path, line: n.location.startLine });
+      }
+      if (n.name === 'primary') collectCall(method, n, deferred);
+      if (n.name === 'lambdaExpression') { for (const c of children(n)) if (isNode(c)) walk(method, c, true); return; }
+      for (const c of children(n)) if (isNode(c)) walk(method, c, deferred);
+    };
+    for (const type of types) for (const method of type.methods) if (method.body) walk(method, method.body, false);
+
+    // Cache annotations (@CachePut/@CacheEvict) are method-level side effects.
+    for (const m of methods) {
+      const cache = m.annotations.find(a => CACHE_ANNOTATIONS.has(a));
+      if (cache) sideEffects.push({ method: m.signature, kind: 'cache', detail: cache, path: m.path, line: m.line });
+    }
+
+    entries.sort((a, b) => a.path.localeCompare(b.path, 'en') || a.line - b.line || a.method.localeCompare(b.method, 'en'));
+    methods.sort((a, b) => a.signature.localeCompare(b.signature, 'en'));
+    calls.sort((a, b) => a.from.localeCompare(b.from, 'en') || a.line - b.line || a.label.localeCompare(b.label, 'en'));
+    branches.sort((a, b) => a.method.localeCompare(b.method, 'en') || a.line - b.line || a.kind.localeCompare(b.kind, 'en'));
+    dataTouches.sort((a, b) => a.method.localeCompare(b.method, 'en') || a.line - b.line);
+    sideEffects.sort((a, b) => a.method.localeCompare(b.method, 'en') || a.line - b.line);
+    return { entries, methods, calls, branches, dataTouches, sideEffects };
   }
   function beanAndTransactionRules(method:Method) {
     const type=method.owner, unit=type.file;
@@ -347,3 +510,13 @@ export async function analyzeJava(files: JavaSourceFile[], onProgress?: (parsed:
   result.diagnostics=[...new Map(result.diagnostics.map(d=>[JSON.stringify(d),d])).values()].sort((a,b)=>a.path.localeCompare(b.path,'en')||a.code.localeCompare(b.code,'en')||JSON.stringify(a).localeCompare(JSON.stringify(b),'en'));
   return result;
 }
+
+/** The Java analyzer as an Analyzer implementation (v0.6 M1, ADR-004). */
+export const javaAnalyzer: Analyzer<JavaAnalysis> = {
+  language: 'java',
+  analyzerId: 'java-cst',
+  analyzerVersion: JAVA_ANALYZER_VERSION,
+  parserVersion: '3.0.1',
+  rules: JAVA_RULES,
+  analyze: analyzeJava,
+};

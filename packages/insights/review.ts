@@ -91,6 +91,7 @@ export function buildReviewRecord(input: BuildReviewRecordInput): ReviewRecord {
     insights: aggregated.insights,
     resolvedInsights: aggregated.resolvedInsights,
     coverageSummary: { status: report.status, unknownCount: report.coverage.unknown, reasons: coverageReasons },
+    ...(report.linkSummaries ? { linkSummaries: report.linkSummaries } : {}),
     // ---- legacy v0.1 fields (migration period drill-down detail) ----
     changeSummary: diff
       ? `相对基线：新增 ${diff.added.length} 个文件、修改 ${diff.modified.length} 个、删除 ${diff.deleted.length} 个；新增风险 ${newIds.length} 项、持续 ${continuingIds.length} 项、移除 ${removed.length} 项。${report.summary}`

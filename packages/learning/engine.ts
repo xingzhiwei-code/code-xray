@@ -282,6 +282,22 @@ export function learningCard(binding: LearningBinding): LearningCard {
   };
 }
 
+/**
+ * A concept-level card (no code binding) — used by `xray learn --concept <id>`
+ * to claim a concept surfaced in a link summary (v0.6 M3). `verified` still
+ * requires answering through a concrete binding via CLI, never here.
+ */
+export function conceptCard(conceptId: string): LearningCard | null {
+  const content = CARDS[conceptId as ConceptId];
+  if (!content) return null;
+  return {
+    conceptId: conceptId as ConceptId, contentVersion: LEARNING_CONTENT_VERSION,
+    title: content.title, codeRef: '', evidenceIds: [], historicalSnapshot: false,
+    what: content.what, whyHere: content.whyHere, hiddenMechanisms: content.hiddenMechanisms,
+    whatIfRemoved: content.whatIfRemoved, question: content.question, sources: content.sources,
+  };
+}
+
 export function conceptIds(): ConceptId[] {
   return Object.keys(CARDS) as ConceptId[];
 }

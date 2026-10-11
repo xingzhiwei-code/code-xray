@@ -8,7 +8,7 @@ import { analyze, ENGINE_VERSION, JAVA_RULES } from '../../packages/engine/index
 import { SCHEMA_VERSION, XrayError, type AnalysisReport, type AnalyzeRequest } from '../../packages/protocol/index.js';
 import { LocalStore } from '../../packages/storage-local/index.js';
 import {
-  applyEvent, debtSummary, emptyLearningState, getConceptContent, glossaryFor, learningCard, LEARNING_CONTENT_VERSION, STATUS_LABELS, syncBindings,
+  applyEvent, conceptCard, debtSummary, emptyLearningState, getConceptContent, glossaryFor, learningCard, LEARNING_CONTENT_VERSION, STATUS_LABELS, syncBindings,
   learningStatusFor,
   type LearningBinding, type LearningState,
 } from '../../packages/learning/engine.js';
@@ -41,6 +41,7 @@ function usage(): string {
     '           确定性相关性门：SKIP/LIGHT/FULL（常规低风险任务不打扰；--explain 查看可解释信号）',
     '       xray explain [编号] [--enhance]   单条发现完整上下文（--enhance 需显式配置 LLM provider）',
     '       xray learn [编号] [status|answer|ignore|restore|rebind|delete] …',
+    '       xray learn --concept <概念ID>     从链路摘要认领概念级学习卡（verified 仍需绑定作答）',
     '       xray debt                        透明认知债务模型',
     '       xray profile [init|show|update|correct|prefer]  本机开发者上下文（可选，可跳过；被动积累）',
     '       xray doctor',
@@ -139,6 +140,31 @@ function terminalWidth(): number {
   return process.stdout.columns ?? 80;
 }
 
+const CIRCLED = ['①', '②', '③', '④', '⑤', '⑥', '⑦', '⑧', '⑨'];
+const LINK_KIND_LABELS: Record<string, string> = { http: 'HTTP 接口', scheduled: '定时任务', mq: 'MQ 监听器' };
+
+/** Human-readable link-summary section (v0.6 M2 "讲懂" capability). */
+function linkSummaryLines(report: AnalysisReport): string[] {
+  const summaries = report.linkSummaries ?? [];
+  if (!summaries.length) return [];
+  const lines: string[] = ['', `链路摘要（${summaries.length} 条变更入口；确定的链准确、不确定的显式标注 unknown）：`];
+  for (const summary of summaries) {
+    lines.push(`▸ [${LINK_KIND_LABELS[summary.entryKind] ?? summary.entryKind}] ${summary.entry}（${summary.file}）`);
+    for (const [index, ring] of summary.rings.entries()) {
+      const marker = CIRCLED[index] ?? `(${index + 1})`;
+      lines.push(`  ${marker} ${ring.title}：${ring.summary}`);
+      for (const item of ring.items.slice(0, 8)) {
+        const access = item.access ? `（${item.access === 'read' ? '读' : item.access === 'write' ? '写' : '未知'}）` : '';
+        const loc = item.evidence.length ? ` @ ${item.evidence.map(e => `${e.path.split('/').at(-1)}:${e.line}`).join('、')}` : '';
+        lines.push(`    - ${item.label}${access}${item.resolution === 'unknown' ? ' [unknown]' : ''}${loc}`);
+      }
+      for (const unknown of ring.unknowns.slice(0, 2)) lines.push(`    ? ${unknown}`);
+      for (const concept of ring.concepts) lines.push(`    认领学习卡：xray learn --concept ${concept.conceptId}`);
+    }
+  }
+  return lines;
+}
+
 function humanSummary(report: AnalysisReport, gaps?: ReturnType<typeof knowledgeGaps>): string {
   const width = terminalWidth();
   const lines: string[] = [];
@@ -156,6 +182,7 @@ function humanSummary(report: AnalysisReport, gaps?: ReturnType<typeof knowledge
     if (diff.modified.length) lines.push(`  修改文件：${diff.modified.join('、')}`);
     if (diff.deleted.length) lines.push(`  删除文件：${diff.deleted.join('、')}`);
   }
+  lines.push(...linkSummaryLines(report));
   if (report.findings.length) {
     lines.push('');
     lines.push(`前 ${Math.min(3, report.findings.length)} 项发现（完整列表用 --format json，逐项详情用 xray explain）：`);
@@ -360,6 +387,31 @@ async function runLearn(args: string[]): Promise<void> {
   const store = new LocalStore(process.env.XRAY_DATA_DIR ? { dataDir: process.env.XRAY_DATA_DIR } : {});
   const width = terminalWidth();
   const state = await store.readState('.', emptyLearningState());
+  // v0.6 M3: claim a learning card directly from a link-summary conceptId.
+  if (args[0] === '--concept') {
+    const conceptId = args[1];
+    if (!conceptId) throw new XrayError('INVALID_ARGUMENT', '--concept 需要一个概念 ID（如 jpa.entity-boundary）。', 2);
+    const card = conceptCard(conceptId);
+    if (!card) throw new XrayError('INVALID_ARGUMENT', `没有学习卡内容的概念 ID：${conceptId}（可用概念见 xray learn 列表或 xray debt 概念明细）。`, 2);
+    const conceptState = learningStatusFor(state, card.conceptId);
+    const lines = [
+      `${card.title}（${card.conceptId}）`,
+      `概念级学习卡（来自链路摘要认领）· 当前学习状态：${STATUS_LABELS[conceptState] ?? conceptState}`,
+      '',
+      `是什么：${card.what}`,
+      `为什么在这里：${card.whyHere}`,
+      `隐藏机制：${card.hiddenMechanisms}`,
+      `如果不理解会怎样：${card.whatIfRemoved}`,
+      '',
+      `验证问题：${card.question.prompt}`,
+      ...card.question.options.map(option => `  ${option.id}) ${option.text}`),
+      '',
+      `来源：${card.sources.map(s => s.title).join('、')}`,
+      '掌握确认（verified）红线：仍需经具体绑定用 xray learn <编号> answer <选项> 显式验证。',
+    ];
+    process.stdout.write(lines.flatMap(line => wrapLine(line, width)).join('\n') + '\n');
+    return;
+  }
   const bindings = sortedBindings(state);
   if (!bindings.length) {
     process.stdout.write('当前目录没有学习绑定；先运行 xray scan <路径> 生成发现。\n');
@@ -443,6 +495,15 @@ async function runDebt(): Promise<void> {
   const summary = debtSummary(state);
   const context = readContextFrom(await store.readProfile<StoredDeveloperData>(emptyDeveloperContext()));
   const contextConfigured = Object.keys(context.skills).length > 0;
+  // v0.6 M3: link-summary coverage — how often each concept surfaced in a link ring.
+  const linkOccurrences = new Map<string, number>();
+  try {
+    const latest = await store.loadReport<AnalysisReport>('.');
+    for (const linkSummary of latest?.linkSummaries ?? [])
+      for (const ring of linkSummary.rings)
+        for (const concept of ring.concepts)
+          linkOccurrences.set(concept.conceptId, (linkOccurrences.get(concept.conceptId) ?? 0) + 1);
+  } catch { /* no saved report: link coverage stays empty */ }
   const lines = [
     `认知债务（${summary.modelVersion}，按知识概念聚合；个人启发式，不是能力评分）`,
     `总债务：${summary.total}（${summary.calculatedCount} 个概念计入；绑定级未评估 ${summary.unassessedCount}、待复核 ${summary.staleCount}、未知关联 ${summary.unknownCount}、已忽略 ${summary.ignoredCount}）`,
@@ -455,9 +516,13 @@ async function runDebt(): Promise<void> {
     '',
     '概念明细（按优先级降序）：',
   ];
-  for (const item of summary.items)
+  for (const item of summary.items) {
+    const linkCount = linkOccurrences.get(item.conceptId);
     lines.push(wrapLine(`  ${item.priority === null ? '—' : item.priority.toFixed(2).padStart(5)} [${item.statusLabel}] ${item.conceptId} — ${item.occurrenceCount} 处代码位置` +
       (item.priority === null ? `（${item.exclusionReason}）` : ` = ${item.impact}×${item.gap}×${item.evidenceStrength}×${item.exposureFactor}`), width).join('\n'));
+    if (linkCount !== undefined && linkCount > 0)
+      lines.push(wrapLine(`      · 该概念在你的链路摘要里出现过 ${linkCount} 次。`, width).join('\n'));
+  }
   if (!summary.items.length) lines.push('  （暂无绑定；先运行 xray scan）');
   if (summary.bindingItems.length) {
     lines.push('绑定钻取（按概念优先级排序；单绑定参考值不计入总债务）：');
