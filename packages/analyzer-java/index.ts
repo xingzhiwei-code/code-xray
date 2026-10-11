@@ -79,6 +79,11 @@ function typeName(node: Node | undefined): string {
   return textOf(node);
 }
 function outerType(raw: string): string { return raw.split('<')[0].split('[')[0]; }
+/** v0.7 M3 / R7: whether a declared return type is a collection (potential lazy-load). */
+function isCollectionReturn(returnType: string): boolean {
+  const simple = outerType(returnType).split('.').at(-1) ?? outerType(returnType);
+  return simple === 'List' || simple === 'Set' || simple === 'Collection' || simple === 'ArrayList' || simple === 'HashSet' || simple === 'TreeSet' || simple === 'LinkedHashSet';
+}
 function typeFields(n: Node, typeKey: string, anns: Annotation[]): Field[] {
   const typeNode = direct(n, typeKey) ?? descendants(n, 'unannType')[0];
   const list = direct(n, 'variableDeclaratorList');
@@ -241,16 +246,18 @@ export async function analyzeJava(files: JavaSourceFile[], onProgress?: (parsed:
       const isController = type.annotations.some(a => a.full === 'org.springframework.stereotype.Controller');
       for (const method of type.methods) {
         const line = method.header.location.startLine;
+        // Inclusive last line of the method: body end when present, else the declaration node's end.
+        const endLine = method.body?.location.endLine ?? method.node.location.endLine;
         const path = type.file.source.path;
         const httpMapped = method.annotations.some(a => MAPPINGS.has(a.full ?? ''));
         if (httpMapped && (isRest || isController)) {
-          entries.push({ method: method.signature, kind: 'http', annotations: method.annotations.map(a => a.full ?? a.raw), params: toParams(method), returnType: method.type, path, line });
+          entries.push({ method: method.signature, kind: 'http', annotations: method.annotations.map(a => a.full ?? a.raw), params: toParams(method), returnType: method.type, path, line, endLine });
           continue;
         }
         const scheduled = method.annotations.find(a => a.full === SCHEDULED);
-        if (scheduled) { entries.push({ method: method.signature, kind: 'scheduled', annotations: [scheduled.full ?? scheduled.raw], params: toParams(method), returnType: method.type, path, line }); continue; }
+        if (scheduled) { entries.push({ method: method.signature, kind: 'scheduled', annotations: [scheduled.full ?? scheduled.raw], params: toParams(method), returnType: method.type, path, line, endLine }); continue; }
         const mq = method.annotations.find(a => MQ_LISTENERS.has(a.full ?? ''));
-        if (mq) entries.push({ method: method.signature, kind: 'mq', annotations: [mq.full ?? mq.raw], params: toParams(method), returnType: method.type, path, line });
+        if (mq) entries.push({ method: method.signature, kind: 'mq', annotations: [mq.full ?? mq.raw], params: toParams(method), returnType: method.type, path, line, endLine });
       }
     }
 
@@ -315,6 +322,11 @@ export async function analyzeJava(files: JavaSourceFile[], onProgress?: (parsed:
           if (declared && isRepository(declared)) {
             const access = WRITE_QUERY_NAMES.has(methodName) ? 'write' : (QUERY_NAMES.has(methodName) || methodName.startsWith('findBy') || methodName.startsWith('existsBy') || methodName.startsWith('countBy') || methodName.startsWith('readBy')) ? 'read' : 'unknown';
             dataTouches.push({ method: method.signature, repositoryMethod: methodName, receiverType: declared.full, access, path: unit.source.path, line });
+          } else if (declared && target && declared.annotations.some(a => ENTITIES.has(a.full ?? '')) && isCollectionReturn(target.type)) {
+            // v0.7 M3 / R7: a collection/relation access on a JPA entity counts as a
+            // read, flagged as a potential lazy-load checkpoint. Only when the target
+            // is uniquely resolved — otherwise we stay silent (never invented).
+            dataTouches.push({ method: method.signature, repositoryMethod: methodName, receiverType: declared.full, access: 'read', path: unit.source.path, line, lazyCollection: true });
           }
           const typeHint = (declared?.full ?? resolveName(outerType(field.type), unit) ?? field.type);
           if (MQ_TYPE_HINT.test(typeHint) && /(send|convertAndSend|receive)/.test(methodName)) sideEffects.push({ method: method.signature, kind: 'mq', detail: `${label}（${typeHint}）`, path: unit.source.path, line });

@@ -16,7 +16,7 @@ describe('engine facade as an independent protocol consumer', () => {
     expect(() => assertReport(report)).not.toThrow();
     expect(report.schemaVersion).toBe('0.1');
     expect(report.status).toBe('complete');
-    expect(report.coverage.parsed).toBe(36);
+    expect(report.coverage.parsed).toBe(66);
     expect(report.coverage.failed).toBe(0);
     const byRule = new Map(report.findings.map(f => [f.ruleId, (report.findings.filter(g => g.ruleId === f.ruleId).length)]));
     expect(byRule.get('TX_SELF_INVOCATION')).toBe(5);
@@ -145,6 +145,28 @@ describe('engine facade as an independent protocol consumer', () => {
       expect(report.diff!.removedFindings).toHaveLength(1);
       expect(report.diff!.removedFindings[0].symbol).toBe('Gone#outer()');
       expect(report.diff!.newFindingIds).toHaveLength(0);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it('narrows link summaries to the method actually touched by the diff (v0.7 M2 / R6)', async () => {
+    const root = mkdtempSync(join(tmpdir(), 'xray-links-'));
+    try {
+      const git = (...args: string[]) => execFileSync('git', ['-c', 'user.email=t@x.local', '-c', 'user.name=t', ...args], { cwd: root, stdio: 'pipe' });
+      git('init', '-q');
+      mkdirSync(join(root, 'src'), { recursive: true });
+      // Base: one HTTP entry (method `a`).
+      writeFileSync(join(root, 'src', 'Two.java'),
+        'package demo;\nimport org.springframework.web.bind.annotation.GetMapping;\nimport org.springframework.web.bind.annotation.RestController;\n@RestController\npublic class Two {\n    @GetMapping("/a")\n    public String a() { return "a"; }\n}\n');
+      git('add', '.');
+      git('commit', '-q', '-m', 'base');
+      // Working tree: add a second entry method `b`; method `a` is untouched.
+      writeFileSync(join(root, 'src', 'Two.java'),
+        'package demo;\nimport org.springframework.web.bind.annotation.GetMapping;\nimport org.springframework.web.bind.annotation.RestController;\n@RestController\npublic class Two {\n    @GetMapping("/a")\n    public String a() { return "a"; }\n\n    @GetMapping("/b")\n    public String b() { return "b"; }\n}\n');
+      const report = await analyze({ path: root, base: 'HEAD' });
+      expect(report.linkSummaries).toHaveLength(1);
+      expect(report.linkSummaries![0].entry).toBe('demo.Two#b()');
     } finally {
       rmSync(root, { recursive: true, force: true });
     }

@@ -75,7 +75,19 @@ function traceChain(entry: string, calls: JavaLinkCall[]): { chain: string[]; ed
   return { chain, edges, unresolved };
 }
 
-export function buildLinkSummaries(analysis: JavaAnalysis, changedFiles?: Set<string>): LinkSummary[] {
+/**
+ * Whether an entry method's line range intersects any changed line for its
+ * file (v0.7 M2 / R6). A missing per-file entry means the whole file counts as
+ * changed (e.g. a newly added file), so the entry is kept.
+ */
+function touchesChangedLines(entry: { path: string; line: number; endLine: number }, changedLines: Map<string, Set<number>>): boolean {
+  const lines = changedLines.get(entry.path);
+  if (!lines) return true;
+  for (let line = entry.line; line <= entry.endLine; line++) if (lines.has(line)) return true;
+  return false;
+}
+
+export function buildLinkSummaries(analysis: JavaAnalysis, changedFiles?: Set<string>, changedLines?: Map<string, Set<number>>): LinkSummary[] {
   const links: JavaLinkData | undefined = analysis.links;
   if (!links) return [];
   const methodIndex = new Map<string, JavaLinkMethod>(links.methods.map(m => [m.signature, m]));
@@ -106,6 +118,7 @@ export function buildLinkSummaries(analysis: JavaAnalysis, changedFiles?: Set<st
   const summaries: LinkSummary[] = [];
   for (const entry of links.entries) {
     if (changedFiles && !changedFiles.has(entry.path)) continue;
+    if (changedLines && !touchesChangedLines(entry, changedLines)) continue;
     const { chain, edges, unresolved } = traceChain(entry.method, links.calls);
     const chainMethods = chain.map(sig => methodIndex.get(sig)).filter((m): m is JavaLinkMethod => Boolean(m));
     const rings: RingDraft[] = [];
@@ -170,12 +183,20 @@ export function buildLinkSummaries(analysis: JavaAnalysis, changedFiles?: Set<st
     // 5. 数据触及（读/写区分）
     {
       const touches = links.dataTouches.filter(t => chain.includes(t.method));
-      const items: LinkRingItem[] = touches.map(t => ({
-        label: `${t.receiverType?.split('.').at(-1) ?? 'Repository'}.${t.repositoryMethod}()`, evidence: [{ path: t.path, line: t.line }],
-        resolution: 'resolved', access: t.access,
-      }));
+      const items: LinkRingItem[] = touches.map(t => {
+        const receiver = t.receiverType?.split('.').at(-1) ?? 'Repository';
+        const item: LinkRingItem = {
+          label: `${receiver}.${t.repositoryMethod}()`, evidence: [{ path: t.path, line: t.line }],
+          resolution: 'resolved', access: t.access,
+        };
+        if (t.lazyCollection) {
+          item.label = `${item.label}（懒加载集合访问：潜在 N+1 / LazyInitializationException 检查点）`;
+          item.reason = '懒加载集合访问：潜在 N+1 / LazyInitializationException 检查点';
+        }
+        return item;
+      });
       const unknowns = touches.filter(t => t.access === 'unknown').map(t => `${t.repositoryMethod}() 的读/写性质无法静态确定（自定义或继承方法）。`);
-      if (touches.length === 0) unknowns.push('链路上未检测到显式 Repository 数据访问（可能经接口/动态代理，静态不可见）。');
+      if (touches.length === 0) unknowns.push('链路上未检测到显式数据访问（Repository 调用或实体集合访问；可能经接口/动态代理，静态不可见）。');
       rings.push({
         kind: 'data-touch', title: '数据触及（读/写）',
         summary: touches.length === 0 ? '未检测到显式数据访问。' : `${touches.length} 次数据访问（读 ${touches.filter(t => t.access === 'read').length} / 写 ${touches.filter(t => t.access === 'write').length} / 未知 ${touches.filter(t => t.access === 'unknown').length}）。`,

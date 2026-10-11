@@ -44,6 +44,8 @@ export interface JavaLinkEntry {
   returnType: string;
   path: string;
   line: number;
+  /** Inclusive last line of the method (declaration through body). Used to intersect with diff hunks (v0.7 M2). */
+  endLine: number;
 }
 /** Indexed method metadata for call resolution and ring assembly. */
 export interface JavaLinkMethod {
@@ -89,6 +91,8 @@ export interface JavaLinkDataTouch {
   access: 'read' | 'write' | 'unknown';
   path: string;
   line: number;
+  /** v0.7 M3 / R7: a collection/relation access on a JPA entity (potential lazy-load). */
+  lazyCollection?: boolean;
 }
 /** An external side effect (MQ send / external HTTP / cache write). */
 export interface JavaLinkSideEffect {

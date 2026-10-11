@@ -49,7 +49,7 @@ describe('T301 Loop A: MCP stdio contract', () => {
     const envelope = AgentProcess.envelopeOf(response);
     expect(envelope.status).toBe('ok');
     const data = envelope.data;
-    expect(data.findingsTotal).toBe(27); // frozen fixture oracle count (r19)
+    expect(data.findingsTotal).toBe(40); // frozen fixture oracle count (r19, v0.7 M4 扩展后)
     expect(data.findings.length).toBeLessThanOrEqual(20);
     expect(data.findingsTruncated).toBe(data.findingsTotal > data.findings.length);
     expect(data.snapshotId).toMatch(/^[0-9a-f]{64}$/);

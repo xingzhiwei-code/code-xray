@@ -86,3 +86,68 @@ describe('link-summary learning loop (v0.6 M3)', () => {
     expect(conceptCard('does.not.exist')).toBeNull();
   });
 });
+
+describe('link-summary narrowing (v0.7 M2 / R6)', () => {
+  // Two HTTP entries in the SAME changed file; only the `b` method's lines are
+  // touched by the diff, so only `b` should surface as an entry summary.
+  const twoEntries = [
+    file('demo/TwoController.java', [
+      'package demo;',
+      '',
+      'import org.springframework.web.bind.annotation.GetMapping;',
+      'import org.springframework.web.bind.annotation.RestController;',
+      '',
+      '@RestController',
+      'public class TwoController {',
+      '',
+      '    @GetMapping("/a")',
+      '    public String a() {',
+      '        return "a";',
+      '    }',
+      '',
+      '    @GetMapping("/b")',
+      '    public String b() {',
+      '        return "b";',
+      '    }',
+      '}',
+    ].join('\n') + '\n'),
+  ];
+
+  it('emits only the entry whose line range intersects the changed lines', async () => {
+    const analysis = await analyzeJava(twoEntries);
+    const changedLines = new Map<string, Set<number>>([['demo/TwoController.java', new Set([14, 15, 16, 17])]]);
+    const summaries = buildLinkSummaries(analysis, new Set(['demo/TwoController.java']), changedLines);
+    expect(summaries).toHaveLength(1);
+    expect(summaries[0].entry).toBe('demo.TwoController#b()');
+  });
+
+  it('emits nothing when no entry line is touched', async () => {
+    const analysis = await analyzeJava(twoEntries);
+    const changedLines = new Map<string, Set<number>>([['demo/TwoController.java', new Set([3, 4])]]);
+    expect(buildLinkSummaries(analysis, new Set(['demo/TwoController.java']), changedLines)).toHaveLength(0);
+  });
+
+  it('keeps all entries when no per-line info is provided (whole file changed)', async () => {
+    const analysis = await analyzeJava(twoEntries);
+    expect(buildLinkSummaries(analysis, new Set(['demo/TwoController.java']))).toHaveLength(2);
+  });
+});
+
+describe('link-summary lazy collection access (v0.7 M3 / R7)', () => {
+  const lazyFiles = [
+    file('demo/Owner.java', 'package demo;\nimport jakarta.persistence.Entity; import jakarta.persistence.Id; import jakarta.persistence.OneToMany;\nimport java.util.List;\n@Entity\npublic class Owner { @Id private Long id; @OneToMany private List<Pet> pets; public List<Pet> getPets(){ return pets; } }\n'),
+    file('demo/Pet.java', 'package demo;\nimport jakarta.persistence.Entity; import jakarta.persistence.Id;\n@Entity\npublic class Pet { @Id private Long id; }\n'),
+    file('demo/OwnerController.java', 'package demo;\nimport org.springframework.web.bind.annotation.GetMapping; import org.springframework.web.bind.annotation.RestController;\n@RestController\npublic class OwnerController { private final Owner owner; public OwnerController(Owner owner){ this.owner = owner; } @GetMapping("/pets") public int petCount(){ return owner.getPets().size(); } }\n'),
+  ];
+
+  it('counts owner.getPets() as a read and flags lazy-load checkpoint', async () => {
+    const analysis = await analyzeJava(lazyFiles);
+    const summaries = buildLinkSummaries(analysis, new Set(['demo/OwnerController.java']));
+    const touch = summaries[0].rings.find(r => r.kind === 'data-touch')!;
+    const lazy = touch.items.find(i => i.label.includes('getPets'));
+    expect(lazy).toBeDefined();
+    expect(lazy!.access).toBe('read');
+    expect(lazy!.label).toContain('懒加载集合访问');
+    expect(lazy!.label).toContain('N+1');
+  });
+});

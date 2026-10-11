@@ -199,6 +199,9 @@ describe('T008: learn and debt through the real CLI', () => {
       expect(debt.stdout).toContain('公式');
       expect(debt.stdout).toContain('不是能力评分');
       expect(debt.stdout).toContain('已验证理解');
+      // v0.7 M1/R5: every concept row carries the link-occurrence sentence; a
+      // plain scan has no diff, so no link summaries exist → N=0 wording.
+      expect(debt.stdout).toContain('尚未在链路摘要里出现过');
       debt.restore();
     } finally {
       rmSync(dataDir, { recursive: true, force: true });

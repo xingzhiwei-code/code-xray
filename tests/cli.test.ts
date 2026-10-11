@@ -34,8 +34,8 @@ describe('real CLI end-to-end through cliff dispatch', () => {
       expect(std.stderr).toBe('');
       const report = JSON.parse(std.stdout);
       expect(report.schemaVersion).toBe('0.1');
-      expect(report.coverage.parsed).toBe(36);
-      expect(report.findings).toHaveLength(27);
+      expect(report.coverage.parsed).toBe(66);
+      expect(report.findings).toHaveLength(40);
       expect(report.provenance.offline).toBe(true);
     } finally {
       std.restore();
@@ -52,7 +52,7 @@ describe('real CLI end-to-end through cliff dispatch', () => {
       expect(exit).toBe(0);
       expect(std.stderr).toBe('');
       expect(std.stdout).not.toMatch(/\[/);
-      expect(std.stdout).toContain('27 项发现');
+      expect(std.stdout).toContain('40 项发现');
       expect(std.stdout).toContain('demo/orders/OrderService.java');
       // Bounded default summary: exactly three numbered findings, no fourth.
       expect(std.stdout).toContain('  1. ');
@@ -74,9 +74,9 @@ describe('real CLI end-to-end through cliff dispatch', () => {
       const exit = await main([]);
       expect(exit).toBe(0);
       // From the repo root the walk finds both fixture trees:
-      // java-spring-jpa (36 files, frozen oracle) + injection-java (2 files, T301c).
-      expect(std.stdout).toContain('38 个文件完成解析');
-      expect(std.stdout).toContain('28 项发现');
+      // java-spring-jpa (66 files, frozen oracle) + injection-java (2 files, T301c).
+      expect(std.stdout).toContain('68 个文件完成解析');
+      expect(std.stdout).toContain('41 项发现');
     } finally {
       std.restore();
       rmSync(dataDir, { recursive: true, force: true });

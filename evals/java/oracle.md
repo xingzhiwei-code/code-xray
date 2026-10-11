@@ -17,3 +17,17 @@ Rule WEB_ENTITY_RELATION: Spring RestController or Controller+ResponseBody metho
 Sources: [Spring transaction proxy/self-invocation](https://docs.spring.io/spring-framework/reference/data-access/transaction/declarative/annotations.html), [Spring Data query methods](https://docs.spring.io/spring-data/jpa/reference/jpa/query-methods.html), [Jakarta Persistence entity relationships and fetch semantics](https://jakarta.ee/specifications/persistence/3.2/jakarta-persistence-spec-3.2), [Spring MVC ResponseBody](https://docs.spring.io/spring-framework/reference/web/webmvc/mvc-controller/ann-methods/responsebody.html).
 
 Unknown inputs are excluded from precision/recall denominators and reported separately. Known denominators: 12 positives + 12 negatives. Any unknown input reported as a finding fails its boundary test. Labels stay fixed if an implementation fails.
+
+## v0.7 M4 追加（2026-10-11）：后 3 条规则
+
+Rule SPRING_BEAN_CANDIDATE: top-level type annotated with an explicitly imported/FQN Spring stereotype (@Service/@Component/@Repository/@Controller/@RestController), holding at least one field whose declared type resolves to a local type also annotated with such a stereotype (self-type excluded). Positive means bean-proxy-boundary checkpoint; it never proves runtime binding. Bean with no injected bean field, plain (non-bean) field type, self-typed field, and non-bean declaring type are negative. Wildcard-imported stereotype on the declaring type or on the injected type are unknown.
+
+Rule TRANSACTION_BOUNDARY: top-level type annotated with an explicitly imported/FQN Spring stereotype, with a method annotated @Transactional (explicit import/FQN). Positive means transaction-boundary checkpoint; it never proves runtime behavior. @Transactional on a non-bean type, bean type without @Transactional, same-named non-Spring @Transactional, and comment-only mention are negative. Wildcard-imported @Transactional and wildcard-imported stereotype are unknown.
+
+Rule JPA_PERSISTENCE_CONTEXT: method whose declared return type resolves to a local JPA Entity (explicit import/FQN) carrying an explicitly imported/FQN relationship field (@OneToMany/@ManyToOne/@OneToOne/@ManyToMany). Positive means persistence-context boundary checkpoint; it never proves extra SQL or leak. Entity without relations, DTO return, plain String return, and undeclared external return type are negative. Wildcard-imported @Entity and wildcard-imported relationship annotation are unknown.
+
+| Rule | Positive IDs (4) | Negative IDs (4) | Unknown IDs (2) |
+|---|---|---|---|
+| SPRING_BEAN_CANDIDATE | bean-inject-service, bean-inject-component, bean-controller-service, bean-multi-inject | bean-no-field, bean-plain-field, bean-self-inject, bean-not-bean | bean-star-import, bean-field-star-import |
+| TRANSACTION_BOUNDARY | txb-service, txb-fqn, txb-controller, txb-multi | txb-no-bean, txb-no-tx, txb-custom, txb-string-comment | txb-star-import, txb-star-bean |
+| JPA_PERSISTENCE_CONTEXT | jpacontext-direct, jpacontext-many-to-one, jpacontext-multi, jpacontext-fqn | jpacontext-no-relation, jpacontext-dto, jpacontext-string, jpacontext-external | jpacontext-star-entity, jpacontext-star-relation |

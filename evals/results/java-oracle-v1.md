@@ -1,7 +1,7 @@
 # Rule eval — frozen oracle v1 (evals/java/oracle.md)
 
-- 运行：2026-09-25T10:01:04.413Z；analyzer java-cst@0.1.0（parser 3.0.1）
-- 输入：36 个 fixture 文件（含 demo/orders 5 文件与 support 1 文件，不参与计分）
+- 运行：2026-10-11T10:14:07.230Z；analyzer java-cst@0.1.0（parser 3.0.1）
+- 输入：66 个 fixture 文件（含 demo/orders 5 文件与 support 1 文件，不参与计分）
 - 计分规则（AC03）：precision/recall 仅在已知标签（每规则 4 正 + 4 负）上计算；unknown 单列，不计入分母。
 
 | 规则 | TP | FP | FN | 已知分母 | precision | recall | unknown 清洁 |
@@ -9,6 +9,9 @@
 | TX_SELF_INVOCATION | 4 | 0 | 0 | 8 | 100.0% | 100.0% | 2/2 |
 | JPA_CALL_IN_LOOP | 4 | 0 | 0 | 8 | 100.0% | 100.0% | 2/2 |
 | WEB_ENTITY_RELATION | 4 | 0 | 0 | 8 | 100.0% | 100.0% | 2/2 |
+| SPRING_BEAN_CANDIDATE | 4 | 0 | 0 | 8 | 100.0% | 100.0% | 2/2 |
+| TRANSACTION_BOUNDARY | 4 | 0 | 0 | 8 | 100.0% | 100.0% | 2/2 |
+| JPA_PERSISTENCE_CONTEXT | 4 | 0 | 0 | 8 | 100.0% | 100.0% | 2/2 |
 
 ## 逐案结果
 
@@ -44,6 +47,36 @@
 | web-html | negative | 否 | — | correct-negative |
 | web-external | unknown | 否 | 是 | unknown-clean |
 | web-star-entity | unknown | 否 | 是 | unknown-clean |
+| bean-inject-service | positive | 是 | — | TP |
+| bean-inject-component | positive | 是 | — | TP |
+| bean-controller-service | positive | 是 | — | TP |
+| bean-multi-inject | positive | 是 | — | TP |
+| bean-no-field | negative | 否 | — | correct-negative |
+| bean-plain-field | negative | 否 | — | correct-negative |
+| bean-self-inject | negative | 否 | — | correct-negative |
+| bean-not-bean | negative | 否 | — | correct-negative |
+| bean-star-import | unknown | 否 | 是 | unknown-clean |
+| bean-field-star-import | unknown | 否 | 是 | unknown-clean |
+| txb-service | positive | 是 | — | TP |
+| txb-fqn | positive | 是 | — | TP |
+| txb-controller | positive | 是 | — | TP |
+| txb-multi | positive | 是 | — | TP |
+| txb-no-bean | negative | 否 | — | correct-negative |
+| txb-no-tx | negative | 否 | — | correct-negative |
+| txb-custom | negative | 否 | — | correct-negative |
+| txb-string-comment | negative | 否 | — | correct-negative |
+| txb-star-import | unknown | 否 | 是 | unknown-clean |
+| txb-star-bean | unknown | 否 | 是 | unknown-clean |
+| jpacontext-direct | positive | 是 | — | TP |
+| jpacontext-many-to-one | positive | 是 | — | TP |
+| jpacontext-multi | positive | 是 | — | TP |
+| jpacontext-fqn | positive | 是 | — | TP |
+| jpacontext-no-relation | negative | 否 | — | correct-negative |
+| jpacontext-dto | negative | 否 | — | correct-negative |
+| jpacontext-string | negative | 否 | — | correct-negative |
+| jpacontext-external | negative | 否 | — | correct-negative |
+| jpacontext-star-entity | unknown | 否 | 是 | unknown-clean |
+| jpacontext-star-relation | unknown | 否 | 是 | unknown-clean |
 
 阈值：precision ≥ 90%、recall ≥ 80%（AC03）；unknown 泄漏或不可见即失败。
 结果：**通过**。

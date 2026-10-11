@@ -517,11 +517,12 @@ async function runDebt(): Promise<void> {
     '概念明细（按优先级降序）：',
   ];
   for (const item of summary.items) {
-    const linkCount = linkOccurrences.get(item.conceptId);
+    const linkCount = linkOccurrences.get(item.conceptId) ?? 0;
     lines.push(wrapLine(`  ${item.priority === null ? '—' : item.priority.toFixed(2).padStart(5)} [${item.statusLabel}] ${item.conceptId} — ${item.occurrenceCount} 处代码位置` +
       (item.priority === null ? `（${item.exclusionReason}）` : ` = ${item.impact}×${item.gap}×${item.evidenceStrength}×${item.exposureFactor}`), width).join('\n'));
-    if (linkCount !== undefined && linkCount > 0)
-      lines.push(wrapLine(`      · 该概念在你的链路摘要里出现过 ${linkCount} 次。`, width).join('\n'));
+    lines.push(wrapLine(linkCount > 0
+      ? `      · 该概念在你的链路摘要里出现过 ${linkCount} 次。`
+      : '      · 尚未在链路摘要里出现过。', width).join('\n'));
   }
   if (!summary.items.length) lines.push('  （暂无绑定；先运行 xray scan）');
   if (summary.bindingItems.length) {

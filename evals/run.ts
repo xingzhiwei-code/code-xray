@@ -1,12 +1,16 @@
 /**
  * Rule evaluation harness — runs the analyzer over the frozen fixture set and
- * scores it against the labels frozen in evals/java/oracle.md (v1, 2026-09-08).
+ * scores it against the labels frozen in evals/java/oracle.md.
  *
  * Scoring follows AC03: precision/recall are computed over the KNOWN labels
  * only (4 positives + 4 negatives per rule); unknown cases are excluded from
  * both denominator and numerator and reported separately. An unknown case
  * reported as a finding fails its boundary check; an unknown case without a
  * visible unknown/unresolved diagnostic fails visibility.
+ *
+ * v0.7 M4 extends the frozen oracle with the three remaining rules
+ * (SPRING_BEAN_CANDIDATE / TRANSACTION_BOUNDARY / JPA_PERSISTENCE_CONTEXT).
+ * The original 30 cases (tx/loop/web) and their verdicts stay byte-identical.
  *
  * Run: npx tsx evals/run.ts   (exit 0 = thresholds met, 1 = not met)
  */
@@ -17,13 +21,23 @@ import { readdirSync, statSync } from 'node:fs';
 import { analyzeJava, JAVA_ANALYZER_VERSION, type JavaSourceFile } from '../packages/analyzer-java/index.js';
 
 type Label = 'positive' | 'negative' | 'unknown';
-type RuleId = 'TX_SELF_INVOCATION' | 'JPA_CALL_IN_LOOP' | 'WEB_ENTITY_RELATION';
-interface Case { id: string; rule: RuleId; label: Label; file: string }
+type RuleId = 'TX_SELF_INVOCATION' | 'JPA_CALL_IN_LOOP' | 'WEB_ENTITY_RELATION'
+  | 'SPRING_BEAN_CANDIDATE' | 'TRANSACTION_BOUNDARY' | 'JPA_PERSISTENCE_CONTEXT';
+interface Case { id: string; rule: RuleId; label: Label; file: string; directory: string }
 
 // Mirrors the frozen table in evals/java/oracle.md. Labels stay fixed even if
 // the implementation fails — that is the point of a frozen oracle.
-const PREFIX_RULE: Record<string, RuleId> = { tx: 'TX_SELF_INVOCATION', loop: 'JPA_CALL_IN_LOOP', web: 'WEB_ENTITY_RELATION' };
+const PREFIX_RULE: Record<string, RuleId> = {
+  tx: 'TX_SELF_INVOCATION', loop: 'JPA_CALL_IN_LOOP', web: 'WEB_ENTITY_RELATION',
+  bean: 'SPRING_BEAN_CANDIDATE', txb: 'TRANSACTION_BOUNDARY', jpacontext: 'JPA_PERSISTENCE_CONTEXT',
+};
+/** Class-name prefix per case prefix (mirrors the fixture file naming). */
+const CLASS_PREFIX: Record<string, string> = { tx: 'Tx', loop: 'Loop', web: 'Web', bean: 'Bean', txb: 'Txb', jpacontext: 'Jpacontext' };
+/** Fixture directory per case prefix. */
+const PREFIX_DIR: Record<string, string> = { tx: 'tx', loop: 'loop', web: 'web', bean: 'bean', txb: 'txb', jpacontext: 'jpacontext' };
+
 const CASES: Case[] = ([
+  // ---- v1 (frozen, unchanged): TX_SELF_INVOCATION / JPA_CALL_IN_LOOP / WEB_ENTITY_RELATION ----
   ['tx-unqualified', 'positive'], ['tx-this', 'positive'], ['tx-fqn', 'positive'], ['tx-two-args', 'positive'],
   ['tx-no-annotation', 'negative'], ['tx-other-receiver', 'negative'], ['tx-custom-annotation', 'negative'], ['tx-string-comment', 'negative'],
   ['tx-star-import', 'unknown'], ['tx-overload', 'unknown'],
@@ -33,13 +47,23 @@ const CASES: Case[] = ([
   ['web-direct', 'positive'], ['web-list', 'positive'], ['web-response', 'positive'], ['web-controller-body', 'positive'],
   ['web-dto', 'negative'], ['web-no-relation', 'negative'], ['web-no-mapping', 'negative'], ['web-html', 'negative'],
   ['web-external', 'unknown'], ['web-star-entity', 'unknown'],
+  // ---- v0.7 M4 (appended): SPRING_BEAN_CANDIDATE ----
+  ['bean-inject-service', 'positive'], ['bean-inject-component', 'positive'], ['bean-controller-service', 'positive'], ['bean-multi-inject', 'positive'],
+  ['bean-no-field', 'negative'], ['bean-plain-field', 'negative'], ['bean-self-inject', 'negative'], ['bean-not-bean', 'negative'],
+  ['bean-star-import', 'unknown'], ['bean-field-star-import', 'unknown'],
+  // ---- v0.7 M4 (appended): TRANSACTION_BOUNDARY ----
+  ['txb-service', 'positive'], ['txb-fqn', 'positive'], ['txb-controller', 'positive'], ['txb-multi', 'positive'],
+  ['txb-no-bean', 'negative'], ['txb-no-tx', 'negative'], ['txb-custom', 'negative'], ['txb-string-comment', 'negative'],
+  ['txb-star-import', 'unknown'], ['txb-star-bean', 'unknown'],
+  // ---- v0.7 M4 (appended): JPA_PERSISTENCE_CONTEXT ----
+  ['jpacontext-direct', 'positive'], ['jpacontext-many-to-one', 'positive'], ['jpacontext-multi', 'positive'], ['jpacontext-fqn', 'positive'],
+  ['jpacontext-no-relation', 'negative'], ['jpacontext-dto', 'negative'], ['jpacontext-string', 'negative'], ['jpacontext-external', 'negative'],
+  ['jpacontext-star-entity', 'unknown'], ['jpacontext-star-relation', 'unknown'],
 ] as [string, Label][]).map(([id, label]) => {
   const prefix = id.split('-')[0] as keyof typeof PREFIX_RULE;
   const [, ...rest] = id.split('-');
-  const file = ['Tx', 'Loop', 'Web'].includes(prefix[0].toUpperCase() + prefix.slice(1) + '')
-    ? `${prefix === 'tx' ? 'Tx' : prefix === 'loop' ? 'Loop' : 'Web'}${rest.map(p => p[0].toUpperCase() + p.slice(1)).join('')}Case.java`
-    : '';
-  return { id, rule: PREFIX_RULE[prefix], label, file };
+  const file = `${CLASS_PREFIX[prefix]}${rest.map(p => p[0].toUpperCase() + p.slice(1)).join('')}Case.java`;
+  return { id, rule: PREFIX_RULE[prefix], label, file, directory: PREFIX_DIR[prefix] };
 });
 
 const ROOT = 'fixtures/java-spring-jpa/src/main/java';
@@ -75,8 +99,8 @@ for (const diagnostic of result.diagnostics)
 
 interface Row { id: string; label: Label; fired: boolean; unknownReported: boolean; verdict: 'TP' | 'FP' | 'FN' | 'correct-negative' | 'unknown-clean' | 'unknown-leak' | 'unknown-invisible' }
 const rows: Row[] = CASES.map(c => {
-  const fired = (findingsByFile.get(`demo/${c.rule === 'TX_SELF_INVOCATION' ? 'tx' : c.rule === 'JPA_CALL_IN_LOOP' ? 'loop' : 'web'}/${c.file}`) ?? []).includes(c.rule);
-  const casePath = `demo/${c.rule === 'TX_SELF_INVOCATION' ? 'tx' : c.rule === 'JPA_CALL_IN_LOOP' ? 'loop' : 'web'}/${c.file}`;
+  const casePath = `demo/${c.directory}/${c.file}`;
+  const fired = (findingsByFile.get(casePath) ?? []).includes(c.rule);
   const unknownReported = (diagnosticsByFile.get(casePath) ?? []).some(code => /UNKNOWN|UNRESOLVED/.test(code));
   let verdict: Row['verdict'];
   if (c.label === 'positive') verdict = fired ? 'TP' : 'FN';
@@ -85,7 +109,7 @@ const rows: Row[] = CASES.map(c => {
   return { id: c.id, label: c.label, fired, unknownReported, verdict };
 });
 
-const RULES: RuleId[] = ['TX_SELF_INVOCATION', 'JPA_CALL_IN_LOOP', 'WEB_ENTITY_RELATION'];
+const RULES: RuleId[] = ['TX_SELF_INVOCATION', 'JPA_CALL_IN_LOOP', 'WEB_ENTITY_RELATION', 'SPRING_BEAN_CANDIDATE', 'TRANSACTION_BOUNDARY', 'JPA_PERSISTENCE_CONTEXT'];
 const lines: string[] = [];
 lines.push('# Rule eval — frozen oracle v1 (evals/java/oracle.md)');
 lines.push('');
