@@ -102,7 +102,7 @@ hook 走 CLI 同一 Engine（`scan --base HEAD`），report-only 模式下永远
 
 ## 开发
 
-本项目按 Loop Engineering 协议开发：状态与证据在 `docs/state/`，入口见 [AGENTS.md](AGENTS.md) 与 [docs/START_HERE.md](docs/START_HERE.md)。
+里程碑见 [development-milestones.md](development-milestones.md)。
 
 ```bash
 npm run verify    # check + test + build

@@ -66,4 +66,4 @@ CST 分析不做类型解析。同名同参数个数重载、Lambda/方法引用
 
 ## 反馈与开发接力
 
-开发状态、证据与下一步见 [docs/START_HERE.md](START_HERE.md) 固定入口；本文件描述"应当怎样"，以仓库与可复现命令为准。
+开发状态、证据与下一步见 [development-milestones.md](../development-milestones.md)；本文件描述"应当怎样"，以仓库与可复现命令为准。
