@@ -12,6 +12,12 @@ export const digest = (input:string|Buffer):string=>createHash('sha256').update(
 const within = (root:string,file:string)=>file===root || file.startsWith(root+path.sep);
 const withinPosix = (root:string,file:string)=>file===root || file.startsWith(root+'/');
 const hidden = new Set(['.git','node_modules','target','build','dist','.idea','.gradle','.xray','vendor']);
+/** Test-file shape excluded by default (A3): test/tests directories, `*Test(s).java`, `*IT.java`. */
+const isTestPath = (rel:string):boolean=>{
+  const segments=rel.split('/');
+  if(segments.some(segment=>segment==='test'||segment==='tests'))return true;
+  return /^.+?(Test|Tests|IT)\.java$/.test(segments[segments.length-1]??'');
+};
 const secretPath = /(^|\/)(?:\.env(?:\..*)?|credentials[^/]*|secrets?[^/]*|[^/]*\.(?:pem|key|p12|pfx|keystore))$/i;
 export const hasSecret = (text:string)=> /-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----|\b(?:AKIA[0-9A-Z]{16}|ghp_[A-Za-z0-9]{20,}|sk-[A-Za-z0-9_-]{24,})\b|(?:password|api[_-]?key|secret|token)\s*[:=]\s*["'][^"'\n]{8,}["']/i.test(text);
 function safeEnv():NodeJS.ProcessEnv {
@@ -107,6 +113,7 @@ export async function snapshotWorkspace(request:AnalyzeRequest):Promise<Workspac
       if(rules.ignores(rel+(entry.isDirectory()?'/':''))||exclusions.ignores(rel+(entry.isDirectory()?'/':''))){if(entry.name.endsWith('.java'))reasons.push({path:rel,code:'EXCLUDED',message:'按忽略规则排除。'});continue;}
       if(entry.isDirectory()){await walk(rel,rules);continue;}
       if(!entry.name.endsWith('.java'))continue;
+      if(!request.includeTests && isTestPath(rel)){reasons.push({path:rel,code:'EXCLUDED',message:'测试文件默认排除；用 --include-tests 显式包含。'});continue;}
       if(selected && !selected.some(target=>rel===target||withinPosix(target,rel)))continue;
       discovered++;
       if(!entry.isFile()){reasons.push({path:rel,code:'SPECIAL_FILE',message:'跳过非常规文件。'});continue;}
@@ -139,6 +146,7 @@ export async function snapshotBaseline(current:WorkspaceSnapshot,base:string):Pr
     if(prefix&&!name.startsWith(prefix+'/'))continue;
     const rel=prefix?name.slice(prefix.length+1):name;
     if(!rel.endsWith('.java')||rel.split('/').some(p=>hidden.has(p)||p==='..'))continue;
+    if(!current.request.includeTests && isTestPath(rel)){reasons.push({path:rel,code:'BASE_EXCLUDED',message:'测试文件默认排除；用 --include-tests 显式包含。'});continue;}
     if(secretPath.test(rel)||excluded.ignores(rel)){reasons.push({path:rel,code:'BASE_EXCLUDED',message:'基线文件按敏感文件名或排除策略跳过。'});continue;}
     if(files.length>=(current.request.maxFiles??1000)){reasons.push({path:rel,code:'FILE_LIMIT',message:'基线文件数量超过上限。'});break;}
     try{

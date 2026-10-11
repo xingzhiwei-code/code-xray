@@ -30,13 +30,16 @@ xray doctor                # 环境与本地数据状态
 
 无参数、无 API key、断网状态下以上离线功能全部可用。
 
-## 三条规则（v0.1）
+## 六条规则
 
 | 规则 | 触发形态 | 输出语义 |
 |---|---|---|
 | TX_SELF_INVOCATION | 同类内部调用本类 @Transactional 方法 | 代理边界检查点——不宣称事务必然失效 |
 | JPA_CALL_IN_LOOP | 循环体内调用 Spring Data Repository 方法 | 查询放大形态——不宣称已确认 N+1 |
 | WEB_ENTITY_RELATION | Web 端点声明返回带关系的 JPA 实体 | 序列化边界检查点——不宣称信息泄露 |
+| SPRING_BEAN_CANDIDATE | Spring Bean 候选类型存在注入到其他 Bean 的关系 | Bean 代理边界检查点——不宣称运行时绑定 |
+| TRANSACTION_BOUNDARY | 方法标有 @Transactional 的事务入口 | 事务边界检查点——不宣称事务行为已确定 |
+| JPA_PERSISTENCE_CONTEXT | 方法返回带关系的 JPA 实体 | 持久化上下文边界检查点——不宣称已发生额外 SQL/泄露 |
 
 每条 finding 都带：可回源证据（path:line 与快照 digest 绑定）、成立前提（assumptions）、未知项（uncertainties）、下一步检查建议。**零发现不等于安全**；unknown 一律显式报告，不计入正确率。
 

@@ -60,7 +60,7 @@ export class LocalStore {
       const parent = dirname(path);
       if (parent.length > root.length) await this.ensureDir(parent, root);
     }
-    try { await mkdir(path, { mode: 0o700 }); }
+    try { await mkdir(path, { mode: 0o700, recursive: true }); }
     catch (creationError) { if ((creationError as NodeJS.ErrnoException).code !== 'EEXIST') throw creationError; }
     const info = await lstat(path);
     if (!info.isDirectory() || info.isSymbolicLink()) throw new LocalStoreError('STORAGE_BOUNDARY', '数据目录边界无效。');

@@ -43,6 +43,8 @@ export interface AnalysisReport {
 }
 export interface AnalyzeRequest {
   path: string; base?: string; includeUntracked?: boolean; exclude?: string[];
+  /** Opt back into test files; the engine excludes test paths (test/tests dirs, `*Test(s).java`, `*IT.java`) by default (A3). */
+  includeTests?: boolean;
   maxFiles?: number; maxFileBytes?: number; signal?: AbortSignal;
   scope?: AnalyzeScope;
   /** Internal observation hook: receives the baseline snapshot when a git base is resolved. Not part of the wire schema. */

@@ -6,9 +6,8 @@ Code X-Ray 是本地优先的 Java 代码理解工具：一个 Engine 服务多�
 
 ```text
 apps/（Surface，只做适配与呈现）
-  cli         CLI 入口（cliff 驱动的命令 + 终端 presenter）
-  agent       MCP server（本地 stdio，零网络）
-  vscode      VS Code 扩展
+  cli         CLI 入口（cliff 驱动的命令 + 终端 presenter，薄壳 frozen）
+  agent       MCP server（本地 stdio，零网络，主 surface）
         │ 通过 protocol + engine facade 调用
 packages/engine            facade：analyze / analyzeWithBaseline / capabilities、规则调度、报告装配
         │ 通过各自 ports 调用
@@ -24,15 +23,18 @@ packages/
   explanation-providers    可选 LLM 增强（默认禁用）
 ```
 
-强制依赖方向：Surface → facade / Protocol；Engine → 自研 ports；infrastructure 实现 ports。Engine 与 Protocol 不得 import cliff、VS Code API 或 provider SDK。
+强制依赖方向：Surface → facade / Protocol；Engine → 自研 ports；infrastructure 实现 ports。Engine 与 Protocol 不得 import cliff、任何 IDE SDK 或 provider SDK。
 
-## 2. 三条规则
+## 2. 六条规则
 
 | 规则 | 触发形态 | 输出语义 |
 |---|---|---|
 | TX_SELF_INVOCATION | 同类内部调用本类 @Transactional 方法 | 代理边界检查点——不宣称事务必然失效 |
 | JPA_CALL_IN_LOOP | 循环体内调用 Spring Data Repository 方法 | 查询放大形态——不宣称已确认 N+1 |
 | WEB_ENTITY_RELATION | Web 端点声明返回带关系的 JPA 实体 | 序列化边界检查点——不宣称信息泄露 |
+| SPRING_BEAN_CANDIDATE | Spring Bean 候选类型存在注入到其他 Bean 的关系 | Bean 代理边界检查点——不宣称运行时绑定 |
+| TRANSACTION_BOUNDARY | 方法标有 @Transactional 的事务入口 | 事务边界检查点——不宣称事务行为已确定 |
+| JPA_PERSISTENCE_CONTEXT | 方法返回带关系的 JPA 实体 | 持久化上下文边界检查点——不宣称已发生额外 SQL/泄露 |
 
 每条 finding 带可回源证据（path:line + 快照 digest）、成立前提、未知项与下一步检查建议。
 
@@ -66,3 +68,9 @@ packages/
 - diff 需要显式 `--base`；非 Git 目录 scan 可用、diff 不可用。
 - 静态分析不宣称已证明完整运行行为；`complete` 只表示在声明输入与支持范围内完成分析。
 - 完整能力矩阵见 `xray scan --format json` 的 provenance/limitations 与引擎 capabilities 导出；支持说明见 [docs/SUPPORT.md](SUPPORT.md)。
+
+## 6. Surface 策略（v0.5 起）
+
+- **MCP agent 为主 surface**：`apps/agent` 是持续投入方向——AI Coding Agent 每轮修改后经 `xray_*` 工具获得可追溯审查。领域逻辑（分析/规则/学习/债务/relevance）全部留在 Engine，agent 只做协议适配与呈现。
+- **CLI 为薄壳（frozen）**：`apps/cli` 保留为调试/演示/CI 入口；不再新增命令、不做交互优化。它复用同一 Engine 与版本化协议，仅承担命令注册、参数解析与终端呈现。
+- **VSCode / IDEA 插件已移除，不再维护**：`apps/vscode` 与相关构建脚本已删除；`apps/` 下仅保留 `cli` 与 `agent` 两个 Surface。

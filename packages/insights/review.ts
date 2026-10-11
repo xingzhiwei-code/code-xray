@@ -4,7 +4,7 @@
  * Domain service shared by every Surface: turns the fact layer
  * (AnalysisReport + diff + learning states + debt summaries) into a
  * ReviewRecord 0.2 through the Insight Aggregator. Surfaces (MCP bridge
- * today; CLI/VSCode later) only adapt protocol and policy — aggregation and
+ * today; CLI later) only adapt protocol and policy — aggregation and
  * gate rules live here, never in an adapter (plan §21-4).
  *
  * Honesty invariants: the gate never passes on partial/unknown/failed;

@@ -88,3 +88,18 @@ export const CODE_EXTENSIONS = new Set([...FRONTEND_CODE_EXTENSIONS, 'java', 'kt
 
 /** Extensions the current engine can deeply analyze (v1: Java only). */
 export const ANALYZABLE_EXTENSIONS = new Set(['java']);
+
+/**
+ * Business-domain risk terms that ALSO name ordinary UI elements. In a purely
+ * UI/copy/style task ("修改登录页面的按钮文案") a hit on these is about the
+ * UI element, not the backend mechanism, so it is downgraded (A5). Only these
+ * labels are downgradable — everything else stays a hard risk signal.
+ */
+export const UI_CONTEXT_DOWNGRADABLE_TERMS = new Set(['auth/认证鉴权', 'payment/支付', 'refund/退款结算']);
+
+/**
+ * Backend signals in the task text itself: when present, the UI-context
+ * downgrade is disabled even if the task also looks routine ("新增支付接口"
+ * stays FULL/LIGHT). Kept narrow and deterministic — no LLM.
+ */
+export const BACKEND_TASK_SIGNAL = /接口|api\b|后端|backend|service\b|controller\b|repository\b|dao\b|数据库|database\b|查询|query\b|事务|transaction\b|sql\b|schema\b|表结构|逻辑|实现|方法|函数|function\b|method\b|spring\b|jpa\b|hibernate\b/;

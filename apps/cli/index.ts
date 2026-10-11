@@ -3,11 +3,12 @@ import { promisify } from 'node:util';
 import { realpathSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
 import { dispatch } from './cliff-adapter.js';
+import * as cliffxCore from '@cliffx/core';
 import { analyze, ENGINE_VERSION, JAVA_RULES } from '../../packages/engine/index.js';
 import { SCHEMA_VERSION, XrayError, type AnalysisReport, type AnalyzeRequest } from '../../packages/protocol/index.js';
 import { LocalStore } from '../../packages/storage-local/index.js';
 import {
-  applyEvent, debtSummary, emptyLearningState, learningCard, LEARNING_CONTENT_VERSION, STATUS_LABELS, syncBindings,
+  applyEvent, debtSummary, emptyLearningState, getConceptContent, glossaryFor, learningCard, LEARNING_CONTENT_VERSION, STATUS_LABELS, syncBindings,
   learningStatusFor,
   type LearningBinding, type LearningState,
 } from '../../packages/learning/engine.js';
@@ -24,15 +25,18 @@ import type { RelevanceInput } from '../../packages/relevance/service.js';
 import { enhanceFinding, enhanceInputFrom, OUTBOUND_SCOPE, providerFromEnv } from '../../packages/explanation-providers/index.js';
 
 const exec = promisify(execFile);
+/** Marker injected by scripts/vendor-prebuild.mjs when the vendor cliff patches are applied (A2). */
+const CLIFF_PATCH_MARKER = 'checkUpdates-optin;errorMode-throw;loadConfig-off';
 
 interface ScanOptions {
   path: string; format: 'human' | 'json'; gitTrackedOnly: boolean;
   noSave: boolean; exclude: string[]; maxFiles?: number; maxFileBytes?: number; base?: string;
+  includeTests: boolean;
 }
 
 function usage(): string {
   return ['用法：xray scan [路径] [--format human|json] [--git-tracked-only] [--no-save]',
-    '           [--exclude <glob> ...] [--max-files <n>] [--max-file-bytes <n>] [--base <git-ref>]',
+    '           [--exclude <glob> ...] [--max-files <n>] [--max-file-bytes <n>] [--base <git-ref>] [--include-tests]',
     '       xray relevance [--task <描述>] [--files <a,b>] [--explain] [--stats]',
     '           确定性相关性门：SKIP/LIGHT/FULL（常规低风险任务不打扰；--explain 查看可解释信号）',
     '       xray explain [编号] [--enhance]   单条发现完整上下文（--enhance 需显式配置 LLM provider）',
@@ -50,7 +54,7 @@ const PROFILE_CONFIDENCE = ['low', 'medium', 'high'] as const;
 const PROFILE_EVIDENCE_KINDS: ProfileEvidenceKind[] = ['self-assessment', 'onboarding-answer', 'verified-learning', 'cli-update', 'project-scan'];
 
 function parseScanArgs(args: string[]): ScanOptions {
-  const options: ScanOptions = { path: '.', format: 'human', gitTrackedOnly: false, noSave: false, exclude: [] };
+  const options: ScanOptions = { path: '.', format: 'human', gitTrackedOnly: false, noSave: false, exclude: [], includeTests: false };
   const positional: string[] = [];
   let literal = false;
   for (let i = 0; i < args.length; i++) {
@@ -59,6 +63,7 @@ function parseScanArgs(args: string[]): ScanOptions {
     if (arg.startsWith('--')) {
       const flag = arg.slice(2);
       if (flag === 'git-tracked-only') options.gitTrackedOnly = true;
+      else if (flag === 'include-tests') options.includeTests = true;
       else if (flag === 'no-save') options.noSave = true;
       else if (flag === 'format') {
         const value = args[++i];
@@ -181,6 +186,7 @@ async function runScan(args: string[], signal?: AbortSignal): Promise<void> {
   const request: AnalyzeRequest = {
     path: options.path, includeUntracked: options.gitTrackedOnly ? false : undefined,
     exclude: options.exclude.length ? options.exclude : undefined,
+    includeTests: options.includeTests ? true : undefined,
     maxFiles: options.maxFiles, maxFileBytes: options.maxFileBytes, signal, base: options.base,
   };
   const report = await analyze(request, (parsed, total) => {
@@ -222,7 +228,8 @@ async function runDoctor(): Promise<void> {
   let git = '不可用（diff 功能将受限，scan 不受影响）';
   try { git = (await exec('git', ['--version'])).stdout.trim(); } catch { /* keep default */ }
   lines.push(`  Git：${git}`);
-  lines.push(`  CLI 框架：cliff vendored 0.0.1（vendor/cliffx-core，含嵌入补丁）`);
+  const patchVerified = (cliffxCore as Record<string, unknown>).XRAY_CLIFF_PATCHES === CLIFF_PATCH_MARKER;
+  lines.push(`  CLI 框架：cliff vendored 0.0.1（vendor/cliffx-core，${patchVerified ? '含嵌入补丁（已验证）' : '未验证'}）`);
   lines.push(`  协议 schema：${SCHEMA_VERSION} · Engine：${ENGINE_VERSION}`);
   lines.push(`  规则（${JAVA_RULES.length}）：${JAVA_RULES.join('、')}`);
   try {
@@ -279,9 +286,27 @@ async function runExplain(args: string[]): Promise<void> {
   for (const assumption of finding.assumptions) lines.push(...wrapLine(`  - ${assumption}`, width));
   lines.push('未知/未解析：');
   for (const uncertainty of finding.uncertainties) lines.push(...wrapLine(`  - ${uncertainty}`, width));
+  // 领域术语首次出现附一句人话解释（A6），与概念定义一致；同一术语只解释一次。
+  const explainedTerms = new Set<string>();
+  const pushGlossary = (text: string) => {
+    for (const { term, note } of glossaryFor(text)) {
+      if (explainedTerms.has(term)) continue;
+      explainedTerms.add(term);
+      lines.push(...wrapLine(`  （术语「${term}」：${note}）`, width));
+    }
+  };
+  pushGlossary(finding.uncertainties.join(' '));
   lines.push('');
   lines.push(...wrapLine(`下一步检查：${finding.nextCheck}`, width));
+  pushGlossary(finding.nextCheck);
   lines.push(...wrapLine(`知识缺口标记：${finding.conceptId}`, width));
+  // learn 联动（A6）：按当前学习绑定给出可操作的编号。
+  const state = await store.readState('.', emptyLearningState());
+  const bindingIndex = sortedBindings(state).findIndex(binding => binding.conceptId === finding.conceptId);
+  const conceptTitle = getConceptContent(finding.conceptId)?.title ?? finding.conceptId;
+  lines.push(bindingIndex >= 0
+    ? `不懂${conceptTitle}？运行 xray learn ${bindingIndex + 1} 生成学习卡。`
+    : `不懂${conceptTitle}？运行 xray learn 查看学习卡列表。`);
   process.stdout.write(lines.join('\n') + '\n');
   if (wantsEnhancement) {
     // Explicit opt-in only; any failure keeps the deterministic output untouched.
@@ -641,6 +666,16 @@ export async function main(argv: string[]): Promise<number> {
   const onInterrupt = () => controller.abort();
   process.on('SIGINT', onInterrupt);
   try {
+    // Root-level help/version are owned by the CLI (A7): cliff never sees them
+    // and the earlier `Unknown command: --help` path is gone.
+    if (argv[0] === '--help' || argv[0] === '-h' || argv[0] === 'help') {
+      process.stdout.write(usage() + '\n');
+      return 0;
+    }
+    if (argv[0] === '--version' || argv[0] === '-v' || argv[0] === 'version') {
+      process.stdout.write(`${ENGINE_VERSION}\n`);
+      return 0;
+    }
     // cliff sees no version (update checks stay off) and no implicit config/env.
     await dispatch(buildCommands(controller.signal), argv.length ? argv : ['scan', '.']);
     return 0;

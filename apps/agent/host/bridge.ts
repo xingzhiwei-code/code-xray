@@ -87,7 +87,7 @@ export async function runScan(input: ScanInput): Promise<ScanResult> {
   }
   const local = store();
   await local.saveReport(path, report.analysisId, report);
-  // Learning bindings follow the saved report, same lifecycle as CLI/VS Code Surfaces.
+  // Learning bindings follow the saved report, same lifecycle as the CLI Surface.
   await local.updateState(path, emptyLearningState(), state => syncBindings(state, report).state);
   // Passive context growth + false-skip fact signal (T303 Phase 4/7). Both are
   // local-only bookkeeping; failures must never break the scan itself.

@@ -316,6 +316,30 @@ export function getConceptContent(conceptId: string): ConceptContent | null {
 }
 
 /**
+ * Deterministic domain glossary (A6): one-line plain-language explanations for
+ * domain terms that surface in findings' next-check / uncertainty text. Kept
+ * consistent with the per-concept CARDS so `explain` never invents terminology.
+ */
+export const GLOSSARY: Record<string, string> = {
+  LazyInitializationException: '延迟加载的关系在持久化上下文关闭后才被访问时抛出的异常。',
+  持久化上下文: 'JPA 维护实体生命周期与一级缓存的内存空间，决定关系字段何时加载。',
+  'N+1': '先查出 N 条主记录、再对每条各发一次查询的查询放大问题。',
+  DTO: '数据传输对象，用来把对外 API 与数据库实体解耦。',
+  事务边界: '事务开始、提交与回滚的作用范围，由代理在方法入口控制。',
+  序列化: '把 Java 对象转成 JSON 等传输格式的过程。',
+};
+
+/** Terms from `text` (first-appearance order), each with its plain-language note. */
+export function glossaryFor(text: string): { term: string; note: string }[] {
+  const hits: { term: string; note: string; index: number }[] = [];
+  for (const [term, note] of Object.entries(GLOSSARY)) {
+    const index = text.indexOf(term);
+    if (index >= 0) hits.push({ term, note, index });
+  }
+  return hits.sort((a, b) => a.index - b.index).map(({ term, note }) => ({ term, note }));
+}
+
+/**
  * Cognitive debt v2 (Review Insight Layer plan §14): a personal, transparent
  * heuristic aggregated per CONCEPT. Factors, weights, exposure constants and
  * every exclusion are visible; unknown and unassessed are counted, never

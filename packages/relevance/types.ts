@@ -79,6 +79,8 @@ export interface RelevanceSignals {
   staleActiveBindings: number;
   matchedPreferences: { scope: string; preference: string }[];
   recentCorrectionKeys: string[];
+  /** Risk-term labels downgraded because the task is purely UI/copy/style with no backend signal (A5). */
+  uiContextDowngrades: string[];
 }
 
 export interface RelevanceDecision {

@@ -1,7 +1,7 @@
 /**
  * Human-friendly review presentation (Review Insight Layer v0.2, plan §12/§15).
  *
- * ONE deterministic renderer shared by every Surface (MCP today; CLI/VSCode
+ * ONE deterministic renderer shared by every Surface (MCP today; CLI
  * can import it directly) so no adapter re-invents insight wording. This is
  * a pure function of the stored record — no clock, no randomness, no new
  * facts: presentation NEVER becomes a source of truth (§21-12). Everything

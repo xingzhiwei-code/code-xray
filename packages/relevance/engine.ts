@@ -21,10 +21,10 @@ import {
   familiarityOf, hasRecentCorrection, technologiesForPaths, technologiesForNames,
 } from '../developer-profile/engine.js';
 import {
-  ANALYZABLE_EXTENSIONS, ARCHITECTURE_TASK, CODE_EXTENSIONS, CRITICAL_RISK_TERMS,
+  ANALYZABLE_EXTENSIONS, ARCHITECTURE_TASK, BACKEND_TASK_SIGNAL, CODE_EXTENSIONS, CRITICAL_RISK_TERMS,
   LARGE_CHANGE_FILES, MIGRATION_PATH, MODERATE_RISK_TERMS, NEW_LIBRARY_TASK, RELEVANCE_RULES_VERSION,
   ROUTINE_ASSET_EXTENSIONS, ROUTINE_TYPE_TASK, ROUTINE_UI_TASK, SHARED_CORE_SEGMENTS, SKIP_MIN_OBSERVATIONS,
-  SMALL_CHANGE_FILES, TARGET_PATH_LIMIT, type RiskTermRule,
+  SMALL_CHANGE_FILES, TARGET_PATH_LIMIT, UI_CONTEXT_DOWNGRADABLE_TERMS, type RiskTermRule,
 } from './rules.js';
 import type {
   AnalysisTarget, FamiliaritySignal, RelevanceDecision, RelevanceEnvironment, RelevanceInput,
@@ -72,11 +72,11 @@ function classify(input: RelevanceInput, env: RelevanceEnvironment): RelevanceSi
   const files = [...new Set(input.changedFiles ?? [])];
   const lowerTask = task.toLowerCase();
 
-  const criticalHits: RiskHit[] = [
+  let criticalHits: RiskHit[] = [
     ...scanTerms(task, CRITICAL_RISK_TERMS, 'task', ''),
     ...files.flatMap(path => scanTerms(path, CRITICAL_RISK_TERMS, 'path', path)),
   ];
-  const moderateHits: RiskHit[] = [
+  let moderateHits: RiskHit[] = [
     ...scanTerms(task, MODERATE_RISK_TERMS, 'task', ''),
     ...files.flatMap(path => scanTerms(path, MODERATE_RISK_TERMS, 'path', path)),
   ];
@@ -135,10 +135,24 @@ function classify(input: RelevanceInput, env: RelevanceEnvironment): RelevanceSi
       .sort((a, b) => a.localeCompare(b, 'en'))
     : [];
 
+  // A5: a purely UI/copy/style task with no backend signal downgrades business
+  // domain terms (auth/payment/refund) that merely name a UI element. Only
+  // task-text hits are downgraded — path hits and every other term stay hard.
+  const routineUiTask = ROUTINE_UI_TASK.test(lowerTask);
+  const uiContextDowngrade = routineUiTask && !BACKEND_TASK_SIGNAL.test(lowerTask)
+    && !javaTouched && !migrationTouched && !sharedCoreTouched;
+  const uiContextDowngrades: string[] = [];
+  if (uiContextDowngrade) {
+    const downgradable = (hit: RiskHit) => hit.where === 'task' && UI_CONTEXT_DOWNGRADABLE_TERMS.has(hit.label);
+    uiContextDowngrades.push(...[...criticalHits, ...moderateHits].filter(downgradable).map(hit => hit.label));
+    criticalHits = criticalHits.filter(hit => !downgradable(hit));
+    moderateHits = moderateHits.filter(hit => !downgradable(hit));
+  }
+
   return {
     criticalHits: dedupe(criticalHits),
     moderateHits: dedupe(moderateHits),
-    routineUiTask: ROUTINE_UI_TASK.test(lowerTask),
+    routineUiTask,
     routineTypeTask: ROUTINE_TYPE_TASK.test(lowerTask),
     newLibraryTask: NEW_LIBRARY_TASK.test(lowerTask),
     architectureTask: ARCHITECTURE_TASK.test(lowerTask),
@@ -154,6 +168,7 @@ function classify(input: RelevanceInput, env: RelevanceEnvironment): RelevanceSi
     staleActiveBindings,
     matchedPreferences,
     recentCorrectionKeys,
+    uiContextDowngrades,
   };
 }
 
